@@ -41,13 +41,13 @@ app.add_middleware(
 from app.admin import create_admin
 create_admin(app)
 
-# API роутеры
-app.include_router(auth.router)
-app.include_router(activities.router)
-app.include_router(goals.router)
-app.include_router(training.router)
-app.include_router(chat.router)
-app.include_router(ai_insights.router)
+# API роутеры — все под /api чтобы не конфликтовать с SPA-маршрутами
+app.include_router(auth.router,        prefix="/api")
+app.include_router(activities.router,  prefix="/api")
+app.include_router(goals.router,       prefix="/api")
+app.include_router(training.router,    prefix="/api")
+app.include_router(chat.router,        prefix="/api")
+app.include_router(ai_insights.router, prefix="/api")
 
 
 @app.get("/health")
@@ -65,8 +65,7 @@ FRONTEND_DIR = _v2_dist if _v2_dist.exists() else _v1_dir
 # Пути, которые обрабатывает API (с обязательным / после префикса или точное совпадение)
 # SPA-маршруты типа /training, /goals и т.д. НЕ начинаются с этих паттернов
 API_PREFIXES = (
-    "/admin/", "/auth/", "/activities/", "/goals/", "/training/",
-    "/chat/", "/ai-insights/", "/health", "/docs", "/openapi.json",
+    "/api/", "/admin/", "/health", "/docs", "/openapi.json",
 )
 
 if FRONTEND_DIR.exists():

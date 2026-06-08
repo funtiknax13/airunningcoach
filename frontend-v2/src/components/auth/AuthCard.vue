@@ -198,6 +198,6 @@ async function resend() {
 }
 
 function loginWithGoogle() {
-  window.location.href = '/auth/google'
+  window.location.href = '/api/auth/google'
 }
 </script>
