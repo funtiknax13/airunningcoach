@@ -1684,23 +1684,50 @@ input, select, textarea { font-family: var(--font); }
 @media (max-width: 1024px) {
   .sidebar      { display: none; }
   .main-content { margin-left: 0; padding-bottom: calc(var(--nav-h) + env(safe-area-inset-bottom, 0px)); }
-  .bottom-nav   { display: flex; }           /* full width, fixed at bottom */
+  .bottom-nav   { display: flex; }
   .dash-grid    { grid-template-columns: 1fr; }
   .stat-grid    { grid-template-columns: repeat(2, 1fr); }
 }
 
 @media (max-width: 768px) {
-  .page-body     { padding: 16px; }
-  .hero          { grid-template-columns: 1fr; padding: 48px 20px 40px; gap: 32px; }
+  /* App shell */
+  .page-body     { padding: 12px; }
+  .page-header   { padding: 0 12px; }
+
+  /* Cards */
+  .card          { padding: 14px; }
+  .card-title    { flex-wrap: wrap; }
+
+  /* Landing */
+  .hero          { grid-template-columns: 1fr; padding: 40px 16px 32px; gap: 28px; }
   .hero-visual   { display: none; }
+  .hero-title    { font-size: clamp(1.6rem, 6vw, 2.6rem); }
+  .hero-ctas     { flex-direction: column; gap: 10px; }
+  .hero-ctas .btn { width: 100%; justify-content: center; }
+
   .features-grid { grid-template-columns: 1fr; }
-  .landing-nav   { padding: 0 20px; }
-  .features, .landing-cta { padding-left: 20px; padding-right: 20px; }
-  .cta-block     { padding: 36px 24px; }
-  .cta-block h2  { font-size: 1.5rem; }
+  .features, .landing-cta { padding-left: 16px; padding-right: 16px; }
+  .cta-block     { padding: 32px 16px; }
+  .cta-block h2  { font-size: 1.4rem; }
+
+  /* Landing nav — скрываем кнопку Login, оставляем только CTA */
+  .landing-nav        { padding: 0 16px; height: 56px; }
+  .landing-nav-logo span { font-size: 0.9rem; }
+  .landing-nav-actions { gap: 6px; }
+  .landing-nav-actions .btn-ghost:not(:last-child) { display: none; }
+  .landing-nav-actions .btn-primary { padding: 7px 14px; font-size: 0.8rem; }
 }
 
 @media (max-width: 480px) {
   .stat-grid     { grid-template-columns: repeat(2, 1fr); }
-  .auth-card     { padding: 28px 20px; }
+  .auth-card     { padding: 24px 16px; }
+
+  /* Bottom nav labels — уменьшить чтобы влезало */
+  .bottom-nav-item span { font-size: 0.6rem; }
+  .bottom-nav-item i    { font-size: 1rem; }
+
+  /* Landing nav — только иконка темы + CTA кнопка */
+  .landing-nav-logo img  { width: 28px; height: 28px; }
+  .landing-nav-actions .btn-ghost { display: none; }
+  .landing-nav-actions .btn-primary { padding: 7px 12px; font-size: 0.78rem; }
 }
