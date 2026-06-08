@@ -1,0 +1,54 @@
+services:
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB:       ${POSTGRES_DB:-runcoach}
+      POSTGRES_USER:     ${POSTGRES_USER:-runcoach}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    # Тюнинг под малое ОЗУ (700 МБ сервер)
+    command: >
+      postgres
+        -c shared_buffers=64MB
+        -c effective_cache_size=128MB
+        -c work_mem=4MB
+        -c maintenance_work_mem=32MB
+        -c max_connections=20
+        -c wal_buffers=8MB
+        -c checkpoint_completion_target=0.9
+        -c random_page_cost=1.1
+        -c log_min_duration_statement=1000
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-runcoach} -d ${POSTGRES_DB:-runcoach}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file: .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+    expose:
+      - "8000"
+
+  nginx:
+    image: nginx:alpine
+    restart: unless-stopped
+    ports:
+      - "${NGINX_PORT:-80}:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./frontend-v2-dist:/usr/share/nginx/html:ro
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:

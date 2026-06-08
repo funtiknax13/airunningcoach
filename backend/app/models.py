@@ -1,0 +1,173 @@
+# app/models.py
+from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, Text, Boolean, JSON
+from sqlalchemy.orm import relationship
+from sqlalchemy.sql import func
+from app.database import Base
+
+
+class User(Base):
+    __tablename__ = "users"
+
+    id = Column(Integer, primary_key=True, index=True)
+    email = Column(String(255), unique=True, index=True, nullable=False)
+    password_hash = Column(String(255), nullable=False)
+    name = Column(String(100), nullable=False)
+    age = Column(Integer)
+    weight = Column(Float)  # в кг
+    height = Column(Float)  # в см
+    is_verified = Column(Boolean, default=False, nullable=False)
+    is_admin = Column(Boolean, default=False, nullable=False)
+    verification_token = Column(String(64), nullable=True, index=True)
+    verification_token_expires = Column(DateTime(timezone=True), nullable=True)
+    reset_token = Column(String(64), nullable=True, index=True)
+    reset_token_expires = Column(DateTime(timezone=True), nullable=True)
+    google_id = Column(String(128), nullable=True, unique=True, index=True)
+    is_premium = Column(Boolean, default=False, nullable=False)
+    premium_until = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    def __str__(self):
+        return f"{self.name} ({self.email})"
+
+    activities = relationship("Activity", back_populates="user", cascade="all, delete-orphan")
+    goals = relationship("Goal", back_populates="user", cascade="all, delete-orphan")
+    training_plans = relationship("TrainingPlan", back_populates="user", cascade="all, delete-orphan")
+    chat_messages = relationship("ChatMessage", back_populates="user", cascade="all, delete-orphan")
+
+
+class Activity(Base):
+    __tablename__ = "activities"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    date = Column(DateTime, nullable=False)
+    distance_km = Column(Float, nullable=False)  # дистанция в км
+    duration_min = Column(Float, nullable=False)  # время в минутах
+    pace_min_per_km = Column(Float)  # темп (мин/км) - вычисляемое поле
+    avg_heart_rate = Column(Integer)            # средний пульс
+    max_heart_rate = Column(Integer)            # максимальный пульс
+    avg_cadence    = Column(Integer)            # средний каденс (шаг/мин)
+    calories       = Column(Integer)            # калории
+    elevation_gain = Column(Float)              # набор высоты (метры)
+    notes          = Column(Text)               # заметки
+    source         = Column(String(50), default="manual")  # manual, gpx, fit, strava
+    # Детальные данные (хранятся как JSON)
+    laps         = Column(JSON, nullable=True)  # [{num,dist_km,dur_min,pace,avg_hr,max_hr}]
+    splits       = Column(JSON, nullable=True)  # [{km,pace,avg_hr}]  – по километрам
+    track_points = Column(JSON, nullable=True)  # [{t,lat,lon,ele,hr,dist}]  – GPS-трек
+    created_at   = Column(DateTime(timezone=True), server_default=func.now())
+
+    user = relationship("User", back_populates="activities")
+
+    def __str__(self):
+        return f"{self.distance_km} км — {self.date.strftime('%d.%m.%Y') if self.date else ''}"
+
+
+class Goal(Base):
+    __tablename__ = "goals"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    goal_type = Column(String(50), nullable=False)  # half_marathon, full_marathon, 10k, 5k, custom
+    target_distance_km = Column(Float)  # целевая дистанция
+    target_time_min = Column(Float)  # целевое время в минутах
+    target_date = Column(DateTime)  # дата целевого события
+    description = Column(Text)
+    is_active   = Column(Boolean, default=True)
+    is_achieved = Column(Boolean, default=False, nullable=False)
+    is_abandoned = Column(Boolean, default=False, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    user = relationship("User", back_populates="goals")
+
+    def __str__(self):
+        labels = {'half_marathon': 'Полумарафон', 'full_marathon': 'Марафон',
+                  '10k': '10 км', '5k': '5 км', 'custom': 'Своя цель'}
+        return labels.get(self.goal_type, self.goal_type)
+
+
+class TrainingPlan(Base):
+    __tablename__ = "training_plans"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    week_start_date = Column(DateTime, nullable=False)
+    week_end_date = Column(DateTime, nullable=False)
+    goal_type = Column(String(50))  # для какой цели создан план
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    user = relationship("User", back_populates="training_plans")
+    workouts = relationship("Workout", back_populates="training_plan", cascade="all, delete-orphan")
+
+    def __str__(self):
+        start = self.week_start_date.strftime('%d.%m.%Y') if self.week_start_date else '?'
+        return f"План с {start}"
+
+
+class Workout(Base):
+    __tablename__ = "workouts"
+
+    id = Column(Integer, primary_key=True, index=True)
+    training_plan_id = Column(Integer, ForeignKey("training_plans.id"), nullable=False)
+    day_of_week = Column(Integer, nullable=False)  # 0-6 (пн-вс)
+    workout_type = Column(String(50), nullable=False)  # easy, tempo, interval, long, recovery, rest
+    description = Column(Text, nullable=False)
+    distance_km = Column(Float)  # рекомендуемая дистанция
+    target_pace_min_km = Column(Float)  # целевой темп
+    duration_min = Column(Float)  # рекомендуемая длительность
+    planned_date      = Column(DateTime, nullable=True)       # конкретная дата тренировки
+    completed         = Column(Boolean, default=False)
+    completion_status = Column(String(20), default="none")  # none | completed | approximate
+    notes_after = Column(Text)  # заметки после выполнения
+
+    training_plan = relationship("TrainingPlan", back_populates="workouts")
+
+    DAYS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс']
+    def __str__(self):
+        day = self.DAYS[self.day_of_week] if self.day_of_week is not None else '?'
+        return f"{day} — {self.workout_type}"
+
+
+class ApiUsage(Base):
+    """Журнал AI-вызовов для rate limiting."""
+    __tablename__ = "api_usage"
+
+    id         = Column(Integer, primary_key=True, index=True)
+    user_id    = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    action     = Column(String(20), nullable=False)   # 'chat' | 'plan'
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+
+class InsightsCache(Base):
+    """Кеш AI-инсайтов — один ряд на пользователя, TTL 2 часа."""
+    __tablename__ = "insights_cache"
+
+    id         = Column(Integer, primary_key=True, index=True)
+    user_id    = Column(Integer, ForeignKey("users.id"), unique=True, nullable=False, index=True)
+    payload    = Column(Text, nullable=False)   # JSON-строка с полным ответом дашборда
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    user = relationship("User")
+
+    def __str__(self):
+        return f"InsightsCache user_id={self.user_id}"
+
+
+class ChatMessage(Base):
+    __tablename__ = "chat_messages"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    role = Column(String(20), nullable=False)  # user, ai, system
+    content = Column(Text, nullable=False)
+    context_type = Column(String(50))  # training, nutrition, injury, general
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    user = relationship("User", back_populates="chat_messages")
+
+    def __str__(self):
+        preview = (self.content or '')[:40]
+        return f"[{self.role}] {preview}"

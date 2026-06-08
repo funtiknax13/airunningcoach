@@ -1,0 +1,37 @@
+﻿User-agent: *
+Allow: /
+Disallow: /dashboard
+Disallow: /activities
+Disallow: /training
+Disallow: /goals
+Disallow: /coach
+Disallow: /subscription
+Disallow: /admin/
+
+# AI search bots вЂ” allow citation and indexing
+User-agent: GPTBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: anthropic-ai
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+User-agent: Bingbot
+Allow: /
+
+# Training/scraping only bots вЂ” block
+User-agent: CCBot
+Disallow: /
+
+Sitemap: https://airunningcoach.pro/sitemap.xml

@@ -1,0 +1,9 @@
+.git/
+.venv/
+__pycache__/
+*.pyc
+frontend-v2/node_modules/
+frontend-v2/.vite/
+*.db
+*.sqlite
+.env
