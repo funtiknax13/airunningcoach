@@ -10,13 +10,11 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
-      '/auth':        'http://localhost:8000',
-      '/activities':  'http://localhost:8000',
-      '/goals':       'http://localhost:8000',
-      '/training':    'http://localhost:8000',
-      '/chat':        'http://localhost:8000',
-      '/ai-insights': 'http://localhost:8000',
-      '/images':      'http://localhost:8000',
+      '/api':    'http://localhost:8000',
+      '/admin':  'http://localhost:8000',
+      '/health': 'http://localhost:8000',
+      '/docs':   'http://localhost:8000',
+      '/images': 'http://localhost:8000',
     },
   },
   build: {
