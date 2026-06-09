@@ -1,0 +1,31 @@
+services:
+
+  # Бэкенд — монтируем исходники, запускаем с --reload
+  backend:
+    volumes:
+      - ./backend:/app
+    command: >
+      sh -c "alembic upgrade head &&
+             uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload --no-access-log"
+    ports:
+      - "8000:8000"   # открываем порт наружу для прямого доступа/отладки
+
+  # Фронтенд — dev-сервер Vite с HMR
+  frontend:
+    image: node:20-alpine
+    working_dir: /app
+    volumes:
+      - ./frontend-v2:/app
+      - /app/node_modules          # анонимный volume — node_modules внутри контейнера
+    ports:
+      - "5173:5173"
+    environment:
+      - CHOKIDAR_USEPOLLING=true   # нужно на Windows для отслеживания изменений
+    command: sh -c "npm install && npm run dev -- --host"
+    depends_on:
+      - backend
+
+  # nginx в dev не нужен — фронт и так доступен на :5173
+  nginx:
+    profiles:
+      - prod                       # запускается только с --profile prod
