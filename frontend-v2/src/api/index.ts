@@ -6,6 +6,7 @@ import type {
   TrainingPlan, Workout,
   ChatMessage,
   DashboardInsights,
+  MonthlyStats,
   RateLimitStatus,
 } from './types'
 
@@ -36,15 +37,16 @@ export const authApi = {
     api.request<{ message: string }>('/api/auth/reset-password', 'POST',
       { token, new_password, confirm_password }),
 
-  resendVerification: (email: string) =>
+  resendVerification: (email: string, password?: string) =>
     api.request<{ message: string }>(
-      `/api/auth/resend-verification?email=${encodeURIComponent(email)}`, 'POST'),
+      `/api/auth/resend-verification`, 'POST', { email, password }),
 
   getLimits: () => api.request<RateLimitStatus>('/api/auth/me/limits'),
 }
 
 // ── Activities ────────────────────────────────────────────────────────────
 export const activitiesApi = {
+  stats:  () => api.request<MonthlyStats>('/api/activities/stats'),
   list:   ()                        => api.request<Activity[]>('/api/activities'),
   create: (d: ActivityCreate)       => api.request<Activity>('/api/activities', 'POST', d),
   update: (id: number, d: ActivityUpdate) => api.request<Activity>(`/api/activities/${id}`, 'PUT', d),

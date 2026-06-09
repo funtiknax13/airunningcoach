@@ -24,6 +24,7 @@ class User(Base):
     google_id = Column(String(128), nullable=True, unique=True, index=True)
     is_premium = Column(Boolean, default=False, nullable=False)
     premium_until = Column(DateTime(timezone=True), nullable=True)
+    trial_last_email_day = Column(Integer, nullable=True)  # последний день триала, когда отправлено письмо
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 

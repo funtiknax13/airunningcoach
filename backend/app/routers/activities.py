@@ -2,6 +2,7 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from sqlalchemy.orm import Session
 from typing import List
+from datetime import datetime, date
 
 from app.database import get_db
 from app.models import User, Activity, TrainingPlan, Workout
@@ -123,6 +124,24 @@ async def import_activity_file(
     except ValueError as e:
         raise HTTPException(status_code=422, detail=str(e))
 
+    # Проверка дублирования по времени старта (±1 минута)
+    start_time = data["date"]
+    from datetime import timedelta
+    duplicate = db.query(Activity).filter(
+        Activity.user_id == current_user.id,
+        Activity.date >= start_time - timedelta(minutes=1),
+        Activity.date <= start_time + timedelta(minutes=1),
+    ).first()
+    if duplicate:
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "code": "duplicate_activity",
+                "existing_id": duplicate.id,
+                "existing_date": duplicate.date.isoformat(),
+            }
+        )
+
     pace = data["duration_min"] / data["distance_km"] if data["distance_km"] > 0 else 0
     db_activity = Activity(
         user_id=current_user.id,
@@ -148,6 +167,48 @@ async def import_activity_file(
 
     invalidate_insights_cache(current_user.id, db)
     return db_activity
+
+
+@router.get("/stats")
+def get_monthly_stats(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Быстрая статистика за текущий месяц — чистый SQL, без LLM."""
+    today = date.today()
+    month_start = today.replace(day=1)
+
+    activities = db.query(Activity).filter(
+        Activity.user_id == current_user.id,
+        Activity.date >= datetime.combine(month_start, datetime.min.time()),
+    ).all()
+
+    total_distance = sum(a.distance_km  for a in activities)
+    total_time     = sum(a.duration_min for a in activities)
+    avg_pace       = total_time / total_distance if total_distance > 0 else 0
+
+    # Прошлый месяц для сравнения
+    if month_start.month == 1:
+        prev_start = month_start.replace(year=month_start.year - 1, month=12)
+    else:
+        prev_start = month_start.replace(month=month_start.month - 1)
+
+    prev_activities = db.query(Activity).filter(
+        Activity.user_id == current_user.id,
+        Activity.date >= datetime.combine(prev_start, datetime.min.time()),
+        Activity.date < datetime.combine(month_start, datetime.min.time()),
+    ).all()
+    prev_distance = sum(a.distance_km for a in prev_activities)
+
+    return {
+        "period": month_start.strftime("%B %Y"),
+        "total_distance_km":   round(total_distance, 1),
+        "total_time_min":      round(total_time),
+        "average_pace_min_km": round(avg_pace, 2),
+        "activities_count":    len(activities),
+        "prev_distance_km":    round(prev_distance, 1),
+        "distance_delta":      round(total_distance - prev_distance, 1),
+    }
 
 
 @router.get("", response_model=List[ActivityResponse])

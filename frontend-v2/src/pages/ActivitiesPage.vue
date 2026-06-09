@@ -1,14 +1,15 @@
 <template>
   <AppLayout>
-    <template #header-actions>
+    <!-- Кнопки действий — внутри страницы, не в хедере -->
+    <div class="activities-toolbar">
       <button class="btn btn-secondary btn-sm" @click="triggerFileInput" :disabled="importing">
-        <i class="fas fa-file-import"></i> {{ importing ? 'Импорт...' : 'Импорт GPX/FIT' }}
+        <i class="fas fa-file-import"></i> {{ importing ? $t('activities.importing') : $t('activities.importBtn') }}
       </button>
       <button class="btn btn-primary btn-sm" @click="modal?.open()">
         <i class="fas fa-plus"></i> {{ $t('activities.add') }}
       </button>
       <input ref="fileInput" type="file" accept=".gpx,.fit" style="display:none" @change="onFileSelected" />
-    </template>
+    </div>
 
     <div v-if="importError" class="alert alert-error" style="margin-bottom:12px">
       <i class="fas fa-triangle-exclamation"></i> {{ importError }}
@@ -105,6 +106,7 @@ import SkeletonLoader from '@/components/common/SkeletonLoader.vue'
 import { useActivitiesStore } from '@/stores/activities'
 import { useDialog } from '@/composables/useDialog'
 import { activitiesApi } from '@/api'
+import { ApiError } from '@/api/client'
 import ActivityDetailComponent from '@/components/activities/ActivityDetail.vue'
 
 const { t, locale } = useI18n()
@@ -137,7 +139,12 @@ async function onFileSelected(e: Event) {
     await activitiesApi.importFile(file)
     await store.load()
   } catch (err: any) {
-    importError.value = err.message || 'Ошибка импорта файла'
+    if (err instanceof ApiError && err.status === 409 &&
+        (err.detail as any)?.code === 'duplicate_activity') {
+      importError.value = t('activities.duplicate')
+    } else {
+      importError.value = err.message || t('activities.errDateDist')
+    }
   } finally {
     importing.value = false
     if (fileInput.value) fileInput.value.value = ''

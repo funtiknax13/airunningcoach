@@ -424,6 +424,10 @@ input, select, textarea { font-family: var(--font); }
   gap: 5px;
 }
 .stat-card-label i { color: var(--brand); }
+.stat-card--wide { grid-column: 1 / -1; padding: 10px 20px; flex-direction: row; align-items: center; background: var(--surface-2); }
+.stat-delta { font-size: 0.75rem; font-weight: 600; margin-top: 2px; }
+.delta-up   { color: #10b981; }
+.delta-down { color: var(--red); }
 .stat-card-value {
   font-size: 1.75rem;
   font-weight: 800;
@@ -855,25 +859,28 @@ input, select, textarea { font-family: var(--font); }
 .chat-msg.user { justify-content: flex-end; }
 .chat-msg.ai   { justify-content: flex-start; }
 
+/* Базовые стили пузыря — только для user */
 .chat-bubble {
-  max-width: 80%;
-  padding: 10px 14px;
-  border-radius: 16px;
   font-size: 0.875rem;
   line-height: 1.6;
-  /* Prevent long words/URLs from blowing out the chat column */
   word-break: break-word;
   overflow-wrap: anywhere;
 }
-.chat-msg.ai .chat-bubble {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-bottom-left-radius: 4px;
-}
+/* Пузырь только у пользователя */
 .chat-msg.user .chat-bubble {
+  max-width: 80%;
+  padding: 10px 14px;
+  border-radius: 16px 16px 4px 16px;
   background: var(--brand);
   color: white;
-  border-bottom-right-radius: 4px;
+}
+/* AI — без фона, на всю ширину */
+.chat-msg.ai .chat-bubble {
+  width: 100%;
+  padding: 4px 0;
+  background: none;
+  border: none;
+  color: var(--text);
 }
 
 .chat-bubble--md p            { margin: 0 0 6px; }
@@ -1147,6 +1154,10 @@ input, select, textarea { font-family: var(--font); }
 .auth-btn:hover:not(:disabled) { background: var(--brand-hover); box-shadow: 0 4px 14px var(--brand-glow); }
 .auth-btn:disabled { opacity: 0.5; }
 .auth-error { background:var(--red-dim); border:1px solid rgba(220,38,38,0.2); color:var(--red); border-radius:var(--r); padding:9px 12px; font-size:0.83rem; margin-top:8px; }
+.auth-success { background:#f0fdf4; border:1px solid #bbf7d0; color:#16a34a; border-radius:var(--r); padding:9px 12px; font-size:0.83rem; margin-bottom:8px; }
+.auth-btn-resend { width:100%; padding:10px; margin-top:8px; background:transparent; border:1.5px solid var(--brand); color:var(--brand); border-radius:var(--r); font-size:0.88rem; font-weight:600; cursor:pointer; }
+.auth-btn-resend:hover:not(:disabled) { background:var(--brand); color:#fff; }
+.auth-btn-resend:disabled { opacity:0.5; cursor:default; }
 .auth-switch { text-align:center; margin-top:14px; color:var(--text-3); font-size:0.85rem; }
 .auth-switch span { color:var(--brand); font-weight:600; cursor:pointer; }
 .auth-switch span:hover { text-decoration:underline; }
@@ -1680,6 +1691,62 @@ input, select, textarea { font-family: var(--font); }
   font-size: 0.8rem;
 }
 
+/* ── Burger button ───────────────────────────────────────────── */
+.burger-btn {
+  display: none;   /* скрыт на десктопе */
+  align-items: center;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text);
+  font-size: 1.1rem;
+  padding: 6px 8px;
+  border-radius: var(--r);
+  transition: background 0.15s;
+}
+.burger-btn:hover { background: var(--surface-2); }
+
+/* ── Mobile dropdown menu ────────────────────────────────────── */
+.mobile-menu {
+  display: none;   /* скрыт на десктопе */
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: rgba(0,0,0,0.3);
+}
+.mobile-menu-inner {
+  position: absolute;
+  top: 56px; right: 0;
+  width: min(280px, 90vw);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 0 0 0 var(--r-md);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+  overflow: hidden;
+}
+.mobile-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 13px 18px;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+  font-size: 0.9rem;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background 0.15s;
+}
+.mobile-menu-item:last-child { border-bottom: none; }
+.mobile-menu-item:hover { background: var(--surface-2); }
+.mobile-menu-item.logout { color: var(--red); }
+.mobile-menu-item i { width: 16px; text-align: center; color: var(--text-2); }
+.mobile-menu-item.logout i { color: var(--red); }
+.menu-drop-enter-active, .menu-drop-leave-active { transition: opacity 0.15s; }
+.menu-drop-enter-from, .menu-drop-leave-to { opacity: 0; }
+
 /* ── Responsive ──────────────────────────────────────────────── */
 @media (max-width: 1024px) {
   .sidebar      { display: none; }
@@ -1687,6 +1754,18 @@ input, select, textarea { font-family: var(--font); }
   .bottom-nav   { display: flex; }
   .dash-grid    { grid-template-columns: 1fr; }
   .stat-grid    { grid-template-columns: repeat(2, 1fr); }
+  /* Бутерброд — тот же breakpoint что и сайдбар */
+  .burger-btn   { display: flex; align-items: center; }
+  .mobile-menu  { display: block; }
+  .mobile-menu-inner { top: 56px; }
+}
+
+/* ── Activities toolbar ──────────────────────────────────────── */
+.activities-toolbar {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
 }
 
 @media (max-width: 768px) {
@@ -1709,6 +1788,18 @@ input, select, textarea { font-family: var(--font); }
   .features, .landing-cta { padding-left: 16px; padding-right: 16px; }
   .cta-block     { padding: 32px 16px; }
   .cta-block h2  { font-size: 1.4rem; }
+
+  /* Activity row — stats переносятся на вторую строку, меньше gap */
+  .activity-row         { flex-wrap: wrap; gap: 6px; }
+  .activity-row-stats   { gap: 10px; flex-wrap: wrap; }
+  .activity-stat-val    { font-size: 0.82rem; }
+  .activity-stat-lbl    { font-size: 0.65rem; }
+
+  /* Activities toolbar — на всю ширину */
+  .activities-toolbar .btn { flex: 1; justify-content: center; }
+
+  /* Chat — чуть меньше высота */
+  .chat-messages { height: clamp(260px, calc(100vh - 300px), 500px); }
 
   /* Landing nav — скрываем кнопку Login, оставляем только CTA */
   .landing-nav        { padding: 0 16px; height: 56px; }

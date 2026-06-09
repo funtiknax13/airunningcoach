@@ -112,7 +112,7 @@ async def send_verification_email(
 ) -> None:
     lang = lang if lang in _VERIFY_CONTENT else "ru"
     c = _VERIFY_CONTENT[lang]
-    verify_url = f"{settings.APP_BASE_URL}/auth/verify-email?token={token}"
+    verify_url = f"{settings.APP_BASE_URL}/api/auth/verify-email?token={token}"
     html = _build_email_html(
         heading=c["heading"].format(app_name=APP_NAME, name=name),
         body=c["body"],

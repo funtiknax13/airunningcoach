@@ -84,8 +84,11 @@ const text   = ref('')
 const boxRef = ref<HTMLElement | null>(null)
 
 onMounted(async () => {
-  await Promise.all([chatStore.load(), insightsStore.load()])
+  // Чат грузим сразу — он быстрый (просто история из БД)
+  await chatStore.load()
   scrollToBottom()
+  // Инсайты (LLM) — в фоне, не блокируем показ чата
+  insightsStore.load().catch(() => {})
 })
 
 function renderMd(content: string) { return marked.parse(content) as string }

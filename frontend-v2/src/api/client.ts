@@ -1,3 +1,14 @@
+export class ApiError extends Error {
+  status: number
+  detail: unknown
+  constructor(message: string, status: number, detail?: unknown) {
+    super(message)
+    this.name = 'ApiError'
+    this.status = status
+    this.detail = detail
+  }
+}
+
 const BASE = ''   // proxy в vite.config.ts перенаправляет на :8000
 
 function getToken(): string | null {
@@ -28,12 +39,6 @@ async function request<T>(
     body: body !== undefined ? JSON.stringify(body) : undefined,
   })
 
-  if (res.status === 401) {
-    setToken(null)
-    window.location.href = '/'
-    throw new Error('Unauthorized')
-  }
-
   if (res.status === 204) return undefined as T
 
   const data = await res.json()
@@ -44,7 +49,11 @@ async function request<T>(
       : Array.isArray(detail)
         ? detail.map((e: { msg: string }) => e.msg).join('; ')
         : (detail ?? 'Server error')
-    throw new Error(message)
+    if (res.status === 401 && !path.includes('/api/auth/')) {
+      setToken(null)
+      window.location.href = '/'
+    }
+    throw new ApiError(message, res.status, detail)
   }
   return data as T
 }
@@ -60,7 +69,6 @@ async function requestRaw<T>(
 
   const res = await fetch(`${BASE}${path}`, { method, headers, body })
 
-  if (res.status === 401) { setToken(null); window.location.href = '/'; throw new Error('Unauthorized') }
   if (res.status === 204) return undefined as T
 
   const data = await res.json()
@@ -68,8 +76,11 @@ async function requestRaw<T>(
     const detail = data?.detail
     const message = typeof detail === 'string' ? detail
       : Array.isArray(detail) ? detail.map((e: { msg: string }) => e.msg).join('; ')
-      : (detail?.message ?? 'Server error')
-    throw new Error(message)
+      : (detail?.message ?? JSON.stringify(detail) ?? 'Server error')
+    if (res.status === 401 && !path.includes('/api/auth/')) {
+      setToken(null); window.location.href = '/'
+    }
+    throw new ApiError(message, res.status, detail)
   }
   return data as T
 }

@@ -10,10 +10,14 @@
 
     <!-- Login -->
     <div v-if="screen === 'login'" class="auth-form active">
+      <div v-if="props.successMsg" class="auth-success">{{ props.successMsg }}</div>
       <div class="auth-form-title">{{ $t('auth.login.title') }}</div>
       <input type="email"    v-model="email"    class="auth-input" placeholder="Email" @keyup.enter="login">
       <input type="password" v-model="password" class="auth-input" :placeholder="$t('auth.pw')" @keyup.enter="login">
       <div v-if="error" class="auth-error">{{ error }}</div>
+      <button v-if="showResend" class="auth-btn-resend" @click="resendVerification" :disabled="loading">
+        {{ loading ? '...' : '📧 Отправить письмо повторно' }}
+      </button>
       <button class="auth-btn" @click="login" :disabled="loading">
         {{ loading ? '...' : $t('auth.login.btn') }}
       </button>
@@ -115,7 +119,7 @@ import { useTrainingStore } from '@/stores/training'
 import { useChatStore } from '@/stores/chat'
 import { useInsightsStore } from '@/stores/insights'
 
-const props = defineProps<{ initialScreen?: 'login'|'register'; canClose?: boolean }>()
+const props = defineProps<{ initialScreen?: 'login'|'register'; canClose?: boolean; successMsg?: string }>()
 defineEmits(['close'])
 
 const router     = useRouter()
@@ -132,6 +136,7 @@ const email   = ref('')
 const password = ref('')
 const loading = ref(false)
 const error   = ref('')
+const showResend = ref(false)  // показываем кнопку после 403
 const verifyText  = ref('')
 const resetToken  = ref('')
 const resetPw     = ref('')
@@ -152,9 +157,24 @@ async function afterLogin() {
 }
 
 async function login() {
-  loading.value = true; error.value = ''
+  loading.value = true; error.value = ''; showResend.value = false
   try { await auth.login(email.value, password.value); await afterLogin() }
-  catch (e: any) { error.value = e.message }
+  catch (e: any) {
+    error.value = e.message
+    // Показываем кнопку повторной отправки если email не подтверждён
+    if (e.message?.includes('не подтверждён')) showResend.value = true
+  }
+  finally { loading.value = false }
+}
+
+async function resendVerification() {
+  loading.value = true; error.value = ''
+  try {
+    await authApi.resendVerification(email.value, password.value)
+    error.value = ''
+    verifyText.value = `Письмо отправлено повторно на ${email.value}`
+    screen.value = 'verify'
+  } catch (e: any) { error.value = e.message }
   finally { loading.value = false }
 }
 

@@ -5,7 +5,9 @@ from datetime import datetime, timezone, timedelta
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from fastapi.responses import RedirectResponse
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
+from typing import Optional
 
 from app.database import get_db
 from app.dependencies import get_current_user
@@ -76,10 +78,18 @@ def verify_email(token: str, db: Session = Depends(get_db)):
     return RedirectResponse(url="/?verified=1", status_code=302)
 
 
+class ResendVerificationRequest(BaseModel):
+    email: str
+    password: Optional[str] = None
+
 @router.post("/resend-verification")
-async def resend_verification(email: str, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.email == email).first()
-    if not user:
+async def resend_verification(body: ResendVerificationRequest, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.email == body.email).first()
+    # Если пароль передан — проверяем (защита от отправки на чужой адрес)
+    if body.password:
+        if not user or not verify_password(body.password, user.password_hash):
+            raise HTTPException(status_code=401, detail="Неверный email или пароль")
+    elif not user:
         return {"message": "Если такой email зарегистрирован, письмо будет отправлено."}
     if user.is_verified:
         raise HTTPException(status_code=400, detail="Email уже подтверждён")

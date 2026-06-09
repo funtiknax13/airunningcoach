@@ -52,8 +52,10 @@ onMounted(async () => {
   auth.token.value = token
   try {
     await auth.loadMe()
-    await Promise.all([activities.load(), goals.load(), training.load(), chat.load(), insights.load()])
+    await Promise.all([activities.load(), goals.load(), training.load(), chat.load()])
     router.push('/dashboard')
+    // Инсайты (LLM) — в фоне, не блокируем редирект
+    insights.load().catch(() => {})
   } catch {
     error.value = 'Не удалось загрузить профиль. Попробуйте ещё раз.'
   }

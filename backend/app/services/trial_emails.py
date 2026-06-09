@@ -85,22 +85,35 @@ async def _run_trial_emails() -> None:
             lang = "ru"  # TODO: хранить lang в профиле пользователя
             left = _days_left(user)
 
+            # Не отправляем письмо, если для этого дня уже отправлено
+            if user.trial_last_email_day is not None and user.trial_last_email_day >= day:
+                continue
+
+            target_day = None
             try:
                 if day == 1:
                     await send_trial_day1_email(user.email, user.name, lang)
                     logger.info("Trial day1 email → %s", user.email)
+                    target_day = 1
 
                 elif day == 5:
                     await send_trial_day5_email(user.email, user.name, left, lang)
                     logger.info("Trial day5 email → %s", user.email)
+                    target_day = 5
 
                 elif day == 13:
                     await send_trial_day13_email(user.email, user.name, left, lang)
                     logger.info("Trial day13 email → %s", user.email)
+                    target_day = 13
 
                 elif day == 14:
                     await send_trial_expired_email(user.email, user.name, lang)
                     logger.info("Trial expired email → %s", user.email)
+                    target_day = 14
+
+                if target_day is not None:
+                    user.trial_last_email_day = target_day
+                    db.commit()
 
             except Exception as exc:
                 logger.error("Trial email failed for %s (day %d): %s", user.email, day, exc)

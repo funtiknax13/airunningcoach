@@ -211,3 +211,13 @@ export interface DashboardInsights {
   active_goal: { type: string; description: string } | null
   ai_insights: string[]
 }
+
+export interface MonthlyStats {
+  period: string
+  total_distance_km: number
+  total_time_min: number
+  average_pace_min_km: number
+  activities_count: number
+  prev_distance_km: number
+  distance_delta: number
+}

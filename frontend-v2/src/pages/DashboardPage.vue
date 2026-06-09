@@ -10,11 +10,21 @@
           <SkeletonLoader type="stat-grid" :count="4" />
         </div>
         <div v-else class="stat-grid">
+          <div class="stat-card stat-card--wide">
+            <div class="stat-card-label">
+              <i class="fas fa-calendar-alt"></i>
+              {{ stats?.period ?? t('stats.thisMonth') }}
+            </div>
+          </div>
           <div class="stat-card">
             <div class="stat-card-label"><i class="fas fa-road"></i> {{ $t('stats.km') }}</div>
             <div class="stat-card-value">
               {{ stats?.total_distance_km.toFixed(1) ?? '—' }}
               <span class="stat-card-unit">km</span>
+            </div>
+            <div v-if="stats && stats.distance_delta !== 0" class="stat-delta"
+                 :class="stats.distance_delta > 0 ? 'delta-up' : 'delta-down'">
+              {{ stats.distance_delta > 0 ? '↑' : '↓' }} {{ Math.abs(stats.distance_delta) }} km
             </div>
           </div>
           <div class="stat-card">
@@ -30,9 +40,7 @@
           </div>
           <div class="stat-card">
             <div class="stat-card-label"><i class="fas fa-clock"></i> {{ $t('stats.time') }}</div>
-            <div class="stat-card-value">
-              {{ formatTime(stats?.total_time_min) }}
-            </div>
+            <div class="stat-card-value">{{ formatTime(stats?.total_time_min) }}</div>
           </div>
         </div>
 
@@ -175,7 +183,8 @@ import { useActivitiesStore } from '@/stores/activities'
 import { useGoalsStore }      from '@/stores/goals'
 import { useInsightsStore }   from '@/stores/insights'
 import { useTrainingStore }   from '@/stores/training'
-import type { GoalType } from '@/api/types'
+import { activitiesApi }      from '@/api'
+import type { GoalType, MonthlyStats } from '@/api/types'
 
 const { t, locale } = useI18n()
 const activities = useActivitiesStore()
@@ -183,14 +192,23 @@ const goals      = useGoalsStore()
 const insights   = useInsightsStore()
 const training   = useTrainingStore()
 
-const pageLoading = ref(true)
+const pageLoading  = ref(true)
+const monthlyStats = ref<MonthlyStats | null>(null)
 
 onMounted(async () => {
-  await Promise.all([activities.load(), goals.load(), training.load(), insights.load()])
+  // Быстрые данные — ждём (activities, goals, training, месячная статистика)
+  await Promise.all([
+    activities.load(),
+    goals.load(),
+    training.load(),
+    activitiesApi.stats().then(s => { monthlyStats.value = s }).catch(() => {}),
+  ])
   pageLoading.value = false
+  // Инсайты (LLM) — грузим в фоне, не блокируем рендер
+  insights.load().catch(() => {})
 })
 
-const stats = computed(() => insights.data?.statistics)
+const stats = computed(() => monthlyStats.value)
 const recentActivities = computed(() => activities.all.slice(0, 4))
 const activeGoals = computed(() => goals.goals.filter(g => !g.is_achieved && !g.is_abandoned).slice(0, 3))
 

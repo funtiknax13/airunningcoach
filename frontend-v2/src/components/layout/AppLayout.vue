@@ -60,8 +60,39 @@
                   :title="theme === 'dark' ? t('header.light') : t('header.dark')">
             <i :class="theme === 'dark' ? 'fas fa-sun' : 'fas fa-moon'"></i>
           </button>
+          <!-- Бутерброд — только на мобиле -->
+          <button class="burger-btn" @click="menuOpen = !menuOpen">
+            <i class="fas" :class="menuOpen ? 'fa-xmark' : 'fa-bars'"></i>
+          </button>
         </div>
       </header>
+
+      <!-- Мобильное выпадающее меню -->
+      <Transition name="menu-drop">
+        <div v-if="menuOpen" class="mobile-menu" @click.self="menuOpen = false">
+          <div class="mobile-menu-inner">
+            <button class="mobile-menu-item" @click="profileModal?.open(); menuOpen = false">
+              <i class="fas fa-user-circle"></i> {{ auth.user?.name || t('header.profile') }}
+            </button>
+            <RouterLink to="/subscription" class="mobile-menu-item" @click="menuOpen = false"
+              :class="isPremium ? 'nav-item--premium' : 'nav-item--basic'">
+              <i class="fas" :class="isPremium ? 'fa-crown' : 'fa-circle-user'"></i>
+              {{ isPremium ? 'Premium' : 'Basic' }}
+              <span v-if="isPremium && daysLeft !== null" class="plan-days">{{ daysLeft }}д</span>
+            </RouterLink>
+            <button class="mobile-menu-item" @click="themeToggle; menuOpen = false">
+              <i :class="theme === 'dark' ? 'fas fa-sun' : 'fas fa-moon'"></i>
+              {{ theme === 'dark' ? t('header.light') : t('header.dark') }}
+            </button>
+            <button class="mobile-menu-item" @click="changeLang(); menuOpen = false">
+              <i class="fas fa-globe"></i> {{ nextLang }}
+            </button>
+            <button class="mobile-menu-item logout" @click="auth.logout(); router.push('/'); menuOpen = false">
+              <i class="fas fa-sign-out-alt"></i> {{ t('header.logout') }}
+            </button>
+          </div>
+        </div>
+      </Transition>
 
       <div class="page-body">
         <slot />
@@ -116,6 +147,7 @@ const showProfile  = ref(false)
 
 const nextLang = computed(() => locale.value === 'ru' ? 'EN' : 'RU')
 function changeLang() { toggleLang() }
+const menuOpen = ref(false)
 
 const navItems = computed(() => [
   { to: '/dashboard',  icon: 'fas fa-home',          label: t('nav.dashboard')  },

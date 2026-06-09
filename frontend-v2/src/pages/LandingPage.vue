@@ -135,7 +135,7 @@
     <!-- Auth modal overlay -->
     <Transition name="modal-fade">
       <div v-if="authVisible" class="auth-wrap" style="position:fixed;inset:0;z-index:500;background:rgba(0,0,0,0.55);backdrop-filter:blur(4px)">
-        <AuthCard :initial-screen="authScreen" :can-close="true" @close="authVisible = false" />
+        <AuthCard :initial-screen="authScreen" :success-msg="authSuccessMsg" :can-close="true" @close="authVisible = false" />
       </div>
     </Transition>
   </div>
@@ -157,7 +157,15 @@ const { theme, toggle: themeToggle } = useTheme()
 
 onMounted(async () => {
   await auth.loadMe().catch(() => {})
-  if (auth.loggedIn) router.replace('/dashboard')
+  if (auth.loggedIn) { router.replace('/dashboard'); return }
+
+  const params = new URLSearchParams(window.location.search)
+  if (params.get('verified') === '1') {
+    history.replaceState({}, '', '/')
+    authSuccessMsg.value = '✅ Email подтверждён! Войдите в аккаунт.'
+    authScreen.value = 'login'
+    authVisible.value = true
+  }
 })
 
 const nextLang = computed(() => locale.value === 'ru' ? 'EN' : 'RU')
@@ -165,6 +173,7 @@ function changeLang() { toggleLang() }
 
 const authVisible = ref(false)
 const authScreen  = ref<'login'|'register'>('register')
+const authSuccessMsg = ref('')
 function showAuth(s: 'login'|'register') { authScreen.value = s; authVisible.value = true }
 
 const features = computed(() => [
