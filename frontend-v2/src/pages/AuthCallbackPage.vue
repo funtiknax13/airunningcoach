@@ -49,7 +49,6 @@ onMounted(async () => {
 
   // Сохраняем токен и загружаем профиль
   setToken(token)
-  auth.token.value = token
   try {
     await auth.loadMe()
     await Promise.all([activities.load(), goals.load(), training.load(), chat.load()])

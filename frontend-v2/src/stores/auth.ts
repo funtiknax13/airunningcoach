@@ -10,7 +10,10 @@ export const useAuthStore = defineStore('auth', () => {
 
   async function loadMe() {
     if (!isAuthenticated()) return
-    try { user.value = await authApi.me() } catch { logout() }
+    try {
+      user.value = await authApi.me()
+      loggedIn.value = true
+    } catch { logout() }
   }
 
   async function login(email: string, password: string) {
