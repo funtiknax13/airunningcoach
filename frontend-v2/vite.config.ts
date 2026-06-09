@@ -2,6 +2,9 @@ import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import { resolve } from 'path'
 
+// Локально: localhost:8000, в Docker dev: backend:8000
+const API_TARGET = process.env.VITE_API_TARGET ?? 'http://localhost:8000'
+
 export default defineConfig({
   plugins: [vue()],
   resolve: {
@@ -10,11 +13,11 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
-      '/api':    'http://localhost:8000',
-      '/admin':  'http://localhost:8000',
-      '/health': 'http://localhost:8000',
-      '/docs':   'http://localhost:8000',
-      '/images': 'http://localhost:8000',
+      '/api':    API_TARGET,
+      '/admin':  API_TARGET,
+      '/health': API_TARGET,
+      '/docs':   API_TARGET,
+      '/images': API_TARGET,
     },
   },
   build: {
