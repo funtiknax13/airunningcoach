@@ -38,15 +38,36 @@
           </div>
         </div>
 
-        <!-- Оплата — заглушка -->
-        <div class="subs-payment">
-          <div class="subs-payment-title">
-            <i class="fas fa-clock"></i> {{ t('subs.comingSoon') }}
+        <!-- Тарифы -->
+        <div class="subs-plans">
+          <div
+            v-for="plan in plans" :key="plan.id"
+            class="subs-plan-card"
+            :class="{ 'subs-plan-card--popular': plan.popular, 'subs-plan-card--selected': selected === plan.id }"
+            @click="selected = plan.id"
+          >
+            <div v-if="plan.badge" class="subs-plan-badge">{{ plan.badge }}</div>
+            <div class="subs-plan-title">{{ plan.title }}</div>
+            <div class="subs-plan-price">
+              {{ plan.price }} ₽
+              <span class="subs-plan-period">{{ plan.period }}</span>
+            </div>
+            <div v-if="plan.perMonth" class="subs-plan-per-month">{{ plan.perMonth }} ₽/{{ locale === 'ru' ? 'мес' : 'mo' }}</div>
+            <div v-if="plan.discount" class="subs-plan-discount">{{ plan.discount }}</div>
           </div>
-          <p class="subs-payment-desc">{{ t('subs.comingSoonDesc') }}</p>
-          <button class="btn btn-primary" disabled style="opacity:0.5;cursor:not-allowed">
+        </div>
+
+        <!-- Кнопка оплаты -->
+        <div class="subs-payment">
+          <button class="btn btn-primary subs-buy-btn" disabled style="opacity:0.5;cursor:not-allowed">
             <i class="fas fa-lock"></i> {{ t('subs.buyBtn') }}
           </button>
+          <p class="subs-payment-desc">{{ t('subs.comingSoonDesc') }}</p>
+
+          <!-- ИНН самозанятого -->
+          <div class="subs-inn">
+            {{ locale === 'ru' ? 'Самозанятый. ИНН' : 'Self-employed. TIN' }}: <strong>211501982739</strong>
+          </div>
         </div>
       </div>
 
@@ -55,13 +76,51 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { ref, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import { useAuthStore } from '@/stores/auth'
 
 const { t, locale } = useI18n()
 const auth = useAuthStore()
+
+const selected = ref<'month' | 'quarter' | 'year'>('month')
+
+const plans = computed(() => {
+  const isRu = locale.value === 'ru'
+  return [
+    {
+      id: 'month' as const,
+      title: isRu ? '1 месяц' : '1 month',
+      price: 490,
+      period: isRu ? '/ мес' : '/ mo',
+      perMonth: null,
+      discount: null,
+      badge: null,
+      popular: false,
+    },
+    {
+      id: 'quarter' as const,
+      title: isRu ? '3 месяца' : '3 months',
+      price: 1323,
+      period: isRu ? '/ 3 мес' : '/ 3 mo',
+      perMonth: 441,
+      discount: isRu ? 'Скидка 10%' : '10% off',
+      badge: null,
+      popular: false,
+    },
+    {
+      id: 'year' as const,
+      title: isRu ? '1 год' : '1 year',
+      price: 4116,
+      period: isRu ? '/ год' : '/ year',
+      perMonth: 343,
+      discount: isRu ? 'Скидка 30%' : '30% off',
+      badge: isRu ? '🔥 Выгоднее всего' : '🔥 Best value',
+      popular: true,
+    },
+  ]
+})
 
 const isPremium = computed(() => {
   if (!auth.user?.is_premium) return false

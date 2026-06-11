@@ -9,6 +9,8 @@ frontend-v2-dist/
 *.pyc
 .DS_Store
 
+frontend-v2/.env
+
 # Локальная разработка — не деплоить на сервер
 docker-compose.override.yml
 nginx/nginx-local.conf
