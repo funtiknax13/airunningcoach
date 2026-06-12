@@ -1,4 +1,4 @@
-﻿User-agent: *
+User-agent: *
 Allow: /
 Disallow: /dashboard
 Disallow: /activities
@@ -8,7 +8,7 @@ Disallow: /coach
 Disallow: /subscription
 Disallow: /admin/
 
-# AI search bots вЂ” allow citation and indexing
+# AI search bots -- allow citation and indexing
 User-agent: GPTBot
 Allow: /
 
@@ -30,7 +30,7 @@ Allow: /
 User-agent: Bingbot
 Allow: /
 
-# Training/scraping only bots вЂ” block
+# Training/scraping only bots -- block
 User-agent: CCBot
 Disallow: /
 

@@ -1,32 +1,50 @@
-﻿# Pricing вЂ” AI RunningCoach
+# Pricing — AIRunningCoach
 
-Last updated: 2025-06-08
+AI-тренер по бегу. Веб-приложение, без установки. airunningcoach.pro
 
-## Basic
-- Price: 0 в‚Ѕ/month (free forever)
-- AI coach messages: 10 per day
-- Training plan generation: 1 per day
-- Run logging: unlimited
-- GPX/FIT import: unlimited
-- Goals tracking: yes
-- Detailed analytics (splits, cadence, HR): no
+## Free (Бесплатный)
 
-## Premium
-- Price: 490 в‚Ѕ/month (billed monthly)
-- AI coach messages: 50 per hour (unlimited for practical use)
-- Training plan generation: 10 per hour
-- Run logging: unlimited
-- GPX/FIT import: unlimited
-- Goals tracking: yes
-- Detailed analytics (splits, cadence, HR, elevation): yes
-- Priority support: yes
+- Price: 0 руб/месяц
+- Features:
+  - Запись и журнал пробежек (неограниченно)
+  - Импорт GPX и FIT файлов из Garmin, Coros, Suunto
+  - AI-тренер: до 5 запросов в день
+  - Генерация планов тренировок: 1 план в день
+  - Постановка целей (марафон, полумарафон, 10 км, 5 км)
+  - Базовая аналитика прогресса
+  - 14 дней Premium бесплатно при регистрации
 
-## Trial
-- Duration: 14 days Premium free on registration
-- No credit card required
-- Automatically switches to Basic after trial ends
+## Premium — месяц
 
-## Notes
-- Prices in Russian Rubles (RUB)
-- Payment system coming soon
-- Contact: support via the app
+- Price: 490 руб/месяц
+- Billing: ежемесячно
+- Features:
+  - Всё из бесплатного плана
+  - AI-тренер: до 50 запросов в час (безлимит для практических целей)
+  - Генерация планов тренировок: до 10 планов в час
+  - Детальная аналитика прогресса
+  - Приоритетные ответы AI
+
+## Premium — квартал
+
+- Price: 1323 руб/квартал (441 руб/месяц)
+- Billing: раз в 3 месяца
+- Saving: 10% по сравнению с месячным планом
+- Features: то же, что Premium — месяц
+
+## Premium — год
+
+- Price: 4116 руб/год (343 руб/месяц)
+- Billing: раз в год
+- Saving: 30% по сравнению с месячным планом
+- Features: то же, что Premium — месяц
+
+## Оплата
+
+- Методы: Visa, Mastercard, СБП, ЮMoney
+- Процессинг: ЮKassa
+- Отмена: в любой момент
+
+## Пробный период
+
+При регистрации — 14 дней Premium бесплатно. Привязка карты не требуется.
