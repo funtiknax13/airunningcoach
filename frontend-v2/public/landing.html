@@ -607,6 +607,108 @@
     }
     .theme-btn:hover { border-color: var(--border-2); color: var(--text); background: var(--surface-2); }
 
+    /* ── Auth modal ── */
+    #auth-overlay {
+      position: fixed; inset: 0; z-index: 1000;
+      background: rgba(0,0,0,0.55); backdrop-filter: blur(4px);
+      display: flex; align-items: center; justify-content: center;
+      padding: 16px;
+      animation: fadeIn 0.15s ease;
+    }
+    @keyframes fadeIn { from { opacity:0 } to { opacity:1 } }
+    #auth-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--r-xl);
+      padding: 36px 32px;
+      width: 100%; max-width: 420px;
+      box-shadow: var(--shadow-lg);
+      animation: slideUp 0.18s ease;
+    }
+    @keyframes slideUp { from { transform:translateY(16px);opacity:0 } to { transform:none;opacity:1 } }
+    .auth-logo {
+      display: flex; flex-direction: column; align-items: center;
+      gap: 6px; margin-bottom: 24px;
+    }
+    .auth-logo img { width: 44px; height: 44px; border-radius: 10px; }
+    .auth-logo-name { font-size: 1.15rem; font-weight: 800; letter-spacing: -0.02em; }
+    .auth-logo-name span { color: var(--brand); }
+    .auth-logo-tag { font-size: 0.78rem; color: var(--text-3); }
+    .auth-title { font-size: 1.1rem; font-weight: 700; margin-bottom: 18px; text-align: center; }
+    .auth-input {
+      width: 100%; padding: 11px 14px;
+      border: 1.5px solid var(--border-2); border-radius: var(--r-md);
+      background: var(--surface-2); color: var(--text);
+      font-family: var(--font); font-size: 0.9rem;
+      margin-bottom: 10px; transition: border-color 0.15s;
+      outline: none;
+    }
+    .auth-input:focus { border-color: var(--brand); }
+    .auth-input-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 10px; }
+    .auth-input-row .auth-input { margin-bottom: 0; }
+    .auth-btn {
+      width: 100%; padding: 12px;
+      background: var(--brand); color: white;
+      border: none; border-radius: var(--r-md);
+      font-family: var(--font); font-size: 0.95rem; font-weight: 700;
+      cursor: pointer; transition: all 0.2s; margin-top: 4px;
+    }
+    .auth-btn:hover:not(:disabled) { background: var(--brand-hover); transform: translateY(-1px); box-shadow: 0 4px 14px var(--brand-glow); }
+    .auth-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+    .auth-btn-google {
+      width: 100%; padding: 11px;
+      background: var(--surface-2); color: var(--text);
+      border: 1.5px solid var(--border-2); border-radius: var(--r-md);
+      font-family: var(--font); font-size: 0.9rem; font-weight: 600;
+      cursor: pointer; transition: all 0.2s;
+      display: flex; align-items: center; justify-content: center; gap: 10px;
+      margin-top: 8px;
+    }
+    .auth-btn-google:hover { border-color: var(--brand); background: var(--surface); }
+    .auth-divider {
+      display: flex; align-items: center; gap: 10px;
+      color: var(--text-3); font-size: 0.8rem; margin: 12px 0;
+    }
+    .auth-divider::before, .auth-divider::after {
+      content: ''; flex: 1; height: 1px; background: var(--border);
+    }
+    .auth-switch {
+      text-align: center; font-size: 0.82rem; color: var(--text-3); margin-top: 14px;
+    }
+    .auth-switch a { color: var(--brand); cursor: pointer; font-weight: 600; }
+    .auth-switch a:hover { text-decoration: underline; }
+    .auth-error {
+      background: rgba(220,38,38,0.08); color: var(--red);
+      border: 1px solid rgba(220,38,38,0.2); border-radius: var(--r);
+      padding: 9px 12px; font-size: 0.82rem; margin-bottom: 8px;
+    }
+    .auth-success-msg {
+      background: var(--green-dim); color: var(--green);
+      border: 1px solid rgba(22,163,74,0.2); border-radius: var(--r);
+      padding: 9px 12px; font-size: 0.82rem; margin-bottom: 8px;
+    }
+    .auth-verify-icon { font-size: 3rem; text-align: center; margin-bottom: 8px; }
+    .auth-verify-desc { font-size: 0.85rem; color: var(--text-2); text-align: center; line-height: 1.6; margin-bottom: 16px; }
+    .auth-close {
+      float: right; background: none; border: none; cursor: pointer;
+      color: var(--text-3); font-size: 1.1rem; line-height: 1;
+      margin: -8px -8px 0 0; padding: 4px 8px; border-radius: var(--r);
+      font-family: var(--font);
+    }
+    .auth-close:hover { color: var(--text); background: var(--surface-2); }
+    .auth-btn-link {
+      background: none; border: none; cursor: pointer;
+      color: var(--brand); font-family: var(--font); font-size: 0.82rem;
+      font-weight: 600; padding: 0; width: 100%; text-align: center;
+      margin-top: 10px;
+    }
+    .auth-btn-link:disabled { opacity: 0.6; cursor: not-allowed; }
+    .auth-btn-link:hover:not(:disabled) { text-decoration: underline; }
+    @media (max-width: 480px) {
+      #auth-card { padding: 28px 20px; }
+      .auth-input-row { grid-template-columns: 1fr 1fr; }
+    }
+
     /* ── Responsive ── */
     @media (max-width: 900px) {
       .stats-grid { grid-template-columns: repeat(2, 1fr); }
@@ -650,7 +752,7 @@
           <span id="theme-icon">🌙</span>
         </button>
         <a href="/?login=1" class="btn btn-secondary btn-sm">Войти</a>
-        <a href="/register" class="btn btn-primary btn-sm">Попробовать бесплатно</a>
+        <a href="/?register=1" class="btn btn-primary btn-sm">Попробовать бесплатно</a>
       </nav>
     </div>
   </div>
@@ -676,7 +778,7 @@
           отвечает на вопросы о технике и восстановлении — 24 часа в сутки, 7 дней в неделю.
         </p>
         <div class="hero-ctas">
-          <a href="/register" class="btn btn-primary btn-lg">
+          <a href="/?register=1" class="btn btn-primary btn-lg">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
             Начать бесплатно
           </a>
@@ -946,7 +1048,7 @@
           <li>Цели и базовая аналитика</li>
           <li>14 дней Premium при регистрации</li>
         </ul>
-        <a href="/register" class="plan-btn plan-btn-outline">Начать бесплатно</a>
+        <a href="/?register=1" class="plan-btn plan-btn-outline">Начать бесплатно</a>
       </div>
       <div class="pricing-card">
         <div class="plan-name">Premium — месяц</div>
@@ -960,7 +1062,7 @@
           <li>Детальная аналитика прогресса</li>
           <li>Приоритетные ответы AI</li>
         </ul>
-        <a href="/register" class="plan-btn plan-btn-outline">Выбрать</a>
+        <a href="/?register=1" class="plan-btn plan-btn-outline">Выбрать</a>
       </div>
       <div class="pricing-card featured">
         <div class="best-badge">ВЫГОДНЕЕ ВСЕГО</div>
@@ -975,7 +1077,7 @@
           <li>Детальная аналитика прогресса</li>
           <li>Экономия 1 638 ₽ в год</li>
         </ul>
-        <a href="/register" class="plan-btn plan-btn-primary">Начать с Premium</a>
+        <a href="/?register=1" class="plan-btn plan-btn-primary">Начать с Premium</a>
       </div>
     </div>
     <p class="pricing-note">💳 Безопасная оплата через ЮKassa. Visa, Mastercard, СБП, ЮMoney. Отмена в любой момент.</p>
@@ -1049,7 +1151,7 @@
     <div class="cta-block">
       <h2>Начните тренироваться умнее уже сегодня</h2>
       <p>Бесплатно. Без кредитной карты. 14 дней Premium сразу после регистрации.</p>
-      <a href="/register" class="btn-white">
+      <a href="/?register=1" class="btn-white">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
         Попробовать бесплатно
       </a>
@@ -1071,13 +1173,94 @@
         <a href="#features">Возможности</a>
         <a href="#pricing">Тарифы</a>
         <a href="#faq">FAQ</a>
-        <a href="/register">Регистрация</a>
+        <a href="/?register=1">Регистрация</a>
         <a href="/?login=1">Вход</a>
       </nav>
       <p class="footer-copy">© 2026 AIRunningCoach</p>
     </div>
   </div>
 </footer>
+
+<!-- ──────────── AUTH MODAL ──────────── -->
+<div id="auth-overlay" style="display:none" onclick="if(event.target===this)closeAuth()">
+  <div id="auth-card">
+    <button class="auth-close" onclick="closeAuth()" aria-label="Закрыть">✕</button>
+
+    <div class="auth-logo">
+      <img src="/logo.png" alt="logo">
+      <div class="auth-logo-name">AI<span>Running</span>Coach</div>
+      <div class="auth-logo-tag">Персональный AI‑тренер по бегу</div>
+    </div>
+
+    <!-- Login -->
+    <div id="screen-login" class="auth-screen" style="display:none">
+      <div class="auth-title">Вход в аккаунт</div>
+      <div id="login-success" class="auth-success-msg" style="display:none"></div>
+      <div id="login-error" class="auth-error" style="display:none"></div>
+      <input id="login-email" type="email" class="auth-input" placeholder="Email" onkeyup="if(event.key==='Enter')doLogin()">
+      <input id="login-password" type="password" class="auth-input" placeholder="Пароль" onkeyup="if(event.key==='Enter')doLogin()">
+      <button id="login-resend-btn" class="auth-btn-link" style="display:none" onclick="doResendVerification()">📧 Отправить письмо повторно</button>
+      <button id="login-btn" class="auth-btn" onclick="doLogin()">Войти</button>
+      <div class="auth-switch"><a onclick="showScreen('forgot')">Забыли пароль?</a></div>
+      <div class="auth-switch">Нет аккаунта? <a onclick="showScreen('register')">Зарегистрироваться</a></div>
+      <div class="auth-divider"><span>или</span></div>
+      <button class="auth-btn-google" onclick="loginWithGoogle()">
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z" fill="#4285F4"/><path d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332C2.438 15.983 5.482 18 9 18z" fill="#34A853"/><path d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z" fill="#FBBC05"/><path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0 5.482 0 2.438 2.017.957 4.958L3.964 6.29C4.672 4.163 6.656 3.58 9 3.58z" fill="#EA4335"/></svg>
+        Войти через Google
+      </button>
+    </div>
+
+    <!-- Register -->
+    <div id="screen-register" class="auth-screen" style="display:none">
+      <div class="auth-title">Создать аккаунт</div>
+      <div id="reg-error" class="auth-error" style="display:none"></div>
+      <input id="reg-name" type="text" class="auth-input" placeholder="Ваше имя">
+      <input id="reg-email" type="email" class="auth-input" placeholder="Email">
+      <input id="reg-password" type="password" class="auth-input" placeholder="Пароль (мин. 8 символов)">
+      <input id="reg-confirm" type="password" class="auth-input" placeholder="Повторите пароль" onkeyup="if(event.key==='Enter')doRegister()">
+      <div class="auth-input-row">
+        <input id="reg-age" type="number" class="auth-input" placeholder="Возраст">
+        <input id="reg-weight" type="number" class="auth-input" placeholder="Вес, кг">
+        <input id="reg-height" type="number" class="auth-input" placeholder="Рост, см">
+      </div>
+      <button id="reg-btn" class="auth-btn" onclick="doRegister()">Зарегистрироваться</button>
+      <div class="auth-switch">Уже есть аккаунт? <a onclick="showScreen('login')">Войти</a></div>
+      <div class="auth-divider"><span>или</span></div>
+      <button class="auth-btn-google" onclick="loginWithGoogle()">
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z" fill="#4285F4"/><path d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332C2.438 15.983 5.482 18 9 18z" fill="#34A853"/><path d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z" fill="#FBBC05"/><path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0 5.482 0 2.438 2.017.957 4.958L3.964 6.29C4.672 4.163 6.656 3.58 9 3.58z" fill="#EA4335"/></svg>
+        Зарегистрироваться через Google
+      </button>
+    </div>
+
+    <!-- Forgot password -->
+    <div id="screen-forgot" class="auth-screen" style="display:none">
+      <div class="auth-title">Сброс пароля</div>
+      <p style="color:var(--text-2);font-size:0.85rem;margin-bottom:14px;text-align:center">Введите email — пришлём ссылку для сброса пароля.</p>
+      <div id="forgot-error" class="auth-error" style="display:none"></div>
+      <input id="forgot-email" type="email" class="auth-input" placeholder="Email" onkeyup="if(event.key==='Enter')doForgotPassword()">
+      <button id="forgot-btn" class="auth-btn" onclick="doForgotPassword()">Отправить ссылку</button>
+      <div class="auth-switch"><a onclick="showScreen('login')">← Назад к входу</a></div>
+    </div>
+
+    <!-- Reset password -->
+    <div id="screen-reset" class="auth-screen" style="display:none">
+      <div class="auth-title">Новый пароль</div>
+      <div id="reset-error" class="auth-error" style="display:none"></div>
+      <input id="reset-pw" type="password" class="auth-input" placeholder="Новый пароль">
+      <input id="reset-confirm" type="password" class="auth-input" placeholder="Повторите пароль" onkeyup="if(event.key==='Enter')doResetPassword()">
+      <button id="reset-btn" class="auth-btn" onclick="doResetPassword()">Сохранить пароль</button>
+    </div>
+
+    <!-- Verify notice -->
+    <div id="screen-verify" class="auth-screen" style="display:none">
+      <div class="auth-verify-icon">📧</div>
+      <div class="auth-title">Проверьте почту</div>
+      <div id="verify-desc" class="auth-verify-desc"></div>
+      <button id="verify-resend-btn" class="auth-btn-link" onclick="doResendFromVerify()">Отправить повторно</button>
+      <div class="auth-switch"><a onclick="showScreen('login')">← Назад к входу</a></div>
+    </div>
+  </div>
+</div>
 
 <script>
 // FAQ toggle
@@ -1127,6 +1310,168 @@ function updateThemeBtn(isDark) {
 document.addEventListener('DOMContentLoaded', function() {
   var first = document.querySelector('.faq-item .faq-q');
   if (first) toggleFaq(first);
+
+  // Handle URL params
+  var params = new URLSearchParams(location.search);
+  if (params.get('login') === '1')    { history.replaceState({}, '', '/'); openAuth('login'); }
+  if (params.get('register') === '1') { history.replaceState({}, '', '/'); openAuth('register'); }
+  if (params.get('verified') === '1') {
+    history.replaceState({}, '', '/');
+    openAuth('login');
+    showMsg('login-success', '✅ Email подтверждён! Войдите в аккаунт.');
+  }
+  var tok = params.get('reset_token');
+  if (tok) { history.replaceState({}, '', '/'); _resetToken = tok; openAuth('reset'); }
+});
+
+// ── Auth state ────────────────────────────────────────────────────────────────
+var _resetToken  = '';
+var _lastEmail   = '';
+var _lastPw      = '';
+
+function openAuth(screen) {
+  document.getElementById('auth-overlay').style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+  showScreen(screen || 'login');
+}
+function closeAuth() {
+  document.getElementById('auth-overlay').style.display = 'none';
+  document.body.style.overflow = '';
+}
+function showScreen(name) {
+  document.querySelectorAll('.auth-screen').forEach(function(el) { el.style.display = 'none'; });
+  var el = document.getElementById('screen-' + name);
+  if (el) el.style.display = 'block';
+}
+function showMsg(id, text) {
+  var el = document.getElementById(id);
+  if (!el) return;
+  el.textContent = text; el.style.display = text ? 'block' : 'none';
+}
+function setLoading(btnId, loading) {
+  var btn = document.getElementById(btnId);
+  if (!btn) return;
+  btn.disabled = loading;
+  if (loading) btn.dataset.orig = btn.textContent;
+  btn.textContent = loading ? '...' : (btn.dataset.orig || btn.textContent);
+}
+
+// ── API helper ────────────────────────────────────────────────────────────────
+async function apiPost(url, body) {
+  var res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+  var data = await res.json().catch(function() { return {}; });
+  if (!res.ok) throw new Error(data.detail || 'Ошибка запроса');
+  return data;
+}
+
+// ── Login ─────────────────────────────────────────────────────────────────────
+async function doLogin() {
+  var email = document.getElementById('login-email').value.trim();
+  var pw    = document.getElementById('login-password').value;
+  showMsg('login-error', ''); showMsg('login-success', '');
+  document.getElementById('login-resend-btn').style.display = 'none';
+  setLoading('login-btn', true);
+  try {
+    var data = await apiPost('/api/auth/login', { email: email, password: pw });
+    localStorage.setItem('access_token', data.access_token);
+    location.replace('/dashboard');
+  } catch (e) {
+    showMsg('login-error', e.message);
+    if (e.message && e.message.includes('не подтверждён')) {
+      _lastEmail = email; _lastPw = pw;
+      document.getElementById('login-resend-btn').style.display = 'block';
+    }
+  } finally { setLoading('login-btn', false); }
+}
+
+// ── Register ──────────────────────────────────────────────────────────────────
+async function doRegister() {
+  var name    = document.getElementById('reg-name').value.trim();
+  var email   = document.getElementById('reg-email').value.trim();
+  var pw      = document.getElementById('reg-password').value;
+  var confirm = document.getElementById('reg-confirm').value;
+  var age     = parseInt(document.getElementById('reg-age').value) || null;
+  var weight  = parseFloat(document.getElementById('reg-weight').value) || null;
+  var height  = parseFloat(document.getElementById('reg-height').value) || null;
+  showMsg('reg-error', '');
+  if (pw !== confirm) { showMsg('reg-error', 'Пароли не совпадают'); return; }
+  setLoading('reg-btn', true);
+  try {
+    await apiPost('/api/auth/register', {
+      email: email, password: pw, confirm_password: confirm,
+      name: name, age: age, weight: weight, height: height, lang: 'ru'
+    });
+    _lastEmail = email;
+    showMsg('verify-desc', 'Письмо с подтверждением отправлено на ' + email);
+    showScreen('verify');
+  } catch (e) { showMsg('reg-error', e.message); }
+  finally { setLoading('reg-btn', false); }
+}
+
+// ── Forgot password ───────────────────────────────────────────────────────────
+async function doForgotPassword() {
+  var email = document.getElementById('forgot-email').value.trim();
+  showMsg('forgot-error', '');
+  setLoading('forgot-btn', true);
+  try {
+    await apiPost('/api/auth/forgot-password', { email: email, lang: 'ru' });
+    _lastEmail = email;
+    showMsg('verify-desc', 'Ссылка для сброса отправлена на ' + email);
+    showScreen('verify');
+  } catch (e) { showMsg('forgot-error', e.message); }
+  finally { setLoading('forgot-btn', false); }
+}
+
+// ── Reset password ────────────────────────────────────────────────────────────
+async function doResetPassword() {
+  var pw      = document.getElementById('reset-pw').value;
+  var confirm = document.getElementById('reset-confirm').value;
+  showMsg('reset-error', '');
+  if (pw !== confirm) { showMsg('reset-error', 'Пароли не совпадают'); return; }
+  setLoading('reset-btn', true);
+  try {
+    await apiPost('/api/auth/reset-password', {
+      token: _resetToken, new_password: pw, confirm_password: confirm
+    });
+    showScreen('login');
+    showMsg('login-success', '✅ Пароль изменён! Войдите с новым паролем.');
+  } catch (e) { showMsg('reset-error', e.message); }
+  finally { setLoading('reset-btn', false); }
+}
+
+// ── Resend verification ───────────────────────────────────────────────────────
+async function doResendVerification() {
+  var email = _lastEmail || document.getElementById('login-email').value.trim();
+  var pw    = _lastPw    || document.getElementById('login-password').value;
+  document.getElementById('login-resend-btn').disabled = true;
+  try {
+    await apiPost('/api/auth/resend-verification', { email: email, password: pw });
+    showMsg('verify-desc', 'Письмо отправлено повторно на ' + email);
+    showScreen('verify');
+  } catch (e) { showMsg('login-error', e.message); }
+  finally { document.getElementById('login-resend-btn').disabled = false; }
+}
+async function doResendFromVerify() {
+  var email = _lastEmail;
+  if (!email) return;
+  setLoading('verify-resend-btn', true);
+  try {
+    await apiPost('/api/auth/resend-verification', { email: email });
+    showMsg('verify-desc', 'Письмо отправлено повторно на ' + email);
+  } catch (e) { /* silent */ }
+  finally { setLoading('verify-resend-btn', false); }
+}
+
+// ── Google OAuth ──────────────────────────────────────────────────────────────
+function loginWithGoogle() { location.href = '/api/auth/google'; }
+
+// Keyboard: Escape closes modal
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') closeAuth();
 });
 </script>
 </body>
