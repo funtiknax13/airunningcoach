@@ -293,6 +293,14 @@ onMounted(async () => {
     authSuccessMsg.value = '✅ Email подтверждён! Войдите в аккаунт.'
     authScreen.value = 'login'
     authVisible.value = true
+  } else if (params.get('login') === '1') {
+    history.replaceState({}, '', '/')
+    authScreen.value = 'login'
+    authVisible.value = true
+  } else if (params.get('register') === '1') {
+    history.replaceState({}, '', '/')
+    authScreen.value = 'register'
+    authVisible.value = true
   }
 })
 
