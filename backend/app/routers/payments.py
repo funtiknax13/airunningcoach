@@ -54,6 +54,18 @@ async def create_payment(
         secret_key=settings.YOOKASSA_SECRET_KEY,
     )
 
+    # Сохраняем запись заранее, чтобы получить db_payment.id для return_url
+    db_payment = Payment(
+        user_id=current_user.id,
+        yookassa_id="pending",
+        plan=body.plan,
+        amount=amount,
+        status="pending",
+    )
+    db.add(db_payment)
+    db.flush()  # получаем db_payment.id без commit
+
+    return_url = f"{settings.YOOKASSA_RETURN_URL}?ref={db_payment.id}"
     idempotency_key = str(uuid.uuid4())
 
     payment = yookassa.Payment.create({
@@ -63,7 +75,7 @@ async def create_payment(
         },
         "confirmation": {
             "type":       "redirect",
-            "return_url": settings.YOOKASSA_RETURN_URL,
+            "return_url": return_url,
         },
         "capture":      True,
         "description":  f"AI RunningCoach Premium — {body.plan}",
@@ -73,15 +85,7 @@ async def create_payment(
         },
     }, idempotency_key)
 
-    # Сохраняем платёж в БД
-    db_payment = Payment(
-        user_id=current_user.id,
-        yookassa_id=payment.id,
-        plan=body.plan,
-        amount=amount,
-        status="pending",
-    )
-    db.add(db_payment)
+    db_payment.yookassa_id = payment.id
     db.commit()
 
     return {
@@ -161,6 +165,69 @@ async def payment_webhook(request: Request, db: Session = Depends(get_db)):
 
     db.commit()
     return {"status": "ok"}
+
+
+@router.get("/verify")
+async def verify_payment(
+    ref: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Проверяет статус платежа и активирует Premium если оплачено (fallback для вебхука)."""
+    db_payment = db.query(Payment).filter(
+        Payment.id == ref,
+        Payment.user_id == current_user.id,
+    ).first()
+    if not db_payment:
+        raise HTTPException(status_code=404, detail="Платёж не найден")
+
+    if db_payment.status == "succeeded":
+        return {"status": "succeeded", "already_active": True}
+
+    if db_payment.status == "cancelled":
+        return {"status": "cancelled"}
+
+    # Проверяем статус в ЮКассе
+    if not _yookassa_configured():
+        return {"status": db_payment.status}
+
+    import yookassa
+    yookassa.Configuration.configure(
+        account_id=settings.YOOKASSA_SHOP_ID,
+        secret_key=settings.YOOKASSA_SECRET_KEY,
+    )
+
+    try:
+        yk_payment = yookassa.Payment.find_one(db_payment.yookassa_id)
+        yk_status = yk_payment.status  # pending | waiting_for_capture | succeeded | cancelled
+    except Exception as e:
+        logger.warning("YooKassa verify error: %s", e)
+        return {"status": db_payment.status}
+
+    if yk_status == "succeeded" and db_payment.status != "succeeded":
+        db_payment.status = "succeeded"
+        db_payment.paid_at = datetime.now(timezone.utc)
+
+        user = db.query(User).filter(User.id == current_user.id).first()
+        if user:
+            months, _ = PLANS[db_payment.plan]
+            now = datetime.now(timezone.utc)
+            base = user.premium_until
+            if base and base.tzinfo is None:
+                base = base.replace(tzinfo=timezone.utc)
+            if not base or base < now:
+                base = now
+            user.is_premium = True
+            user.premium_until = base + timedelta(days=months * 30)
+            logger.info("Premium activated via verify: user_id=%s until=%s", user.id, user.premium_until)
+
+        db.commit()
+
+    elif yk_status == "cancelled":
+        db_payment.status = "cancelled"
+        db.commit()
+
+    return {"status": yk_status}
 
 
 @router.get("/history")
