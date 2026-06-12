@@ -44,7 +44,7 @@
           <i class="fas fa-globe"></i>
           <span>{{ nextLang }}</span>
         </button>
-        <button class="nav-item logout" @click="auth.logout(); window.location.href = '/'">
+        <button class="nav-item logout" @click="auth.logout(); location.href = '/'">
           <i class="fas fa-sign-out-alt"></i>
           <span>{{ t('header.logout') }}</span>
         </button>
@@ -87,7 +87,7 @@
             <button class="mobile-menu-item" @click="changeLang(); menuOpen = false">
               <i class="fas fa-globe"></i> {{ nextLang }}
             </button>
-            <button class="mobile-menu-item logout" @click="auth.logout(); window.location.href = '/'; menuOpen = false">
+            <button class="mobile-menu-item logout" @click="auth.logout(); location.href = '/'; menuOpen = false">
               <i class="fas fa-sign-out-alt"></i> {{ t('header.logout') }}
             </button>
           </div>
