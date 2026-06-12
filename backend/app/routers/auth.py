@@ -298,7 +298,6 @@ async def google_callback(code: str, db: Session = Depends(get_db)):
         db.refresh(user)
 
     jwt = create_access_token({"sub": str(user.id)})
-    # Передаём токен фронтенду через URL-параметр
     return RedirectResponse(
         url=f"{settings.APP_BASE_URL}/auth/callback?token={jwt}",
         status_code=302,
