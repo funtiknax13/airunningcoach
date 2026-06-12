@@ -646,7 +646,7 @@
         <a href="#pricing" class="nav-link">Тарифы</a>
         <a href="#faq" class="nav-link">FAQ</a>
         <button class="theme-btn" onclick="toggleTheme()" aria-label="Сменить тему">
-          <span id="theme-icon">🌙</span> <span id="theme-label">Тёмная</span>
+          <span id="theme-icon">🌙</span>
         </button>
         <a href="/login" class="btn btn-secondary btn-sm">Войти</a>
         <a href="/register" class="btn btn-primary btn-sm">Попробовать бесплатно</a>
@@ -1119,9 +1119,7 @@ function toggleTheme() {
 
 function updateThemeBtn(isDark) {
   var icon = document.getElementById('theme-icon');
-  var label = document.getElementById('theme-label');
   if (icon)  icon.textContent  = isDark ? '☀️' : '🌙';
-  if (label) label.textContent = isDark ? 'Светлая' : 'Тёмная';
 }
 
 // Open first FAQ

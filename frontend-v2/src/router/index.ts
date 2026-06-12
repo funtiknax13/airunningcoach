@@ -18,13 +18,13 @@ const router = createRouter({
 })
 
 router.beforeEach(async (to) => {
-  if (!to.meta.auth) return true
   const auth = useAuthStore()
-  // user === null означает первый переход после обновления страницы —
-  // вызываем loadMe() чтобы проверить валидность токена
   if (!auth.user) {
     await auth.loadMe().catch(() => {})
   }
+  // Авторизованных пользователей с главной → на дашборд
+  if (to.path === '/' && auth.loggedIn) return '/dashboard'
+  if (!to.meta.auth) return true
   if (!auth.loggedIn) return '/'
   return true
 })
