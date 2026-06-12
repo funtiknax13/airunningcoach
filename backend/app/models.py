@@ -24,7 +24,7 @@ class User(Base):
     google_id = Column(String(128), nullable=True, unique=True, index=True)
     is_premium = Column(Boolean, default=False, nullable=False)
     premium_until = Column(DateTime(timezone=True), nullable=True)
-    trial_last_email_day = Column(Integer, nullable=True)  # последний день триала, когда отправлено письмо
+    trial_last_email_day = Column(Integer, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
@@ -52,7 +52,8 @@ class Activity(Base):
     calories       = Column(Integer)            # калории
     elevation_gain = Column(Float)              # набор высоты (метры)
     notes          = Column(Text)               # заметки
-    source         = Column(String(50), default="manual")  # manual, gpx, fit, strava
+    activity_type  = Column(String(50), default="run")   # run, ride, walk, hike, swim, strength, workout, other
+    source         = Column(String(50), default="manual")  # manual, gpx, fit
     # Детальные данные (хранятся как JSON)
     laps         = Column(JSON, nullable=True)  # [{num,dist_km,dur_min,pace,avg_hr,max_hr}]
     splits       = Column(JSON, nullable=True)  # [{km,pace,avg_hr}]  – по километрам
@@ -130,6 +131,22 @@ class Workout(Base):
     def __str__(self):
         day = self.DAYS[self.day_of_week] if self.day_of_week is not None else '?'
         return f"{day} — {self.workout_type}"
+
+
+class Payment(Base):
+    """История платежей через ЮКассу."""
+    __tablename__ = "payments"
+
+    id            = Column(Integer, primary_key=True, index=True)
+    user_id       = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    yookassa_id   = Column(String(64), unique=True, nullable=False, index=True)
+    plan          = Column(String(20), nullable=False)   # month | quarter | year
+    amount        = Column(Integer,  nullable=False)     # в рублях
+    status        = Column(String(20), default="pending") # pending | succeeded | canceled
+    created_at    = Column(DateTime(timezone=True), server_default=func.now())
+    paid_at       = Column(DateTime(timezone=True), nullable=True)
+
+    user = relationship("User")
 
 
 class ApiUsage(Base):

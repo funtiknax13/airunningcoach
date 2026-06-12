@@ -42,6 +42,7 @@ export const authApi = {
       `/api/auth/resend-verification`, 'POST', { email, password }),
 
   getLimits: () => api.request<RateLimitStatus>('/api/auth/me/limits'),
+
 }
 
 // ── Activities ────────────────────────────────────────────────────────────

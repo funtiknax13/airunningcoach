@@ -10,26 +10,12 @@ services:
     ports:
       - "8000:8000"
 
-  # Фронтенд — dev-сервер Vite с HMR
-  frontend:
-    image: node:20-alpine
-    working_dir: /app
-    volumes:
-      - ./frontend-v2:/app
-      - frontend_nm:/app/node_modules
-    ports:
-      - "5173:5173"
-    environment:
-      - VITE_API_TARGET=http://backend:8000   # имя сервиса внутри Docker-сети
-      - CHOKIDAR_USEPOLLING=true              # нужно на Windows
-    command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
-    depends_on:
-      - backend
-
-  # nginx в dev не нужен
+  # nginx — локальный конфиг без SSL, порт 80
   nginx:
-    profiles:
-      - prod
-
-volumes:
-  frontend_nm:   # именованный volume для node_modules внутри контейнера
+    profiles: []   # убираем профиль prod — nginx поднимается и локально
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx-local.conf:/etc/nginx/nginx.conf:ro
+      - ./frontend-v2-dist:/usr/share/nginx/html:ro
+      # НЕ монтируем /etc/letsencrypt — на локалке его нет

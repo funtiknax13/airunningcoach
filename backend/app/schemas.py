@@ -96,6 +96,7 @@ class ActivityCreate(BaseModel):
     avg_heart_rate: Optional[int] = None
     calories: Optional[int] = None
     notes: Optional[str] = None
+    activity_type: str = "run"
     source: str = "manual"
 
 
@@ -112,9 +113,10 @@ class ActivityResponse(BaseModel):
     elevation_gain: Optional[float]
     calories: Optional[int]
     notes: Optional[str]
+    activity_type: str = "run"
     source: str
-    laps:   Optional[Any]    # list of lap objects (без track_points)
-    splits: Optional[Any]    # list of split objects per km
+    laps:   Optional[Any]
+    splits: Optional[Any]
     created_at: datetime
 
     class Config:
@@ -128,6 +130,7 @@ class ActivityUpdate(BaseModel):
     avg_heart_rate: Optional[int] = None
     calories: Optional[int] = None
     notes: Optional[str] = None
+    activity_type: Optional[str] = None
 
 
 # Goal schemas

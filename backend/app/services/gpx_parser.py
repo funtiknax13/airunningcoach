@@ -106,6 +106,33 @@ def _downsample(points: list, max_points: int = 300, interval_sec: int = 10) -> 
     return result
 
 
+_GPX_TYPE_MAP: dict[str, str] = {
+    "running":          "run",
+    "trail running":    "run",
+    "treadmill running":"run",
+    "virtual run":      "run",
+    "cycling":          "ride",
+    "road cycling":     "ride",
+    "mountain biking":  "ride",
+    "virtual ride":     "ride",
+    "indoor cycling":   "ride",
+    "walking":          "walk",
+    "hiking":           "hike",
+    "trail hiking":     "hike",
+    "swimming":         "swim",
+    "open water swimming": "swim",
+    "strength training":"strength",
+    "weight training":  "strength",
+    "workout":          "workout",
+    "cardio":           "workout",
+    "yoga":             "workout",
+    "elliptical":       "workout",
+}
+
+def _map_gpx_type(raw: str) -> str:
+    return _GPX_TYPE_MAP.get(raw.strip().lower(), "other")
+
+
 def parse_gpx(content: bytes) -> dict:
     """
     Парсит GPX и возвращает полный словарь с деталями тренировки.
@@ -113,6 +140,42 @@ def parse_gpx(content: bytes) -> dict:
     root = ET.fromstring(content)
     ns   = _get_ns(root)
     px   = f"{{{ns}}}" if ns else ""
+
+    # Тип активности: сначала <trk><type>, потом <trk><name> (Suunto не пишет <type>)
+    _NAME_KEYWORDS: list[tuple[str, str]] = [
+        ("walking", "walk"), ("walk", "walk"),
+        ("hiking", "hike"), ("hike", "hike"),
+        ("cycling", "ride"), ("biking", "ride"), ("bike", "ride"), ("ride", "ride"),
+        ("swimming", "swim"), ("swim", "swim"),
+        ("strength", "strength"), ("weight", "strength"),
+        ("workout", "workout"), ("cardio", "workout"), ("yoga", "workout"),
+        ("running", "run"), ("run", "run"),
+        ("trail", "run"),
+    ]
+
+    def _type_from_text(text: str) -> str:
+        low = text.strip().lower()
+        # Сначала пробуем точное совпадение через словарь
+        mapped = _GPX_TYPE_MAP.get(low)
+        if mapped:
+            return mapped
+        # Потом ищем ключевые слова в строке
+        for keyword, atype in _NAME_KEYWORDS:
+            if keyword in low:
+                return atype
+        return "other"
+
+    activity_type = "run"
+    for trk in root.iter(f"{px}trk"):
+        type_el = trk.find(f"{px}type")
+        if type_el is not None and type_el.text:
+            activity_type = _type_from_text(type_el.text)
+            break
+        # Фолбэк: имя трека (Suunto: "suuntoapp-Walking-...")
+        name_el = trk.find(f"{px}name")
+        if name_el is not None and name_el.text:
+            activity_type = _type_from_text(name_el.text)
+            break
 
     all_points = []   # все точки со всех сегментов
     segment_groups = []  # точки по сегментам (для кругов)
@@ -228,5 +291,6 @@ def parse_gpx(content: bytes) -> dict:
         "laps":           laps if len(laps) > 1 else None,
         "splits":         splits if splits else None,
         "track_points":   track_points if track_points else None,
+        "activity_type":  activity_type,
         "source":         "gpx",
     }

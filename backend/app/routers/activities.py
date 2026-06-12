@@ -90,6 +90,7 @@ def create_activity(
         avg_heart_rate=activity.avg_heart_rate,
         calories=activity.calories,
         notes=activity.notes,
+        activity_type=activity.activity_type,
         source=activity.source,
     )
     db.add(db_activity)
@@ -157,6 +158,7 @@ async def import_activity_file(
         laps=data.get("laps"),
         splits=data.get("splits"),
         track_points=data.get("track_points"),
+        activity_type=data.get("activity_type", "run"),
         source=data["source"],
     )
     db.add(db_activity)

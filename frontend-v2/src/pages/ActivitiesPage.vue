@@ -1,6 +1,5 @@
 <template>
   <AppLayout>
-    <!-- Кнопки действий — внутри страницы, не в хедере -->
     <div class="activities-toolbar">
       <button class="btn btn-secondary btn-sm" @click="triggerFileInput" :disabled="importing">
         <i class="fas fa-file-import"></i> {{ importing ? $t('activities.importing') : $t('activities.importBtn') }}
@@ -20,76 +19,83 @@
         <div class="card-title">
           <i class="fas fa-person-running"></i>
           {{ $t('activities.title') }}
-          <span style="color:var(--text-3);font-weight:400;text-transform:none;letter-spacing:0;font-size:0.8rem;margin-left:4px">
-            ({{ store.all.length }})
-          </span>
+        </div>
+        <div class="act-tabs">
+          <button class="act-tab" :class="{ active: activeTab === 'runs' }" @click="setTab('runs')">
+            <i class="fas fa-person-running"></i> {{ $t('activities.tabRuns') }}
+            <span class="act-tab-count">{{ runsCount }}</span>
+          </button>
+          <button class="act-tab" :class="{ active: activeTab === 'other' }" @click="setTab('other')">
+            <i class="fas fa-dumbbell"></i> {{ $t('activities.tabOther') }}
+            <span class="act-tab-count">{{ otherCount }}</span>
+          </button>
         </div>
       </div>
 
       <SkeletonLoader v-if="store.loading" type="activity-list" :count="5" />
-      <div v-else-if="!store.all.length" class="empty-state">
-        <i class="fas fa-person-running"></i>
+      <div v-else-if="!currentTabItems.length" class="empty-state">
+        <i :class="activeTab === 'runs' ? 'fas fa-person-running' : 'fas fa-dumbbell'"></i>
         <p>{{ $t('activities.empty') }}</p>
       </div>
       <template v-else>
-      <div v-for="act in store.current" :key="act.id" class="activity-row-wrap">
-        <div class="activity-row" :class="{ 'activity-row--expanded': expandedId === act.id }">
-          <div class="activity-row-icon"><i class="fas fa-person-running"></i></div>
-          <div class="activity-row-info" style="cursor:pointer" @click="toggleExpand(act.id)">
-            <div class="activity-row-date">{{ formatDate(act.date) }}</div>
-            <div class="activity-row-note">{{ act.notes || $t('dash.run') }}</div>
+        <div v-for="act in pagedItems" :key="act.id" class="activity-row-wrap">
+          <div class="activity-row" :class="{ 'activity-row--expanded': expandedId === act.id }">
+            <div class="activity-row-icon">
+              <i :class="activityIcon(act.activity_type)"></i>
+            </div>
+            <div class="activity-row-info" style="cursor:pointer" @click="toggleExpand(act.id)">
+              <div class="activity-row-date">{{ formatDate(act.date) }}</div>
+              <div class="activity-row-note">{{ act.notes || activityLabel(act.activity_type) }}</div>
+            </div>
+            <div class="activity-row-stats">
+              <div class="activity-stat">
+                <span class="activity-stat-val" style="color:var(--brand)">{{ act.distance_km }}</span>
+                <span class="activity-stat-lbl">km</span>
+              </div>
+              <div v-if="act.activity_type === 'run'" class="activity-stat">
+                <span class="activity-stat-val">{{ formatPace(act.pace_min_per_km) }}</span>
+                <span class="activity-stat-lbl">{{ $t('stats.pace') }}</span>
+              </div>
+              <div class="activity-stat">
+                <span class="activity-stat-val">{{ formatDuration(act.duration_min) }}</span>
+                <span class="activity-stat-lbl">{{ $t('stats.time') }}</span>
+              </div>
+              <div v-if="act.avg_heart_rate" class="activity-stat">
+                <span class="activity-stat-val" style="color:var(--red)">{{ act.avg_heart_rate }}</span>
+                <span class="activity-stat-lbl">bpm</span>
+              </div>
+              <div v-if="act.elevation_gain" class="activity-stat">
+                <span class="activity-stat-val" style="color:#10b981">{{ Math.round(act.elevation_gain) }}</span>
+                <span class="activity-stat-lbl">м↑</span>
+              </div>
+            </div>
+            <div class="activity-row-actions">
+              <button class="edit-btn"
+                :class="{ active: expandedId === act.id }"
+                @click="toggleExpand(act.id)"
+                :title="expandedId === act.id ? 'Свернуть' : 'Подробнее'">
+                <i class="fas" :class="expandedId === act.id ? 'fa-chevron-up' : 'fa-chevron-down'"></i>
+              </button>
+              <button class="edit-btn" @click="modal?.open(act.id)"><i class="fas fa-pen"></i></button>
+              <button class="delete-btn" @click="confirmDelete(act.id)"><i class="fas fa-trash"></i></button>
+            </div>
           </div>
-          <div class="activity-row-stats">
-            <div class="activity-stat">
-              <span class="activity-stat-val" style="color:var(--brand)">{{ act.distance_km }}</span>
-              <span class="activity-stat-lbl">km</span>
+          <Transition name="act-expand">
+            <div v-if="expandedId === act.id" class="activity-detail-panel">
+              <ActivityDetailComponent :activity-id="act.id" />
             </div>
-            <div class="activity-stat">
-              <span class="activity-stat-val">{{ formatPace(act.pace_min_per_km) }}</span>
-              <span class="activity-stat-lbl">{{ $t('stats.pace') }}</span>
-            </div>
-            <div class="activity-stat">
-              <span class="activity-stat-val">{{ formatDuration(act.duration_min) }}</span>
-              <span class="activity-stat-lbl">{{ $t('stats.time') }}</span>
-            </div>
-            <div v-if="act.avg_heart_rate" class="activity-stat">
-              <span class="activity-stat-val" style="color:var(--red)">{{ act.avg_heart_rate }}</span>
-              <span class="activity-stat-lbl">bpm</span>
-            </div>
-            <div v-if="act.elevation_gain" class="activity-stat">
-              <span class="activity-stat-val" style="color:#10b981">{{ Math.round(act.elevation_gain) }}</span>
-              <span class="activity-stat-lbl">м↑</span>
-            </div>
-          </div>
-          <div class="activity-row-actions">
-            <button class="edit-btn"
-              :class="{ active: expandedId === act.id }"
-              @click="toggleExpand(act.id)"
-              :title="expandedId === act.id ? 'Свернуть' : 'Подробнее'">
-              <i class="fas" :class="expandedId === act.id ? 'fa-chevron-up' : 'fa-chevron-down'"></i>
-            </button>
-            <button class="edit-btn"   @click="modal?.open(act.id)"><i class="fas fa-pen"></i></button>
-            <button class="delete-btn" @click="confirmDelete(act.id)"><i class="fas fa-trash"></i></button>
-          </div>
+          </Transition>
         </div>
-        <!-- Раскрытая детальная панель -->
-        <Transition name="act-expand">
-          <div v-if="expandedId === act.id" class="activity-detail-panel">
-            <ActivityDetailComponent :activity-id="act.id" />
-          </div>
-        </Transition>
-      </div>
 
-      <!-- Pager -->
-      <div v-if="store.pages > 1" class="pager">
-        <button class="pager-btn" :disabled="store.page === 0" @click="store.setPage(store.page-1)">
-          <i class="fas fa-chevron-left"></i>
-        </button>
-        <span class="pager-info">{{ store.page+1 }} / {{ store.pages }}</span>
-        <button class="pager-btn" :disabled="store.page >= store.pages-1" @click="store.setPage(store.page+1)">
-          <i class="fas fa-chevron-right"></i>
-        </button>
-      </div>
+        <div v-if="tabPages > 1" class="pager">
+          <button class="pager-btn" :disabled="tabPage === 0" @click="tabPage--">
+            <i class="fas fa-chevron-left"></i>
+          </button>
+          <span class="pager-info">{{ tabPage + 1 }} / {{ tabPages }}</span>
+          <button class="pager-btn" :disabled="tabPage >= tabPages - 1" @click="tabPage++">
+            <i class="fas fa-chevron-right"></i>
+          </button>
+        </div>
       </template>
     </div>
 
@@ -98,32 +104,55 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import ActivityModal from '@/components/activities/ActivityModal.vue'
 import SkeletonLoader from '@/components/common/SkeletonLoader.vue'
+import ActivityDetailComponent from '@/components/activities/ActivityDetail.vue'
 import { useActivitiesStore } from '@/stores/activities'
 import { useDialog } from '@/composables/useDialog'
 import { activitiesApi } from '@/api'
 import { ApiError } from '@/api/client'
-import ActivityDetailComponent from '@/components/activities/ActivityDetail.vue'
 
 const { t, locale } = useI18n()
 const store     = useActivitiesStore()
 const modal     = ref<InstanceType<typeof ActivityModal> | null>(null)
 const showModal = ref(false)
 const { confirm } = useDialog()
-const fileInput    = ref<HTMLInputElement | null>(null)
-const importing    = ref(false)
-const importError  = ref('')
-const expandedId   = ref<number | null>(null)
+const fileInput   = ref<HTMLInputElement | null>(null)
+const importing   = ref(false)
+const importError = ref('')
+const expandedId  = ref<number | null>(null)
+const activeTab   = ref<'runs' | 'other'>('runs')
+const tabPage     = ref(0)
+
+const PAGE_SIZE = 7
+const RUN_TYPES = ['run']
+
+const runsCount  = computed(() => store.all.filter(a => RUN_TYPES.includes(a.activity_type ?? 'run')).length)
+const otherCount = computed(() => store.all.filter(a => !RUN_TYPES.includes(a.activity_type ?? 'run')).length)
+
+const currentTabItems = computed(() =>
+  activeTab.value === 'runs'
+    ? store.all.filter(a => RUN_TYPES.includes(a.activity_type ?? 'run'))
+    : store.all.filter(a => !RUN_TYPES.includes(a.activity_type ?? 'run'))
+)
+const tabPages = computed(() => Math.max(1, Math.ceil(currentTabItems.value.length / PAGE_SIZE)))
+const pagedItems = computed(() =>
+  currentTabItems.value.slice(tabPage.value * PAGE_SIZE, (tabPage.value + 1) * PAGE_SIZE)
+)
+
+function setTab(tab: 'runs' | 'other') {
+  activeTab.value = tab
+  tabPage.value = 0
+}
+
+onMounted(() => store.load())
 
 function toggleExpand(id: number) {
   expandedId.value = expandedId.value === id ? null : id
 }
-
-onMounted(() => store.load())
 
 function triggerFileInput() {
   importError.value = ''
@@ -151,19 +180,54 @@ async function onFileSelected(e: Event) {
   }
 }
 
+const ACTIVITY_ICONS: Record<string, string> = {
+  run:      'fas fa-person-running',
+  ride:     'fas fa-bicycle',
+  walk:     'fas fa-person-walking',
+  hike:     'fas fa-mountain',
+  swim:     'fas fa-person-swimming',
+  strength: 'fas fa-dumbbell',
+  workout:  'fas fa-heart-pulse',
+  other:    'fas fa-bolt',
+}
+function activityIcon(type: string): string {
+  return ACTIVITY_ICONS[type] ?? 'fas fa-person-running'
+}
+
+const ACTIVITY_LABELS: Record<string, Record<string, string>> = {
+  run:      { ru: 'Пробежка', en: 'Run' },
+  ride:     { ru: 'Велопоездка', en: 'Ride' },
+  walk:     { ru: 'Прогулка', en: 'Walk' },
+  hike:     { ru: 'Поход', en: 'Hike' },
+  swim:     { ru: 'Плавание', en: 'Swim' },
+  strength: { ru: 'Силовая', en: 'Strength' },
+  workout:  { ru: 'Тренировка', en: 'Workout' },
+  other:    { ru: 'Активность', en: 'Activity' },
+}
+function activityLabel(type: string): string {
+  const lang = locale.value === 'ru' ? 'ru' : 'en'
+  return ACTIVITY_LABELS[type]?.[lang] ?? (lang === 'ru' ? 'Пробежка' : 'Run')
+}
+
 function formatPace(p: number) {
-  const m = Math.floor(p); const s = Math.round((p-m)*60)
-  return `${m}:${String(s).padStart(2,'0')}`
+  const m = Math.floor(p); const s = Math.round((p - m) * 60)
+  return `${m}:${String(s).padStart(2, '0')}`
 }
 function formatDuration(min: number) {
-  const h = Math.floor(min/60); const m = Math.round(min%60)
+  const h = Math.floor(min / 60); const m = Math.round(min % 60)
   return h > 0 ? `${h}h ${m}m` : `${m}m`
 }
 function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString(locale.value === 'ru' ? 'ru-RU' : 'en-US', { day:'2-digit', month:'short', year:'numeric' })
+  return new Date(iso).toLocaleDateString(
+    locale.value === 'ru' ? 'ru-RU' : 'en-US',
+    { day: '2-digit', month: 'short', year: 'numeric' }
+  )
 }
 async function confirmDelete(id: number) {
-  const ok = await confirm(t('activities.confirmDelete'), { danger: true, cancelLabel: t('btn.cancel'), confirmLabel: t('btn.delete') })
+  const ok = await confirm(
+    t('activities.confirmDelete'),
+    { danger: true, cancelLabel: t('btn.cancel'), confirmLabel: t('btn.delete') }
+  )
   if (!ok) return
   await store.remove(id)
 }

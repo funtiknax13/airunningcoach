@@ -23,6 +23,11 @@ class Settings(BaseSettings):
     GOOGLE_CLIENT_ID: str = ""
     GOOGLE_CLIENT_SECRET: str = ""
 
+    # ЮКасса
+    YOOKASSA_SHOP_ID: str = ""
+    YOOKASSA_SECRET_KEY: str = ""
+    YOOKASSA_RETURN_URL: str = "https://airunningcoach.pro/payment/success"
+
     # Ignored legacy keys
     GEMINI_API_KEY: str = ""
 

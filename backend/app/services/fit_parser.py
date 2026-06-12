@@ -88,6 +88,20 @@ def parse_fit(content: bytes) -> dict:
         elif name == "record":
             records.append(data)
 
+    # ── Тип активности из session.sport ─────────────────────────────────────
+    _FIT_SPORT_MAP = {
+        "running":   "run",
+        "cycling":   "ride",
+        "walking":   "walk",
+        "hiking":    "hike",
+        "swimming":  "swim",
+        "training":  "strength",
+        "fitness_equipment": "workout",
+        "cardio":    "workout",
+    }
+    raw_sport = str(session_data.get("sport", "")).lower()
+    activity_type = _FIT_SPORT_MAP.get(raw_sport, "run" if not raw_sport else "other")
+
     # ── Основные метрики из session ──────────────────────────────────────────
     distance_km  = (session_data.get("total_distance") or 0) / 1000
     duration_min = (session_data.get("total_timer_time") or 0) / 60
@@ -173,5 +187,6 @@ def parse_fit(content: bytes) -> dict:
         "laps":           laps if len(laps) > 1 else None,
         "splits":         splits if splits else None,
         "track_points":   track_points if track_points else None,
+        "activity_type":  activity_type,
         "source":         "fit",
     }

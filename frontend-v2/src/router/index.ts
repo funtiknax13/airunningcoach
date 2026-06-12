@@ -11,7 +11,8 @@ const router = createRouter({
     { path: '/goals',       component: () => import('@/pages/GoalsPage.vue'),       meta: { auth: true } },
     { path: '/coach',       component: () => import('@/pages/CoachPage.vue'),       meta: { auth: true } },
     { path: '/subscription',  component: () => import('@/pages/SubscriptionPage.vue'), meta: { auth: true } },
-    { path: '/auth/callback', component: () => import('@/pages/AuthCallbackPage.vue') },
+    { path: '/payment/success', component: () => import('@/pages/PaymentSuccessPage.vue'), meta: { auth: true } },
+    { path: '/auth/callback',   component: () => import('@/pages/AuthCallbackPage.vue') },
     { path: '/:pathMatch(.*)*', redirect: '/' },
   ],
 })

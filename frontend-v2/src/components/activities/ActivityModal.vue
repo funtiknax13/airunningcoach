@@ -3,6 +3,13 @@
     <h3>{{ editId ? $t('activities.modal.edit') : $t('activities.modal.add') }}</h3>
 
     <input type="datetime-local" v-model="form.date" class="modal-input">
+
+    <select v-model="form.activity_type" class="modal-input">
+      <option v-for="opt in activityTypes" :key="opt.value" :value="opt.value">
+        {{ opt.label }}
+      </option>
+    </select>
+
     <input type="number" v-model.number="form.distance_km"
            :placeholder="$t('activities.distance')" step="0.01" class="modal-input">
 
@@ -25,7 +32,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, computed, watch } from 'vue'
 import BaseModal from '@/components/common/BaseModal.vue'
 import TimeInput from '@/components/common/TimeInput.vue'
 import { useActivitiesStore } from '@/stores/activities'
@@ -33,7 +40,7 @@ import { activitiesApi } from '@/api'
 import type { Activity } from '@/api/types'
 import { useI18n } from 'vue-i18n'
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const store = useActivitiesStore()
 
 const show    = defineModel<boolean>({ default: false })
@@ -45,11 +52,26 @@ const durationMin = ref<number | null>(null)
 const form = ref({
   date: '', distance_km: null as number | null,
   avg_heart_rate: null as number | null, notes: '',
+  activity_type: 'run',
+})
+
+const activityTypes = computed(() => {
+  const ru = locale.value === 'ru'
+  return [
+    { value: 'run',      label: ru ? 'Пробежка'    : 'Run' },
+    { value: 'walk',     label: ru ? 'Прогулка'    : 'Walk' },
+    { value: 'ride',     label: ru ? 'Велопоездка' : 'Ride' },
+    { value: 'hike',     label: ru ? 'Поход'       : 'Hike' },
+    { value: 'swim',     label: ru ? 'Плавание'    : 'Swim' },
+    { value: 'strength', label: ru ? 'Силовая'     : 'Strength' },
+    { value: 'workout',  label: ru ? 'Тренировка'  : 'Workout' },
+    { value: 'other',    label: ru ? 'Другое'      : 'Other' },
+  ]
 })
 
 async function open(id?: number) {
   error.value = ''; durationMin.value = null
-  form.value = { date: '', distance_km: null, avg_heart_rate: null, notes: '' }
+  form.value = { date: '', distance_km: null, avg_heart_rate: null, notes: '', activity_type: 'run' }
   if (id) {
     editId.value = id
     const act = store.all.find(a => a.id === id)!
@@ -59,6 +81,7 @@ async function open(id?: number) {
     form.value.distance_km    = act.distance_km
     form.value.avg_heart_rate = act.avg_heart_rate
     form.value.notes          = act.notes ?? ''
+    form.value.activity_type  = act.activity_type ?? 'run'
     durationMin.value         = act.duration_min
   } else {
     editId.value = null
@@ -77,6 +100,7 @@ async function save() {
       duration_min: durationMin.value,
       avg_heart_rate: form.value.avg_heart_rate || null,
       notes: form.value.notes || null,
+      activity_type: form.value.activity_type,
     }
     if (editId.value) await store.update(editId.value, data)
     else              await store.create(data)

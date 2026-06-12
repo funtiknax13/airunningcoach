@@ -1782,6 +1782,24 @@ input, select, textarea { font-family: var(--font); }
   margin-bottom: 12px;
 }
 
+/* ── Activity tabs ───────────────────────────────────────────── */
+.act-tabs { display: flex; gap: 4px; }
+.act-tab {
+  display: flex; align-items: center; gap: 6px;
+  padding: 6px 12px; border-radius: 8px; border: none;
+  background: transparent; cursor: pointer;
+  color: var(--text-2); font-size: 0.85rem; font-weight: 500;
+  transition: background .15s, color .15s;
+}
+.act-tab:hover { background: var(--surface-2); color: var(--text-1); }
+.act-tab.active { background: rgba(99,102,241,.12); color: var(--brand); }
+.act-tab-count {
+  background: var(--surface-2); border-radius: 12px;
+  padding: 1px 6px; font-size: 0.75rem; color: var(--text-3);
+}
+.act-tab.active .act-tab-count { background: rgba(99,102,241,.12); color: var(--brand); }
+
+
 @media (max-width: 768px) {
   /* App shell */
   .page-body     { padding: 12px; }

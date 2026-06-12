@@ -68,6 +68,7 @@ export interface ActivityCreate {
   avg_heart_rate?: number | null
   calories?: number | null
   notes?: string | null
+  activity_type?: string
   source?: string
 }
 
@@ -77,6 +78,7 @@ export interface ActivityUpdate {
   duration_min?: number
   avg_heart_rate?: number | null
   notes?: string | null
+  activity_type?: string
 }
 
 export interface ActivityLap {
@@ -116,6 +118,7 @@ export interface Activity {
   elevation_gain: number | null
   calories: number | null
   notes: string | null
+  activity_type: string
   source: string
   laps: ActivityLap[] | null
   splits: ActivitySplit[] | null
