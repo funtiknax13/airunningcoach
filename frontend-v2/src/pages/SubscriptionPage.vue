@@ -59,10 +59,18 @@
 
         <!-- Кнопка оплаты -->
         <div class="subs-payment">
-          <button class="btn btn-primary subs-buy-btn" disabled style="opacity:0.5;cursor:not-allowed">
-            <i class="fas fa-lock"></i> {{ t('subs.buyBtn') }}
+          <div v-if="payError" class="alert alert-error" style="margin-bottom:12px">
+            <i class="fas fa-triangle-exclamation"></i> {{ payError }}
+          </div>
+          <button
+            class="btn btn-primary subs-buy-btn"
+            :disabled="paying"
+            @click="startPayment"
+          >
+            <i class="fas" :class="paying ? 'fa-spinner fa-spin' : 'fa-credit-card'"></i>
+            {{ paying ? t('subs.paying') : isPremium ? t('subs.extendBtn') : t('subs.buyBtn') }}
           </button>
-          <p class="subs-payment-desc">{{ t('subs.comingSoonDesc') }}</p>
+          <p class="subs-payment-desc">{{ t('subs.paymentDesc') }}</p>
 
           <!-- ИНН самозанятого -->
           <div class="subs-inn">
@@ -80,11 +88,28 @@ import { ref, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import { useAuthStore } from '@/stores/auth'
+import { api } from '@/api/client'
 
 const { t, locale } = useI18n()
 const auth = useAuthStore()
 
 const selected = ref<'month' | 'quarter' | 'year'>('month')
+const paying   = ref(false)
+const payError = ref('')
+
+async function startPayment() {
+  paying.value = true
+  payError.value = ''
+  try {
+    const res = await api.request<{ confirmation_url: string }>(
+      '/api/payments/create', 'POST', { plan: selected.value }
+    )
+    window.location.href = res.confirmation_url
+  } catch (e: any) {
+    payError.value = e.message || t('subs.payError')
+    paying.value = false
+  }
+}
 
 const plans = computed(() => {
   const isRu = locale.value === 'ru'

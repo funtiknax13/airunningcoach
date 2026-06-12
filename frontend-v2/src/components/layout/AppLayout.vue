@@ -3,7 +3,7 @@
   <div class="app-shell">
     <aside class="sidebar">
       <div class="sidebar-logo">
-        <img src="/images/logo.png" alt="logo">
+        <img src="/logo.png" alt="logo">
         <div class="sidebar-logo-brand">
           <div class="sidebar-logo-text">
             <span>AI</span>RunningCoach

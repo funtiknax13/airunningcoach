@@ -2,7 +2,7 @@
   <div class="auth-card">
     <div class="auth-logo">
       <div class="auth-logo-icon">
-        <img src="/images/logo.png" alt="logo">
+        <img src="/logo.png" alt="logo">
       </div>
       <div class="auth-app-name"><span>AI</span>RunningCoach</div>
       <div class="auth-tagline">{{ $t('auth.tagline') }}</div>
