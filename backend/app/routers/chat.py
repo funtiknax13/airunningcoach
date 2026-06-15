@@ -7,9 +7,23 @@ from app.database import get_db
 from app.models import User, ChatMessage
 from app.schemas import AIChatRequest, ChatMessageResponse
 from app.dependencies import get_current_user
-from app.services.ai_agent import chat_response
+from app.services.ai_agent import chat_response, build_and_save_plan
 from app.services.insights_cache import invalidate_insights_cache
 from app.services.rate_limit import check_and_record
+
+_PLAN_TRIGGERS = [
+    # RU
+    "составь план", "составьте план", "сделай план", "сгенерируй план",
+    "создай план", "пересобери план", "обнови план", "перегенерируй план",
+    "сделай новый план", "создай новый план", "составить план", "пересоздай план",
+    # EN
+    "create plan", "generate plan", "make plan", "build plan",
+    "new plan", "rebuild plan", "create a plan", "generate a plan", "make a plan",
+]
+
+def _is_plan_request(text: str) -> bool:
+    lowered = text.lower()
+    return any(t in lowered for t in _PLAN_TRIGGERS)
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 
@@ -45,12 +59,22 @@ async def chat_with_ai(
     # Получаем ответ агента
     ai_text = await chat_response(request.message, current_user, db, history, lang=request.lang or "ru")
 
+    # Если пользователь просит составить/пересобрать план — делаем это в фоне
+    plan_requested = _is_plan_request(request.message)
+    if plan_requested:
+        try:
+            check_and_record(current_user, "plan", db)
+            await build_and_save_plan(current_user, db)
+        except Exception:
+            plan_requested = False  # rate limit hit или ошибка — не меняем context_type
+
     # Сохраняем ответ AI
+    context = "plan_generated" if plan_requested else request.context_type
     ai_msg = ChatMessage(
         user_id=current_user.id,
         role="ai",
         content=ai_text,
-        context_type=request.context_type,
+        context_type=context,
     )
     db.add(ai_msg)
     db.commit()

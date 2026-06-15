@@ -87,6 +87,7 @@ export default {
     greeting: '👋 Привет! Я ваш AI‑тренер. Чем могу помочь?',
     error: '😞 Ошибка. Попробуйте позже.',
     typing: 'Печатает...',
+    planReady: 'Открыть план тренировок →',
   },
   profile: {
     tabInfo: 'Профиль', tabPassword: 'Пароль',

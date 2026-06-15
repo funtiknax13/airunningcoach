@@ -19,6 +19,10 @@
                  v-if="msg.role === 'ai'"
                  v-html="renderMd(msg.content)" />
             <div class="chat-bubble" v-else>{{ msg.content }}</div>
+            <RouterLink v-if="msg.context_type === 'plan_generated'" to="/training"
+              class="plan-ready-link">
+              📅 {{ $t('chat.planReady') }}
+            </RouterLink>
           </div>
           <div v-if="chatStore.typing" class="chat-msg ai">
             <div class="chat-bubble">
@@ -69,6 +73,7 @@
 
 <script setup lang="ts">
 import { ref, watch, nextTick, onMounted } from 'vue'
+import { RouterLink } from 'vue-router'
 import { marked } from 'marked'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import SkeletonLoader from '@/components/common/SkeletonLoader.vue'

@@ -87,6 +87,7 @@ export default {
     greeting: "👋 Hi! I'm your AI coach. How can I help?",
     error: '😞 Error. Please try again.',
     typing: 'Typing...',
+    planReady: 'Open training plan →',
   },
   profile: {
     tabInfo: 'Profile', tabPassword: 'Password',

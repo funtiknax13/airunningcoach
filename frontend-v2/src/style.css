@@ -906,6 +906,21 @@ input, select, textarea { font-family: var(--font); }
 }
 .chat-bubble--md hr           { border: none; border-top: 1px solid var(--border); margin: 8px 0; }
 
+.plan-ready-link {
+  display: inline-flex;
+  align-items: center;
+  margin-top: 6px;
+  padding: 6px 12px;
+  background: var(--brand-light);
+  color: var(--brand);
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: background 0.15s;
+}
+.plan-ready-link:hover { background: var(--brand); color: #fff; }
+
 .chat-input-row {
   display: flex;
   gap: 8px;

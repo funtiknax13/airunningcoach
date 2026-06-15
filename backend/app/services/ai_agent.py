@@ -23,11 +23,11 @@ logger = logging.getLogger(__name__)
 _STUB_MODE = not settings.DEEPSEEK_API_KEY or settings.DEEPSEEK_API_KEY == "your-deepseek-api-key-here"
 
 SYSTEM_PROMPT = """\
-Ты — персональный тренер по бегу. Твоя роль — **составлять и корректировать планы тренировок**, \
-давать конкретные советы, а не оценивать или осуждать спортсмена.
+Ты — персональный тренер по бегу. Даёшь конкретные советы, анализируешь тренировки, \
+помогаешь с подготовкой. Не критикуешь — только факты и действия.
 
-## Методологии, которыми ты руководствуешься
-- **Джек Дэниелс**: VDOT, зоны E/M/T/I/R, расчёт темпов от текущей формы
+## Методологии
+- **Джек Дэниелс**: VDOT, зоны E/M/T/I/R, темпы от текущей формы
 - **Лидьярд**: аэробная база перед интенсивностью, периодизация
 - **Hansons Method**: кумулятивная усталость, не бегай «на свежих ногах»
 - **Правило 80/20**: 80% объёма — лёгкий бег, 20% — интенсивный
@@ -35,23 +35,17 @@ SYSTEM_PROMPT = """\
 ## Принципы
 - Правило 10%: не повышай объём больше чем на 10% в неделю
 - Длинная пробежка ≤ 30% недельного объёма
-- Восстановление = часть тренировки, не слабость
-- Специфичность: тренировки = целевой старт
+- Восстановление = часть тренировки
 
-## Твоё поведение
-1. **Если пробежек нет** — не составляй план вслепую. Задай уточняющие вопросы:
-   текущий уровень (никогда не бегал / бегал раньше / регулярно), \
-   сколько дней в неделю готов тренироваться, есть ли травмы, цель по времени.
-   Задавай по 1-2 вопроса за раз, не всё сразу.
-2. **Если пробежки есть** — анализируй их и предлагай конкретный следующий шаг \
-   (например: «На следующей неделе добавь одну темповую 6 км в темпе 5:20»).
-3. **Если просят скорректировать план** — учитывай последние пробежки, \
-   невыполненные тренировки и усталость. Предлагай изменения конкретно.
-4. Не оценивай и не критикуй. Только факты и действия.
-5. Используй Markdown в ответах: **жирный**, списки, заголовки `##` — \
-   это улучшает читаемость.
-6. Отвечай на языке пользователя (указан ниже).
-7. Никогда не ставь диагнозов. При болях — рекомендуй врача.\
+## Стиль
+- **Отвечай кратко и по делу** — 2-5 предложений, как живой тренер в переписке
+- Давай **один конкретный совет** за раз, не расписывай всё сразу
+- Markdown — только когда реально помогает (список шагов, сравнение), не для красоты
+- Если пробежек нет — задавай уточняющие вопросы (1-2 за раз), не составляй план вслепую
+- Если пользователь просит составить или пересобрать план — скажи \
+  что план уже формируется и появится во вкладке «Тренировки» через несколько секунд
+- При болях — рекомендуй врача. Никогда не ставь диагнозов.
+- Отвечай на языке пользователя (указан ниже).\
 """
 
 
@@ -276,6 +270,49 @@ def analyze_new_activity(activity, user: User, db: Session) -> str:
     db.commit()
 
     return ai_text
+
+
+async def build_and_save_plan(user: User, db: Session) -> None:
+    """Генерирует план через AI и сохраняет в БД (деактивирует старый). Используется из чата."""
+    chat_history = (
+        db.query(ChatMessage)
+        .filter(ChatMessage.user_id == user.id)
+        .order_by(ChatMessage.created_at.desc())
+        .limit(30)
+        .all()[::-1]
+    )
+    workouts_data = await generate_training_plan(user, db, chat_history)
+
+    db.query(TrainingPlan).filter(
+        TrainingPlan.user_id == user.id, TrainingPlan.is_active == True,
+    ).update({"is_active": False})
+
+    start = datetime.now()
+    db_plan = TrainingPlan(
+        user_id=user.id,
+        week_start_date=start,
+        week_end_date=start + timedelta(days=7),
+        goal_type="ai_generated",
+        is_active=True,
+    )
+    db.add(db_plan)
+    db.flush()
+
+    for i, w in enumerate(workouts_data):
+        offset = w.get("day_of_week", i)
+        planned = start + timedelta(days=offset)
+        db.add(Workout(
+            training_plan_id=db_plan.id,
+            day_of_week=planned.weekday(),
+            planned_date=planned,
+            workout_type=w.get("workout_type", "easy"),
+            description=w.get("description", ""),
+            distance_km=w.get("distance_km"),
+            target_pace_min_km=w.get("target_pace_min_km"),
+            duration_min=None,
+            completion_status="none",
+        ))
+    db.commit()
 
 
 async def generate_training_plan(user: User, db: Session, chat_history: list[ChatMessage] | None = None) -> list[dict]:
