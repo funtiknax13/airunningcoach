@@ -84,6 +84,7 @@ const text   = ref('')
 const boxRef = ref<HTMLElement | null>(null)
 
 onMounted(async () => {
+  chatStore.clearUnread()
   // Чат грузим сразу — он быстрый (просто история из БД)
   await chatStore.load()
   scrollToBottom()

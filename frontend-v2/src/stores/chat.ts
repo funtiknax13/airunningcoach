@@ -5,8 +5,18 @@ import { i18n } from '@/i18n'
 import type { ChatMessage } from '@/api/types'
 
 export const useChatStore = defineStore('chat', () => {
-  const messages = ref<ChatMessage[]>([])
-  const typing   = ref(false)
+  const messages  = ref<ChatMessage[]>([])
+  const typing    = ref(false)
+  const hasUnread = ref(localStorage.getItem('ai_unread') === '1')
+
+  function setUnread() {
+    localStorage.setItem('ai_unread', '1')
+    hasUnread.value = true
+  }
+  function clearUnread() {
+    localStorage.removeItem('ai_unread')
+    hasUnread.value = false
+  }
 
   async function load() {
     messages.value = await chatApi.history()
@@ -37,5 +47,5 @@ export const useChatStore = defineStore('chat', () => {
     }
   }
 
-  return { messages, typing, load, send }
+  return { messages, typing, hasUnread, setUnread, clearUnread, load, send }
 })

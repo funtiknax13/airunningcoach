@@ -123,6 +123,10 @@ class ActivityResponse(BaseModel):
         from_attributes = True
 
 
+class ActivityWithAnalysis(ActivityResponse):
+    ai_analysis: Optional[str] = None
+
+
 class ActivityUpdate(BaseModel):
     date: Optional[datetime] = None
     distance_km: Optional[float] = None

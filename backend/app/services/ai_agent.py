@@ -91,16 +91,20 @@ def _build_user_context(user: User, db: Session) -> str:
     else:
         lines.append("\n=== ЦЕЛИ ===\nЦели не установлены.")
 
-    # Последние 10 пробежек
+    # История тренировок (все)
     recent = (
         db.query(Activity)
         .filter(Activity.user_id == user.id)
         .order_by(Activity.date.desc())
-        .limit(10)
+        .limit(60)
         .all()
     )
+    _type_labels = {
+        "run": "бег", "ride": "вело", "walk": "ходьба", "hike": "хайкинг",
+        "swim": "плавание", "strength": "силовая", "workout": "тренировка", "other": "другое",
+    }
     if recent:
-        lines.append("\n=== ПОСЛЕДНИЕ ПРОБЕЖКИ ===")
+        lines.append("\n=== ИСТОРИЯ ТРЕНИРОВОК ===")
         for a in recent:
             act_date = a.date.date() if hasattr(a.date, 'date') else a.date
             days_ago = (today - act_date).days
@@ -110,8 +114,9 @@ def _build_user_context(user: User, db: Session) -> str:
             max_hr   = f"(макс {a.max_heart_rate})" if a.max_heart_rate else ""
             elev     = f", ↑{a.elevation_gain:.0f}м" if a.elevation_gain else ""
             cad      = f", {a.avg_cadence}шаг/мин" if a.avg_cadence else ""
+            type_label = _type_labels.get(a.activity_type or "run", a.activity_type or "бег")
             line = (
-                f"• {a.date.strftime('%d.%m')} ({ago_str}): "
+                f"• {a.date.strftime('%d.%m')} ({ago_str}) [{type_label}]: "
                 f"{a.distance_km} км, {_fmt_time(a.duration_min)}, темп {pace_str}{hr_str}{max_hr}{elev}{cad}"
             )
             lines.append(line)
@@ -133,13 +138,14 @@ def _build_user_context(user: User, db: Session) -> str:
                 ]
                 lines.append(f"  Круги: {', '.join(lap_parts)}")
     else:
-        lines.append("\n=== ПРОБЕЖКИ ===\nПробежек пока нет.")
+        lines.append("\n=== ИСТОРИЯ ТРЕНИРОВОК ===\nТренировок пока нет.")
 
-    # Статистика за 30 дней
+    # Статистика за 30 дней (только пробежки)
     since = datetime.now() - timedelta(days=30)
     month = db.query(Activity).filter(
         Activity.user_id == user.id,
-        Activity.date >= since
+        Activity.date >= since,
+        Activity.activity_type == "run",
     ).all()
     if month:
         total_km  = sum(a.distance_km  for a in month)
@@ -216,6 +222,60 @@ async def chat_response(
     except Exception as e:
         logger.error("DeepSeek chat error: %s", e)
         return "Извините, AI-тренер временно недоступен. Попробуйте позже."
+
+
+def analyze_new_activity(activity, user: User, db: Session) -> str:
+    """Синхронный автоанализ только что загруженной тренировки. Сохраняет сообщения в ChatMessage."""
+    if _STUB_MODE:
+        return ""
+
+    client = _make_client()
+    if not client:
+        return ""
+
+    context = _build_user_context(user, db)
+    system = f"{SYSTEM_PROMPT}\nОтвечай на русском языке.\n\n{context}"
+
+    type_map = {
+        "run": "Пробежка", "ride": "Велотренировка", "walk": "Ходьба",
+        "hike": "Хайкинг", "swim": "Плавание", "strength": "Силовая тренировка",
+        "workout": "Тренировка", "other": "Активность",
+    }
+    type_name = type_map.get(activity.activity_type or "run", "Тренировка")
+    pace_str = f"{_fmt_pace(activity.pace_min_per_km)}/км" if activity.pace_min_per_km else "—"
+    hr_str = f"\n- ЧСС: {activity.avg_heart_rate} уд/мин" if activity.avg_heart_rate else ""
+    elev_str = f"\n- Набор высоты: {activity.elevation_gain:.0f} м" if activity.elevation_gain else ""
+
+    prompt = (
+        f"Я только что загрузил(а) тренировку:\n\n"
+        f"**{type_name}** {activity.date.strftime('%d.%m.%Y')}:\n"
+        f"- Дистанция: {activity.distance_km} км\n"
+        f"- Время: {_fmt_time(activity.duration_min)}\n"
+        f"- Темп: {pace_str}{hr_str}{elev_str}\n\n"
+        f"Разбери эту тренировку: как прошла, что хорошо, что можно улучшить, "
+        f"как она вписывается в мою подготовку."
+    )
+
+    try:
+        resp = client.chat.completions.create(
+            model="deepseek-chat",
+            messages=[
+                {"role": "system", "content": system},
+                {"role": "user", "content": prompt},
+            ],
+            max_tokens=600,
+            temperature=0.7,
+        )
+        ai_text = resp.choices[0].message.content.strip()
+    except Exception as e:
+        logger.error("DeepSeek analyze_new_activity error: %s", e)
+        return ""
+
+    db.add(ChatMessage(user_id=user.id, role="user", content=prompt, context_type="auto_analysis"))
+    db.add(ChatMessage(user_id=user.id, role="ai", content=ai_text, context_type="auto_analysis"))
+    db.commit()
+
+    return ai_text
 
 
 async def generate_training_plan(user: User, db: Session, chat_history: list[ChatMessage] | None = None) -> list[dict]:

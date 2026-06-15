@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { activitiesApi } from '@/api'
+import { useChatStore } from '@/stores/chat'
 import type { Activity, ActivityCreate, ActivityUpdate } from '@/api/types'
 
 const PAGE_SIZE = 7
@@ -23,7 +24,8 @@ export const useActivitiesStore = defineStore('activities', () => {
   }
 
   async function create(data: ActivityCreate) {
-    await activitiesApi.create(data)
+    const result = await activitiesApi.create(data)
+    if (result.ai_analysis) useChatStore().setUnread()
     await load()
   }
 

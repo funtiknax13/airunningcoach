@@ -111,6 +111,7 @@ import ActivityModal from '@/components/activities/ActivityModal.vue'
 import SkeletonLoader from '@/components/common/SkeletonLoader.vue'
 import ActivityDetailComponent from '@/components/activities/ActivityDetail.vue'
 import { useActivitiesStore } from '@/stores/activities'
+import { useChatStore } from '@/stores/chat'
 import { useDialog } from '@/composables/useDialog'
 import { activitiesApi } from '@/api'
 import { ApiError } from '@/api/client'
@@ -165,7 +166,8 @@ async function onFileSelected(e: Event) {
   importing.value = true
   importError.value = ''
   try {
-    await activitiesApi.importFile(file)
+    const result = await activitiesApi.importFile(file)
+    if (result.ai_analysis) useChatStore().setUnread()
     await store.load()
   } catch (err: any) {
     if (err instanceof ApiError && err.status === 409 &&

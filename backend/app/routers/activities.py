@@ -11,6 +11,8 @@ from app.dependencies import get_current_user
 from app.services.insights_cache import invalidate_insights_cache
 from app.services.gpx_parser import parse_gpx
 from app.services.fit_parser import parse_fit
+from app.services.ai_agent import analyze_new_activity
+from app.schemas import ActivityWithAnalysis
 
 router = APIRouter(prefix="/activities", tags=["activities"])
 
@@ -74,7 +76,7 @@ def _match_workout(activity: Activity, user_id: int, db: Session) -> None:
     workout.completed = True
 
 
-@router.post("", response_model=ActivityResponse)
+@router.post("", response_model=ActivityWithAnalysis)
 def create_activity(
     activity: ActivityCreate,
     db: Session = Depends(get_db),
@@ -99,13 +101,20 @@ def create_activity(
     db.commit()
     db.refresh(db_activity)
 
-    # Новая пробежка меняет статистику — сбрасываем кеш инсайтов
     invalidate_insights_cache(current_user.id, db)
 
-    return db_activity
+    # Автоанализ для сегодняшних/вчерашних тренировок
+    ai_analysis = None
+    act_date = db_activity.date.date() if hasattr(db_activity.date, 'date') else db_activity.date
+    if (date.today() - act_date).days <= 1:
+        ai_analysis = analyze_new_activity(db_activity, current_user, db)
+
+    result = ActivityWithAnalysis.model_validate(db_activity)
+    result.ai_analysis = ai_analysis or None
+    return result
 
 
-@router.post("/import", response_model=ActivityResponse)
+@router.post("/import", response_model=ActivityWithAnalysis)
 async def import_activity_file(
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
@@ -168,7 +177,16 @@ async def import_activity_file(
     db.refresh(db_activity)
 
     invalidate_insights_cache(current_user.id, db)
-    return db_activity
+
+    # Автоанализ для сегодняшних/вчерашних тренировок
+    ai_analysis = None
+    act_date = db_activity.date.date() if hasattr(db_activity.date, 'date') else db_activity.date
+    if (date.today() - act_date).days <= 1:
+        ai_analysis = analyze_new_activity(db_activity, current_user, db)
+
+    result = ActivityWithAnalysis.model_validate(db_activity)
+    result.ai_analysis = ai_analysis or None
+    return result
 
 
 @router.get("/stats")
@@ -182,6 +200,7 @@ def get_monthly_stats(
 
     activities = db.query(Activity).filter(
         Activity.user_id == current_user.id,
+        Activity.activity_type == "run",
         Activity.date >= datetime.combine(month_start, datetime.min.time()),
     ).all()
 
@@ -197,6 +216,7 @@ def get_monthly_stats(
 
     prev_activities = db.query(Activity).filter(
         Activity.user_id == current_user.id,
+        Activity.activity_type == "run",
         Activity.date >= datetime.combine(prev_start, datetime.min.time()),
         Activity.date < datetime.combine(month_start, datetime.min.time()),
     ).all()

@@ -129,6 +129,10 @@ export interface ActivityDetail extends Activity {
   track_points: ActivityTrackPoint[] | null
 }
 
+export interface ActivityWithAnalysis extends Activity {
+  ai_analysis: string | null
+}
+
 // ── Goals ─────────────────────────────────────────────────────────────────
 export type GoalType = 'half_marathon' | 'full_marathon' | '10k' | '5k' | 'custom'
 

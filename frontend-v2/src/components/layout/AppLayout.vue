@@ -21,7 +21,10 @@
         <RouterLink v-for="item in navItems" :key="item.to"
           :to="item.to" class="nav-item"
           :class="{ active: route.path === item.to }">
-          <i :class="item.icon"></i>
+          <span class="nav-icon-wrap">
+            <i :class="item.icon"></i>
+            <span v-if="item.to === '/coach' && chatStore.hasUnread" class="nav-badge"></span>
+          </span>
           {{ item.label }}
         </RouterLink>
       </nav>
@@ -105,7 +108,10 @@
     <RouterLink v-for="item in navItems" :key="item.to"
       :to="item.to" class="bottom-nav-item"
       :class="{ active: route.path === item.to }">
-      <i :class="item.icon"></i>
+      <span class="nav-icon-wrap">
+        <i :class="item.icon"></i>
+        <span v-if="item.to === '/coach' && chatStore.hasUnread" class="nav-badge"></span>
+      </span>
       <span>{{ item.label }}</span>
     </RouterLink>
   </nav>
@@ -121,14 +127,16 @@ import { useRoute, RouterLink } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { toggleLang } from '@/i18n'
 import { useAuthStore } from '@/stores/auth'
+import { useChatStore } from '@/stores/chat'
 import { useTheme } from '@/composables/useTheme'
 import ProfileModal       from '@/components/profile/ProfileModal.vue'
 import AppDialog          from '@/components/common/AppDialog.vue'
 import TrialExpiredBanner from '@/components/common/TrialExpiredBanner.vue'
 
 const { t, locale } = useI18n()
-const route   = useRoute()
-const auth    = useAuthStore()
+const route     = useRoute()
+const auth      = useAuthStore()
+const chatStore = useChatStore()
 
 const isPremium = computed(() => {
   if (!auth.user?.is_premium) return false

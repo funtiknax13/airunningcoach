@@ -1,7 +1,7 @@
 import { api, setToken } from './client'
 import type {
   UserCreate, UserLogin, Token, UserResponse, UserUpdate, PasswordChange,
-  Activity, ActivityDetail, ActivityCreate, ActivityUpdate,
+  Activity, ActivityDetail, ActivityCreate, ActivityUpdate, ActivityWithAnalysis,
   Goal, GoalCreate, GoalUpdate,
   TrainingPlan, Workout,
   ChatMessage,
@@ -49,14 +49,14 @@ export const authApi = {
 export const activitiesApi = {
   stats:  () => api.request<MonthlyStats>('/api/activities/stats'),
   list:   ()                        => api.request<Activity[]>('/api/activities'),
-  create: (d: ActivityCreate)       => api.request<Activity>('/api/activities', 'POST', d),
+  create: (d: ActivityCreate)       => api.request<ActivityWithAnalysis>('/api/activities', 'POST', d),
   update: (id: number, d: ActivityUpdate) => api.request<Activity>(`/api/activities/${id}`, 'PUT', d),
   remove: (id: number)              => api.request<void>(`/api/activities/${id}`, 'DELETE'),
   detail: (id: number) => api.request<ActivityDetail>(`/api/activities/${id}/detail`),
-  importFile: async (file: File): Promise<Activity> => {
+  importFile: async (file: File): Promise<ActivityWithAnalysis> => {
     const form = new FormData()
     form.append('file', file)
-    return api.requestRaw<Activity>('/api/activities/import', 'POST', form)
+    return api.requestRaw<ActivityWithAnalysis>('/api/activities/import', 'POST', form)
   },
 }
 
