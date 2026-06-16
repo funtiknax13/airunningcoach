@@ -6,6 +6,7 @@ Hansons Method (кумулятивная усталость) и правило 8
 """
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 from datetime import datetime, timedelta
@@ -55,7 +56,18 @@ def _make_client() -> Optional[OpenAI]:
     return OpenAI(
         api_key=settings.DEEPSEEK_API_KEY,
         base_url="https://api.deepseek.com",
+        timeout=45.0,     # дефолт OpenAI = 600 сек; зависший запрос не должен морозить воркер
+        max_retries=1,
     )
+
+
+async def _acreate(client: OpenAI, **kwargs):
+    """Блокирующий вызов DeepSeek в отдельном потоке — не морозит asyncio event loop.
+
+    Sync-клиент OpenAI делает обычный сетевой запрос, который в `async def`-эндпоинте
+    блокировал бы весь event loop (а значит и все остальные запросы при --workers 1).
+    """
+    return await asyncio.to_thread(client.chat.completions.create, **kwargs)
 
 
 def _build_user_context(user: User, db: Session) -> str:
@@ -206,7 +218,8 @@ async def chat_response(
     messages.append({"role": "user", "content": user_message})
 
     try:
-        resp = client.chat.completions.create(
+        resp = await _acreate(
+            client,
             model="deepseek-chat",
             messages=messages,
             max_tokens=800,
@@ -364,7 +377,8 @@ async def generate_training_plan(user: User, db: Session, chat_history: list[Cha
 Только JSON, без пояснений."""
 
     try:
-        resp = client.chat.completions.create(
+        resp = await _acreate(
+            client,
             model="deepseek-chat",
             messages=[
                 {"role": "system", "content": SYSTEM_PROMPT},
@@ -402,7 +416,8 @@ async def generate_insights(user: User, db: Session) -> list[str]:
 Каждый совет — одно предложение, конкретное, с цифрами где уместно."""
 
     try:
-        resp = client.chat.completions.create(
+        resp = await _acreate(
+            client,
             model="deepseek-chat",
             messages=[
                 {"role": "system", "content": SYSTEM_PROMPT},

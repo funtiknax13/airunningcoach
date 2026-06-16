@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { authApi } from '@/api'
-import { api, isAuthenticated } from '@/api/client'
+import { api, isAuthenticated, ApiError } from '@/api/client'
 import type { UserResponse, UserUpdate, PasswordChange } from '@/api/types'
 
 export const useAuthStore = defineStore('auth', () => {
@@ -13,7 +13,11 @@ export const useAuthStore = defineStore('auth', () => {
     try {
       user.value = await authApi.me()
       loggedIn.value = true
-    } catch { logout() }
+    } catch (e) {
+      // Разлогиниваем ТОЛЬКО при реальном 401 (токен невалиден).
+      // Таймаут / 5xx / сетевой сбой — временные: сохраняем сессию, токен не трогаем.
+      if (e instanceof ApiError && e.status === 401) logout()
+    }
   }
 
   async function login(email: string, password: string) {

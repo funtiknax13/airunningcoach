@@ -1,5 +1,6 @@
 # app/routers/activities.py
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+from starlette.concurrency import run_in_threadpool
 from sqlalchemy.orm import Session
 from typing import List
 from datetime import datetime, date
@@ -182,7 +183,10 @@ async def import_activity_file(
     ai_analysis = None
     act_date = db_activity.date.date() if hasattr(db_activity.date, 'date') else db_activity.date
     if (date.today() - act_date).days <= 1:
-        ai_analysis = analyze_new_activity(db_activity, current_user, db)
+        # Блокирующий вызов DeepSeek → в threadpool, чтобы не морозить event loop
+        ai_analysis = await run_in_threadpool(
+            analyze_new_activity, db_activity, current_user, db
+        )
 
     result = ActivityWithAnalysis.model_validate(db_activity)
     result.ai_analysis = ai_analysis or None

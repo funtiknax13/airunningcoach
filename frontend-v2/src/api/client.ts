@@ -24,6 +24,26 @@ export function isAuthenticated(): boolean {
   return !!getToken()
 }
 
+// AI-эндпоинты могут отвечать долго (генерация плана/чат) — даём щедрый таймаут,
+// но не бесконечный, чтобы мёртвое соединение не висело вечно.
+const TIMEOUT_MS = 120_000
+
+async function fetchWithTimeout(url: string, init: RequestInit): Promise<Response> {
+  const ctrl = new AbortController()
+  const timer = setTimeout(() => ctrl.abort(), TIMEOUT_MS)
+  try {
+    return await fetch(url, { ...init, signal: ctrl.signal })
+  } catch (e) {
+    // Сетевой сбой / таймаут / abort → статус 0 (НЕ 401 — сессию не сбрасываем)
+    const msg = (e as Error)?.name === 'AbortError'
+      ? 'Превышено время ожидания ответа сервера'
+      : 'Нет соединения с сервером'
+    throw new ApiError(msg, 0)
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
 async function request<T>(
   path: string,
   method = 'GET',
@@ -33,7 +53,7 @@ async function request<T>(
   const token = getToken()
   if (token) headers['Authorization'] = `Bearer ${token}`
 
-  const res = await fetch(`${BASE}${path}`, {
+  const res = await fetchWithTimeout(`${BASE}${path}`, {
     method,
     headers,
     body: body !== undefined ? JSON.stringify(body) : undefined,
@@ -41,14 +61,15 @@ async function request<T>(
 
   if (res.status === 204) return undefined as T
 
-  const data = await res.json()
+  // 5xx от nginx (504/502) приходит как HTML — res.json() упадёт. Отдаём чистую ошибку.
+  const data = await res.json().catch(() => null)
   if (!res.ok) {
     const detail = data?.detail
     const message = typeof detail === 'object' && detail !== null && !Array.isArray(detail)
       ? (detail.message ?? JSON.stringify(detail))
       : Array.isArray(detail)
         ? detail.map((e: { msg: string }) => e.msg).join('; ')
-        : (detail ?? 'Server error')
+        : (detail ?? `Ошибка сервера (${res.status})`)
     if (res.status === 401 && !path.includes('/api/auth/')) {
       setToken(null)
       window.location.href = '/'
@@ -67,16 +88,16 @@ async function requestRaw<T>(
   const token = getToken()
   if (token) headers['Authorization'] = `Bearer ${token}`
 
-  const res = await fetch(`${BASE}${path}`, { method, headers, body })
+  const res = await fetchWithTimeout(`${BASE}${path}`, { method, headers, body })
 
   if (res.status === 204) return undefined as T
 
-  const data = await res.json()
+  const data = await res.json().catch(() => null)
   if (!res.ok) {
     const detail = data?.detail
     const message = typeof detail === 'string' ? detail
       : Array.isArray(detail) ? detail.map((e: { msg: string }) => e.msg).join('; ')
-      : (detail?.message ?? JSON.stringify(detail) ?? 'Server error')
+      : (detail?.message ?? JSON.stringify(detail) ?? `Ошибка сервера (${res.status})`)
     if (res.status === 401 && !path.includes('/api/auth/')) {
       setToken(null); window.location.href = '/'
     }

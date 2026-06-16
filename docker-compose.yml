@@ -3,6 +3,7 @@ services:
   postgres:
     image: postgres:16-alpine
     restart: unless-stopped
+    mem_limit: 256m
     environment:
       POSTGRES_DB:       ${POSTGRES_DB:-runcoach}
       POSTGRES_USER:     ${POSTGRES_USER:-runcoach}
@@ -32,6 +33,7 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     restart: unless-stopped
+    mem_limit: 512m
     env_file: .env
     depends_on:
       postgres:
@@ -42,6 +44,7 @@ services:
   nginx:
     image: nginx:alpine
     restart: unless-stopped
+    mem_limit: 64m
     ports:
       - "80:80"
       - "443:443"
