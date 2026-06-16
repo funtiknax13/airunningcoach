@@ -14,7 +14,7 @@ from datetime import datetime, timezone, timedelta
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from sqlalchemy.orm import Session
 
-from app.database import SessionLocal
+from app.database import SessionLocal, engine
 from app.models import User
 from app.services.email import (
     send_trial_day1_email,
@@ -26,6 +26,10 @@ from app.services.email import (
 logger = logging.getLogger(__name__)
 
 scheduler = AsyncIOScheduler(timezone="UTC")
+
+# Соединение держим открытым, пока держим advisory-lock (лок живёт сколько живёт сессия).
+_lock_conn = None
+_SCHED_LOCK_ID = 915_623  # произвольный уникальный ключ для pg_try_advisory_lock
 
 
 def _get_trial_day(user: User) -> int | None:
@@ -122,7 +126,35 @@ async def _run_trial_emails() -> None:
         db.close()
 
 
+def _try_acquire_lock() -> bool:
+    """Берёт advisory-lock Postgres. True — этот воркер ведущий (запускает планировщик).
+
+    SQLite (локалка) лока не имеет — всегда True. На postgres лок гарантирует,
+    что при нескольких воркерах планировщик работает ровно в одном.
+    """
+    global _lock_conn
+    if "sqlite" in str(engine.url):
+        return True
+    try:
+        conn = engine.raw_connection()
+        cur = conn.cursor()
+        cur.execute("SELECT pg_try_advisory_lock(%s)", (_SCHED_LOCK_ID,))
+        got = bool(cur.fetchone()[0])
+        cur.close()
+        if got:
+            _lock_conn = conn  # держим соединение → держим лок до остановки воркера
+        else:
+            conn.close()
+        return got
+    except Exception as exc:
+        logger.error("Scheduler lock acquire failed: %s", exc)
+        return False
+
+
 def start_scheduler() -> None:
+    if not _try_acquire_lock():
+        logger.info("Trial scheduler: лок у другого воркера — пропускаем запуск")
+        return
     scheduler.add_job(
         _run_trial_emails,
         trigger="interval",
@@ -136,6 +168,13 @@ def start_scheduler() -> None:
 
 
 def stop_scheduler() -> None:
+    global _lock_conn
     if scheduler.running:
         scheduler.shutdown(wait=False)
         logger.info("Trial email scheduler stopped")
+    if _lock_conn is not None:
+        try:
+            _lock_conn.close()  # отпускаем advisory-lock
+        except Exception:
+            pass
+        _lock_conn = None
