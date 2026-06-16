@@ -46,7 +46,7 @@
       </div>
 
       <!-- Rate limit panel -->
-      <RateLimitBadge />
+      <RateLimitBadge ref="rateLimitBadge" />
 
       <!-- Insights panel -->
       <div class="card coach-insights-card">
@@ -87,6 +87,7 @@ const chatStore     = useChatStore()
 const insightsStore = useInsightsStore()
 const text   = ref('')
 const boxRef = ref<HTMLElement | null>(null)
+const rateLimitBadge = ref<InstanceType<typeof RateLimitBadge> | null>(null)
 
 onMounted(async () => {
   chatStore.clearUnread()
@@ -105,6 +106,7 @@ async function send() {
   text.value = ''
   await chatStore.send(msg)
   scrollToBottom()
+  rateLimitBadge.value?.refresh()
 }
 
 function scrollToBottom() {

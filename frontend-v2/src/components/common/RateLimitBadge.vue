@@ -35,9 +35,13 @@ import type { RateLimitStatus } from '@/api/types'
 
 const limits = ref<RateLimitStatus | null>(null)
 
-onMounted(async () => {
+async function refresh() {
   try { limits.value = await authApi.getLimits() } catch {}
-})
+}
+
+onMounted(refresh)
+
+defineExpose({ refresh })
 
 const chatPct = computed(() =>
   limits.value ? Math.min(100, Math.round(limits.value.chat.used / limits.value.chat.limit * 100)) : 0
