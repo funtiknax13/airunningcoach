@@ -1,6 +1,6 @@
 # app/models.py
-from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, Text, Boolean, JSON
-from sqlalchemy.orm import relationship
+from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, Text, Boolean, JSON, Index
+from sqlalchemy.orm import relationship, deferred
 from sqlalchemy.sql import func
 from app.database import Base
 
@@ -39,6 +39,8 @@ class User(Base):
 
 class Activity(Base):
     __tablename__ = "activities"
+    # Почти все запросы фильтруют по user_id и сортируют по date — композитный индекс
+    __table_args__ = (Index("ix_activities_user_date", "user_id", "date"),)
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
@@ -57,7 +59,9 @@ class Activity(Base):
     # Детальные данные (хранятся как JSON)
     laps         = Column(JSON, nullable=True)  # [{num,dist_km,dur_min,pace,avg_hr,max_hr}]
     splits       = Column(JSON, nullable=True)  # [{km,pace,avg_hr}]  – по километрам
-    track_points = Column(JSON, nullable=True)  # [{t,lat,lon,ele,hr,dist}]  – GPS-трек
+    # track_points (полный GPS-трек) большой и нужен только на детальной карте —
+    # deferred: НЕ грузится при обычных db.query(Activity), только при явном обращении.
+    track_points = deferred(Column(JSON, nullable=True))  # [{t,lat,lon,ele,hr,dist}]
     created_at   = Column(DateTime(timezone=True), server_default=func.now())
 
     user = relationship("User", back_populates="activities")
@@ -70,7 +74,7 @@ class Goal(Base):
     __tablename__ = "goals"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
     goal_type = Column(String(50), nullable=False)  # half_marathon, full_marathon, 10k, 5k, custom
     target_distance_km = Column(Float)  # целевая дистанция
     target_time_min = Column(Float)  # целевое время в минутах
@@ -94,7 +98,7 @@ class TrainingPlan(Base):
     __tablename__ = "training_plans"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
     week_start_date = Column(DateTime, nullable=False)
     week_end_date = Column(DateTime, nullable=False)
     goal_type = Column(String(50))  # для какой цели создан план
@@ -113,7 +117,7 @@ class Workout(Base):
     __tablename__ = "workouts"
 
     id = Column(Integer, primary_key=True, index=True)
-    training_plan_id = Column(Integer, ForeignKey("training_plans.id"), nullable=False)
+    training_plan_id = Column(Integer, ForeignKey("training_plans.id"), nullable=False, index=True)
     day_of_week = Column(Integer, nullable=False)  # 0-6 (пн-вс)
     workout_type = Column(String(50), nullable=False)  # easy, tempo, interval, long, recovery, rest
     description = Column(Text, nullable=False)
@@ -176,6 +180,8 @@ class InsightsCache(Base):
 
 class ChatMessage(Base):
     __tablename__ = "chat_messages"
+    # История и контекст AI фильтруют по user_id и сортируют по created_at
+    __table_args__ = (Index("ix_chat_messages_user_created", "user_id", "created_at"),)
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
