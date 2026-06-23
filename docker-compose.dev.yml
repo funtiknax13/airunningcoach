@@ -10,12 +10,15 @@ services:
     ports:
       - "8000:8000"
 
-  # nginx — локальный конфиг без SSL, порт 80
+  # nginx — локальный конфиг без SSL, фронт встроен в образ через multi-stage build
   nginx:
+    build:
+      context: .
+      dockerfile: nginx/Dockerfile
     profiles: []   # убираем профиль prod — nginx поднимается и локально
     ports:
       - "80:80"
     volumes:
       - ./nginx/nginx-local.conf:/etc/nginx/nginx.conf:ro
-      - ./frontend-v2-dist:/usr/share/nginx/html:ro
       # НЕ монтируем /etc/letsencrypt — на локалке его нет
+      # НЕ монтируем frontend-v2-dist — фронт собирается внутри Docker

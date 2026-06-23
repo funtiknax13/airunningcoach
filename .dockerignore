@@ -4,6 +4,8 @@ __pycache__/
 *.pyc
 frontend-v2/node_modules/
 frontend-v2/.vite/
+frontend-v2-dist/
+backend/
 *.db
 *.sqlite
 .env
