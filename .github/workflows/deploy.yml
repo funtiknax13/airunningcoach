@@ -36,4 +36,7 @@ jobs:
         run: |
           tar -C frontend-v2-dist -czf - . | \
           ssh ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} \
-            "rm -rf ${{ secrets.SERVER_PATH }}/frontend-v2-dist && mkdir -p ${{ secrets.SERVER_PATH }}/frontend-v2-dist && tar -C ${{ secrets.SERVER_PATH }}/frontend-v2-dist -xzf -"
+            "mkdir -p ${{ secrets.SERVER_PATH }}/frontend-v2-dist && \
+             find ${{ secrets.SERVER_PATH }}/frontend-v2-dist -mindepth 1 -delete && \
+             tar -C ${{ secrets.SERVER_PATH }}/frontend-v2-dist -xzf - && \
+             cd ${{ secrets.SERVER_PATH }} && docker compose restart nginx"
