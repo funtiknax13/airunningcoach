@@ -34,6 +34,6 @@ jobs:
 
       - name: Upload frontend
         run: |
-          rsync -az --delete \
-            frontend-v2-dist/ \
-            ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:${{ secrets.SERVER_PATH }}/frontend-v2-dist/
+          tar -C frontend-v2-dist -czf - . | \
+          ssh ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} \
+            "rm -rf ${{ secrets.SERVER_PATH }}/frontend-v2-dist && mkdir -p ${{ secrets.SERVER_PATH }}/frontend-v2-dist && tar -C ${{ secrets.SERVER_PATH }}/frontend-v2-dist -xzf -"
