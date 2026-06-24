@@ -10,6 +10,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
 
       - uses: actions/setup-node@v4
         with:
@@ -20,17 +22,29 @@ jobs:
       - name: Build frontend
         run: cd frontend-v2 && npm ci && npm run build
 
+      - name: Detect backend changes
+        id: changes
+        run: |
+          git diff HEAD~1 HEAD --name-only | grep -q "^backend/" \
+            && echo "backend=true" >> $GITHUB_OUTPUT \
+            || echo "backend=false" >> $GITHUB_OUTPUT
+
       - name: Setup SSH
         run: |
           mkdir -p ~/.ssh
           echo "${{ secrets.SERVER_SSH_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
-          ssh-keyscan -H "${{ secrets.SERVER_HOST }}" >> ~/.ssh/known_hosts
+          ssh-keyscan -H "${{ secrets.SERVER_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null || true
 
       - name: Deploy backend
         run: |
-          ssh ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} \
-            "cd ${{ secrets.SERVER_PATH }} && git pull && docker compose up -d --build"
+          if [ "${{ steps.changes.outputs.backend }}" = "true" ]; then
+            ssh ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} \
+              "cd ${{ secrets.SERVER_PATH }} && git pull && docker compose up -d --build"
+          else
+            ssh ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} \
+              "cd ${{ secrets.SERVER_PATH }} && git pull && docker compose up -d"
+          fi
 
       - name: Upload frontend
         run: |
@@ -38,5 +52,4 @@ jobs:
           ssh ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} \
             "mkdir -p ${{ secrets.SERVER_PATH }}/frontend-v2-dist && \
              find ${{ secrets.SERVER_PATH }}/frontend-v2-dist -mindepth 1 -delete && \
-             tar -C ${{ secrets.SERVER_PATH }}/frontend-v2-dist -xzf - && \
-             cd ${{ secrets.SERVER_PATH }} && docker compose restart nginx"
+             tar -C ${{ secrets.SERVER_PATH }}/frontend-v2-dist -xzf -"
