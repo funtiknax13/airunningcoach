@@ -51,5 +51,4 @@ jobs:
           tar -C frontend-v2-dist -czf - . | \
           ssh ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} \
             "mkdir -p ${{ secrets.SERVER_PATH }}/frontend-v2-dist && \
-             find ${{ secrets.SERVER_PATH }}/frontend-v2-dist -mindepth 1 -delete && \
              tar -C ${{ secrets.SERVER_PATH }}/frontend-v2-dist -xzf -"
