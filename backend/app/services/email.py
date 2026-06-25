@@ -291,10 +291,10 @@ async def send_trial_expired_email(
             body=(
                 "Your 14-day trial is over. You're now on the Basic plan — "
                 "AI coach is limited to 10 messages/day.<br><br>"
-                "When payments open, you'll be able to unlock Premium and get "
-                "back everything you had during the trial."
+                "Subscribe to Premium to get back unlimited AI coaching, "
+                "training plan generation, and activity analysis."
             ),
-            button_text="View plans",
+            button_text="Subscribe to Premium",
             button_url=subs_url,
             footer="Thank you for trying AI RunningCoach. Keep running! 🏃",
             accent="#6b7280",
@@ -306,10 +306,10 @@ async def send_trial_expired_email(
             body=(
                 "14 дней пробного периода истекли. Теперь ты на плане Basic — "
                 "AI-тренер ограничен 10 сообщениями в день.<br><br>"
-                "Когда откроется оплата, ты сможешь подключить Premium и вернуть "
-                "всё, что было доступно во время триала."
+                "Подключи Premium, чтобы вернуть неограниченный чат с тренером, "
+                "генерацию планов и анализ тренировок."
             ),
-            button_text="Посмотреть планы",
+            button_text="Подключить Premium",
             button_url=subs_url,
             footer="Спасибо, что попробовал AI RunningCoach. Продолжай бегать! 🏃",
             accent="#6b7280",
