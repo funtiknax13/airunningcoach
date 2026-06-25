@@ -15,12 +15,13 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from sqlalchemy.orm import Session
 
 from app.database import SessionLocal, engine
-from app.models import User
+from app.models import User, Activity
 from app.services.email import (
     send_trial_day1_email,
     send_trial_day5_email,
     send_trial_day13_email,
     send_trial_expired_email,
+    send_weekly_stats_email,
 )
 
 logger = logging.getLogger(__name__)
@@ -126,6 +127,54 @@ async def _run_trial_emails() -> None:
         db.close()
 
 
+async def _run_weekly_stats() -> None:
+    """Каждое воскресенье в 21:00 МСК (18:00 UTC): отправляем статистику за неделю."""
+    db: Session = SessionLocal()
+    try:
+        now = datetime.now(timezone.utc)
+        week_start = now - timedelta(days=7)
+        prev_week_start = now - timedelta(days=14)
+
+        users = db.query(User).filter(User.is_verified == True).all()
+        for user in users:
+            try:
+                week_runs = db.query(Activity).filter(
+                    Activity.user_id == user.id,
+                    Activity.activity_type == "run",
+                    Activity.date >= week_start,
+                ).all()
+
+                if not week_runs:
+                    continue  # не беспокоим тех, кто не бегал
+
+                prev_runs = db.query(Activity).filter(
+                    Activity.user_id == user.id,
+                    Activity.activity_type == "run",
+                    Activity.date >= prev_week_start,
+                    Activity.date < week_start,
+                ).all()
+
+                total_km = sum(a.distance_km for a in week_runs)
+                prev_km = sum(a.distance_km for a in prev_runs)
+                paces = [a.pace_min_per_km for a in week_runs if a.pace_min_per_km]
+                avg_pace = sum(paces) / len(paces) if paces else None
+
+                await send_weekly_stats_email(
+                    to_email=user.email,
+                    name=user.name,
+                    runs=len(week_runs),
+                    total_km=total_km,
+                    avg_pace=avg_pace,
+                    prev_km=prev_km,
+                    lang="ru",
+                )
+                logger.info("Weekly stats email → %s", user.email)
+            except Exception as exc:
+                logger.error("Weekly stats email failed for %s: %s", user.email, exc)
+    finally:
+        db.close()
+
+
 def _try_acquire_lock() -> bool:
     """Берёт advisory-lock Postgres. True — этот воркер ведущий (запускает планировщик).
 
@@ -161,7 +210,17 @@ def start_scheduler() -> None:
         hours=1,
         id="trial_emails",
         replace_existing=True,
-        next_run_time=datetime.now(timezone.utc) + timedelta(seconds=30),  # первый запуск через 30 сек
+        next_run_time=datetime.now(timezone.utc) + timedelta(seconds=30),
+    )
+    # Еженедельная статистика — каждое воскресенье в 18:00 UTC (21:00 МСК)
+    scheduler.add_job(
+        _run_weekly_stats,
+        trigger="cron",
+        day_of_week="sun",
+        hour=18,
+        minute=0,
+        id="weekly_stats",
+        replace_existing=True,
     )
     scheduler.start()
     logger.info("Trial email scheduler started")

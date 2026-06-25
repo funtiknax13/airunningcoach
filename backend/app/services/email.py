@@ -315,3 +315,63 @@ async def send_trial_expired_email(
             accent="#6b7280",
         )
         await send_email(to_email, f"Триал завершился — {APP_NAME}", html)
+
+
+async def send_weekly_stats_email(
+    to_email: str,
+    name: str,
+    runs: int,
+    total_km: float,
+    avg_pace: float | None,
+    prev_km: float,
+    lang: str = "ru",
+) -> None:
+    """Еженедельная статистика — каждое воскресенье в 21:00 МСК."""
+    subs_url = f"{settings.APP_BASE_URL}/dashboard"
+
+    def fmt_pace(pace: float | None) -> str:
+        if not pace:
+            return "—"
+        m = int(pace); s = round((pace - m) * 60)
+        return f"{m}:{s:02d} мин/км"
+
+    delta = total_km - prev_km
+    delta_str = f"+{delta:.1f} км" if delta > 0 else f"{delta:.1f} км"
+    trend = "↑" if delta > 0 else ("↓" if delta < 0 else "→")
+
+    if lang == "en":
+        body = (
+            f"Here's your running week summary:<br><br>"
+            f"🏃 <b>Runs:</b> {runs}<br>"
+            f"📏 <b>Total distance:</b> {total_km:.1f} km<br>"
+            f"⏱ <b>Average pace:</b> {fmt_pace(avg_pace).replace('мин/км', 'min/km')}<br>"
+            f"📈 <b>vs last week:</b> {trend} {abs(delta):.1f} km<br><br>"
+            f"Keep it up — consistency is the key to progress!"
+        )
+        html = _build_email_html(
+            heading=f"Your week in running, {name}",
+            body=body,
+            button_text="Open dashboard",
+            button_url=subs_url,
+            footer="Sent every Sunday at 9 PM MSK · AI RunningCoach",
+            accent="#6c63ff",
+        )
+        await send_email(to_email, f"Weekly stats — {APP_NAME}", html)
+    else:
+        body = (
+            f"Итоги твоей беговой недели:<br><br>"
+            f"🏃 <b>Пробежек:</b> {runs}<br>"
+            f"📏 <b>Общий километраж:</b> {total_km:.1f} км<br>"
+            f"⏱ <b>Средний темп:</b> {fmt_pace(avg_pace)}<br>"
+            f"📈 <b>По сравнению с прошлой неделей:</b> {trend} {delta_str}<br><br>"
+            f"Продолжай в том же духе — регулярность важнее скорости!"
+        )
+        html = _build_email_html(
+            heading=f"Твоя неделя в цифрах, {name}",
+            body=body,
+            button_text="Открыть дашборд",
+            button_url=subs_url,
+            footer="Отправляется каждое воскресенье в 21:00 МСК · AI RunningCoach",
+            accent="#6c63ff",
+        )
+        await send_email(to_email, f"Итоги недели — {APP_NAME}", html)

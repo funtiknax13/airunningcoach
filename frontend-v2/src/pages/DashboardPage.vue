@@ -44,6 +44,11 @@
           </div>
         </div>
 
+        <!-- Weekly volume chart -->
+        <div class="card" v-if="!pageLoading && activities.all.length > 0">
+          <WeeklyVolumeChart :activities="activities.all" />
+        </div>
+
         <!-- Recent runs -->
         <div class="card">
           <div class="card-header">
@@ -102,6 +107,15 @@
               <span v-if="g.target_distance_km">🏃 {{ g.target_distance_km }} km</span>
               <span v-if="g.target_time_min">⏱ {{ formatGoalTime(g.target_time_min) }}</span>
               <span v-if="g.target_date">📅 {{ formatDate(g.target_date) }}</span>
+            </div>
+            <!-- Прогресс: лучшая длинная пробежка к целевой дистанции -->
+            <div v-if="g.target_distance_km && goalProgress(g.goal_type) > 0" class="goal-progress">
+              <div class="goal-progress-bar">
+                <div class="goal-progress-fill" :style="{ width: `${Math.min(goalProgress(g.goal_type) / g.target_distance_km * 100, 100).toFixed(0)}%` }" />
+              </div>
+              <span class="goal-progress-label">
+                Лучшая пробежка: {{ goalProgress(g.goal_type).toFixed(1) }} / {{ g.target_distance_km }} km
+              </span>
             </div>
           </div>
         </div>
@@ -179,6 +193,7 @@ import { RouterLink } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import SkeletonLoader from '@/components/common/SkeletonLoader.vue'
+import WeeklyVolumeChart from '@/components/dashboard/WeeklyVolumeChart.vue'
 import { useActivitiesStore } from '@/stores/activities'
 import { useGoalsStore }      from '@/stores/goals'
 import { useInsightsStore }   from '@/stores/insights'
@@ -260,6 +275,17 @@ function formatGoalTime(min: number) {
   const h = Math.floor(min/60); const m = Math.round(min%60)
   return h > 0 ? `${h}h ${m}m` : `${m}m`
 }
+const GOAL_DISTANCES: Record<string, number> = {
+  '5k': 5, '10k': 10, 'half_marathon': 21.1, 'full_marathon': 42.2,
+}
+function goalProgress(goalType: string): number {
+  const target = GOAL_DISTANCES[goalType]
+  if (!target) return 0
+  const runs = activities.all.filter(a => a.activity_type === 'run')
+  if (!runs.length) return 0
+  return Math.max(...runs.map(a => a.distance_km))
+}
+
 function goalTypeLabel(type: GoalType) {
   const map: Record<string, string> = {
     half_marathon: t('goals.type.half_marathon'), full_marathon: t('goals.type.full_marathon'),
@@ -268,3 +294,27 @@ function goalTypeLabel(type: GoalType) {
   return map[type] ?? type
 }
 </script>
+
+<style scoped>
+.goal-progress {
+  margin-top: 8px;
+}
+.goal-progress-bar {
+  height: 4px;
+  background: var(--border-color, #2a2a3a);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.goal-progress-fill {
+  height: 100%;
+  background: var(--brand, #6c63ff);
+  border-radius: 2px;
+  transition: width 0.4s ease;
+}
+.goal-progress-label {
+  font-size: 11px;
+  color: var(--text-muted, #888);
+  margin-top: 4px;
+  display: block;
+}
+</style>
