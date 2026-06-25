@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>Блог о беге: планы тренировок, советы и техника | AI RunningCoach</title>
+  <meta name="description" content="Блог AI RunningCoach: планы тренировок для бегунов, советы по технике бега, подготовка к марафону и полумарафону, питание и восстановление.">
+  <link rel="canonical" href="https://airunningcoach.pro/blog/">
+  <meta name="robots" content="index, follow">
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://airunningcoach.pro/blog/">
+  <meta property="og:title" content="Блог о беге | AI RunningCoach">
+  <meta property="og:description" content="Планы тренировок, техника бега, подготовка к марафону и полумарафону от AI RunningCoach.">
+  <meta property="og:image" content="https://airunningcoach.pro/images/og-image.png">
+  <meta property="og:locale" content="ru_RU">
+  <meta property="og:site_name" content="AI RunningCoach">
+
+  <!-- Favicons -->
+  <link rel="shortcut icon" href="/favicon.ico">
+  <link rel="icon" type="image/x-icon" href="/favicon.ico">
+  <link rel="icon" type="image/png" sizes="32x32" href="/logo.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/logo.png">
+
+  <!-- Schema.org -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Blog",
+    "name": "Блог AI RunningCoach",
+    "url": "https://airunningcoach.pro/blog/",
+    "description": "Советы по бегу, планы тренировок и подготовка к соревнованиям от AI RunningCoach",
+    "publisher": {
+      "@type": "Organization",
+      "name": "AI RunningCoach",
+      "url": "https://airunningcoach.pro"
+    },
+    "inLanguage": "ru"
+  }
+  </script>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- Yandex.Metrika -->
+  <script type="text/javascript">
+    (function(m,e,t,r,i,k,a){
+      m[i]=m[i]||function(){(m[i].a=m[i].a||[]).push(arguments)};
+      m[i].l=1*new Date();
+      for(var j=0;j<document.scripts.length;j++){if(document.scripts[j].src===r){return;}}
+      k=e.createElement(t),a=e.getElementsByTagName(t)[0],k.async=1,k.src=r,a.parentNode.insertBefore(k,a)
+    })(window,document,'script','https://mc.yandex.ru/metrika/tag.js?id=110093497','ym');
+    ym(110093497,'init',{ssr:true,webvisor:true,clickmap:true,accurateTrackBounce:true,trackLinks:true});
+  </script>
+  <noscript><div><img src="https://mc.yandex.ru/watch/110093497" style="position:absolute;left:-9999px;" alt=""></div></noscript>
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0d0d14;
+      --bg-card: #16161f;
+      --accent: #6c63ff;
+      --accent-light: #8b85ff;
+      --text: #e8e8f0;
+      --text-muted: #9090a8;
+      --text-dim: #5a5a72;
+      --border: rgba(108,99,255,0.15);
+      --radius: 12px;
+    }
+    body {
+      font-family: 'Plus Jakarta Sans', -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.7;
+      -webkit-font-smoothing: antialiased;
+    }
+    nav {
+      position: sticky; top: 0; z-index: 100;
+      background: rgba(13,13,20,0.92);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      padding: 0 24px;
+    }
+    .nav-inner {
+      max-width: 900px; margin: 0 auto;
+      display: flex; align-items: center; justify-content: space-between;
+      height: 56px;
+    }
+    .nav-logo { font-weight: 800; font-size: 1.05rem; color: var(--text); text-decoration: none; }
+    .nav-logo span { color: var(--accent); }
+    .nav-cta {
+      background: var(--accent); color: #fff; text-decoration: none;
+      padding: 8px 18px; border-radius: 8px; font-weight: 600; font-size: 0.85rem;
+    }
+    .blog-hero {
+      max-width: 900px; margin: 0 auto;
+      padding: 56px 24px 40px;
+    }
+    .blog-hero h1 {
+      font-size: clamp(1.8rem, 4vw, 2.6rem);
+      font-weight: 800; color: #fff; margin-bottom: 14px;
+    }
+    .blog-hero p { font-size: 1.05rem; color: var(--text-muted); max-width: 520px; }
+    .blog-grid {
+      max-width: 900px; margin: 0 auto;
+      padding: 0 24px 80px;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 24px;
+    }
+    .article-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 28px 24px;
+      text-decoration: none;
+      display: flex; flex-direction: column;
+      transition: border-color 0.2s, transform 0.2s;
+    }
+    .article-card:hover {
+      border-color: rgba(108,99,255,0.4);
+      transform: translateY(-3px);
+    }
+    .card-tag {
+      font-size: 0.75rem; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.08em;
+      color: var(--accent-light);
+      background: rgba(108,99,255,0.12);
+      display: inline-block; padding: 3px 10px; border-radius: 20px;
+      margin-bottom: 16px; width: fit-content;
+    }
+    .card-title {
+      font-size: 1.1rem; font-weight: 700; color: #fff;
+      line-height: 1.35; margin-bottom: 12px;
+    }
+    .card-desc { font-size: 0.88rem; color: var(--text-muted); flex: 1; }
+    .card-meta {
+      margin-top: 20px;
+      font-size: 0.78rem; color: var(--text-dim);
+      display: flex; gap: 16px;
+    }
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 32px 24px; text-align: center;
+      color: var(--text-dim); font-size: 0.83rem;
+    }
+    footer a { color: var(--text-muted); text-decoration: none; }
+  </style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-inner">
+    <a href="/" class="nav-logo">🏃 AI <span>RunningCoach</span></a>
+    <a href="/?utm_source=blog&utm_medium=nav" class="nav-cta">Попробовать бесплатно</a>
+  </div>
+</nav>
+
+<div class="blog-hero">
+  <h1>Блог о беге</h1>
+  <p>Планы тренировок, советы по технике, питанию и восстановлению — от AI-тренера, который знает ваш уровень.</p>
+</div>
+
+<div class="blog-grid">
+
+  <a href="/blog/podgotovka-k-polumerafonu-12-nedel/" class="article-card">
+    <div class="card-tag">Планы тренировок</div>
+    <div class="card-title">Подготовка к полумарафону за 12 недель: план от базы до финиша</div>
+    <div class="card-desc">Три фазы, объём по неделям, ключевые тренировки, разгрузочные недели, стратегия на гонке и разбор типичных ошибок.</div>
+    <div class="card-meta">
+      <span>📅 25 июня 2026</span>
+      <span>⏱️ 12 мин</span>
+    </div>
+  </a>
+
+</div>
+
+<footer>
+  <p>
+    <a href="/">AI RunningCoach</a> &nbsp;·&nbsp;
+    <a href="/blog/">Блог</a>
+  </p>
+  <p style="margin-top: 10px;">© 2026 AIRunningCoach.pro</p>
+</footer>
+
+</body>
+</html>
