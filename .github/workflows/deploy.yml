@@ -35,6 +35,12 @@ jobs:
           echo "${{ secrets.SERVER_SSH_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
           ssh-keyscan -H "${{ secrets.SERVER_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null || true
+          cat >> ~/.ssh/config <<EOF
+          Host ${{ secrets.SERVER_HOST }}
+            ServerAliveInterval 30
+            ServerAliveCountMax 5
+            ConnectTimeout 30
+          EOF
 
       - name: Deploy backend
         run: |
@@ -48,7 +54,10 @@ jobs:
 
       - name: Upload frontend
         run: |
-          tar -C frontend-v2-dist -czf - . | \
-          ssh ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} \
-            "mkdir -p ${{ secrets.SERVER_PATH }}/frontend-v2-dist && \
-             tar -C ${{ secrets.SERVER_PATH }}/frontend-v2-dist -xzf -"
+          for attempt in 1 2 3; do
+            tar -C frontend-v2-dist -czf - . | \
+            ssh ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} \
+              "mkdir -p ${{ secrets.SERVER_PATH }}/frontend-v2-dist && \
+               tar -C ${{ secrets.SERVER_PATH }}/frontend-v2-dist -xzf -" \
+            && break || { echo "Attempt $attempt failed, retrying..."; sleep 10; }
+          done
