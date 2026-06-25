@@ -81,6 +81,17 @@ def _build_user_context(user: User, db: Session) -> str:
     if user.age:    lines.append(f"Возраст: {user.age} лет")
     if user.weight: lines.append(f"Вес: {user.weight} кг")
     if user.height: lines.append(f"Рост: {user.height} см")
+    _level_map = {"beginner": "начинающий", "intermediate": "любитель", "advanced": "продвинутый"}
+    _goal_map  = {"5k": "5 км", "10k": "10 км", "half_marathon": "полумарафон",
+                  "marathon": "марафон", "fitness": "бег для здоровья"}
+    if user.fitness_level:
+        lines.append(f"Уровень: {_level_map.get(user.fitness_level, user.fitness_level)}")
+    if user.running_goal:
+        lines.append(f"Цель: {_goal_map.get(user.running_goal, user.running_goal)}")
+    if user.weekly_km is not None:
+        lines.append(f"Текущий объём: ~{user.weekly_km:.0f} км/нед")
+    if user.training_days:
+        lines.append(f"Дней для тренировок: {user.training_days} в неделю")
 
     # Активные цели
     goals = db.query(Goal).filter(Goal.user_id == user.id, Goal.is_active == True).all()
