@@ -15,7 +15,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from sqlalchemy.orm import Session
 
 from app.database import SessionLocal, engine
-from app.models import User, Activity
+from app.models import User, Activity, TrainingPlan, Workout
 from app.services.email import (
     send_trial_day1_email,
     send_trial_day5_email,
@@ -127,6 +127,11 @@ async def _run_trial_emails() -> None:
         db.close()
 
 
+_WORKOUT_TYPE_RU = {
+    "easy": "Лёгкий бег", "tempo": "Темповая", "interval": "Интервалы",
+    "long": "Длинная", "recovery": "Восстановление", "rest": "Отдых",
+}
+
 async def _run_weekly_stats() -> None:
     """Каждое воскресенье в 21:00 МСК (18:00 UTC): отправляем статистику за неделю."""
     db: Session = SessionLocal()
@@ -134,6 +139,8 @@ async def _run_weekly_stats() -> None:
         now = datetime.now(timezone.utc)
         week_start = now - timedelta(days=7)
         prev_week_start = now - timedelta(days=14)
+        next_week_end = now + timedelta(days=7)
+        day_names = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"]
 
         users = db.query(User).filter(User.is_verified == True).all()
         for user in users:
@@ -144,8 +151,36 @@ async def _run_weekly_stats() -> None:
                     Activity.date >= week_start,
                 ).all()
 
-                if not week_runs:
-                    continue  # не беспокоим тех, кто не бегал
+                # Тренировки на следующие 7 дней из активного плана
+                plan = db.query(TrainingPlan).filter(
+                    TrainingPlan.user_id == user.id,
+                    TrainingPlan.is_active == True,
+                ).first()
+
+                plan_items: list[dict] = []
+                if plan:
+                    workouts = db.query(Workout).filter(
+                        Workout.training_plan_id == plan.id,
+                        Workout.planned_date >= now,
+                        Workout.planned_date <= next_week_end,
+                        Workout.completion_status == "none",
+                    ).order_by(Workout.planned_date).all()
+                    for w in workouts:
+                        if w.planned_date:
+                            wd = w.planned_date.weekday()
+                            date_str = f"{day_names[wd]} {w.planned_date.strftime('%d.%m')}"
+                        else:
+                            date_str = day_names[w.day_of_week]
+                        plan_items.append({
+                            "date": date_str,
+                            "type": _WORKOUT_TYPE_RU.get(w.workout_type, w.workout_type),
+                            "desc": w.description,
+                            "km": w.distance_km,
+                        })
+
+                # Отправляем если есть пробежки за неделю ИЛИ есть предстоящие тренировки
+                if not week_runs and not plan_items:
+                    continue
 
                 prev_runs = db.query(Activity).filter(
                     Activity.user_id == user.id,
@@ -166,6 +201,7 @@ async def _run_weekly_stats() -> None:
                     total_km=total_km,
                     avg_pace=avg_pace,
                     prev_km=prev_km,
+                    plan_items=plan_items,
                     lang="ru",
                 )
                 logger.info("Weekly stats email → %s", user.email)

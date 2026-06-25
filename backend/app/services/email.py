@@ -324,10 +324,12 @@ async def send_weekly_stats_email(
     total_km: float,
     avg_pace: float | None,
     prev_km: float,
+    plan_items: list | None = None,
     lang: str = "ru",
 ) -> None:
-    """Еженедельная статистика — каждое воскресенье в 21:00 МСК."""
+    """Еженедельная статистика + план на следующую неделю — каждое воскресенье в 21:00 МСК."""
     subs_url = f"{settings.APP_BASE_URL}/dashboard"
+    plan_items = plan_items or []
 
     def fmt_pace(pace: float | None) -> str:
         if not pace:
@@ -335,19 +337,55 @@ async def send_weekly_stats_email(
         m = int(pace); s = round((pace - m) * 60)
         return f"{m}:{s:02d} мин/км"
 
+    def plan_block_ru(items: list) -> str:
+        if not items:
+            return ""
+        rows = "".join(
+            f"<tr style='border-bottom:1px solid #2a2a3a'>"
+            f"<td style='padding:6px 8px;color:#aaa;white-space:nowrap'>{it['date']}</td>"
+            f"<td style='padding:6px 8px;color:#ccc'><b>{it['type']}</b> — {it['desc']}"
+            f"{f\" · {it['km']:.0f} км\" if it.get('km') else ''}</td>"
+            f"</tr>"
+            for it in items
+        )
+        return (
+            f"<br><b>На следующей неделе запланировано {len(items)} тренировок:</b><br><br>"
+            f"<table style='width:100%;border-collapse:collapse;font-size:14px'>{rows}</table>"
+        )
+
+    def plan_block_en(items: list) -> str:
+        if not items:
+            return ""
+        type_en = {"Лёгкий бег": "Easy run", "Темповая": "Tempo", "Интервалы": "Intervals",
+                   "Длинная": "Long run", "Восстановление": "Recovery", "Отдых": "Rest"}
+        rows = "".join(
+            f"<tr style='border-bottom:1px solid #2a2a3a'>"
+            f"<td style='padding:6px 8px;color:#aaa;white-space:nowrap'>{it['date']}</td>"
+            f"<td style='padding:6px 8px;color:#ccc'><b>{type_en.get(it['type'], it['type'])}</b> — {it['desc']}"
+            f"{f\" · {it['km']:.0f} km\" if it.get('km') else ''}</td>"
+            f"</tr>"
+            for it in items
+        )
+        return (
+            f"<br><b>Next week: {len(items)} workouts planned:</b><br><br>"
+            f"<table style='width:100%;border-collapse:collapse;font-size:14px'>{rows}</table>"
+        )
+
     delta = total_km - prev_km
     delta_str = f"+{delta:.1f} км" if delta > 0 else f"{delta:.1f} км"
     trend = "↑" if delta > 0 else ("↓" if delta < 0 else "→")
 
     if lang == "en":
-        body = (
+        stats_block = (
             f"Here's your running week summary:<br><br>"
             f"🏃 <b>Runs:</b> {runs}<br>"
             f"📏 <b>Total distance:</b> {total_km:.1f} km<br>"
             f"⏱ <b>Average pace:</b> {fmt_pace(avg_pace).replace('мин/км', 'min/km')}<br>"
-            f"📈 <b>vs last week:</b> {trend} {abs(delta):.1f} km<br><br>"
-            f"Keep it up — consistency is the key to progress!"
-        )
+            f"📈 <b>vs last week:</b> {trend} {abs(delta):.1f} km"
+        ) if runs > 0 else "You didn't log any runs this week — but your plan is ready!"
+        body = stats_block + plan_block_en(plan_items)
+        if runs > 0 and not plan_items:
+            body += "<br><br>Keep it up — consistency is the key to progress!"
         html = _build_email_html(
             heading=f"Your week in running, {name}",
             body=body,
@@ -356,16 +394,18 @@ async def send_weekly_stats_email(
             footer="Sent every Sunday at 9 PM MSK · AI RunningCoach",
             accent="#6c63ff",
         )
-        await send_email(to_email, f"Weekly stats — {APP_NAME}", html)
+        await send_email(to_email, f"Weekly digest — {APP_NAME}", html)
     else:
-        body = (
+        stats_block = (
             f"Итоги твоей беговой недели:<br><br>"
             f"🏃 <b>Пробежек:</b> {runs}<br>"
             f"📏 <b>Общий километраж:</b> {total_km:.1f} км<br>"
             f"⏱ <b>Средний темп:</b> {fmt_pace(avg_pace)}<br>"
-            f"📈 <b>По сравнению с прошлой неделей:</b> {trend} {delta_str}<br><br>"
-            f"Продолжай в том же духе — регулярность важнее скорости!"
-        )
+            f"📈 <b>По сравнению с прошлой неделей:</b> {trend} {delta_str}"
+        ) if runs > 0 else "На этой неделе пробежек не было — но твой план уже ждёт!"
+        body = stats_block + plan_block_ru(plan_items)
+        if runs > 0 and not plan_items:
+            body += "<br><br>Продолжай в том же духе — регулярность важнее скорости!"
         html = _build_email_html(
             heading=f"Твоя неделя в цифрах, {name}",
             body=body,
@@ -374,4 +414,4 @@ async def send_weekly_stats_email(
             footer="Отправляется каждое воскресенье в 21:00 МСК · AI RunningCoach",
             accent="#6c63ff",
         )
-        await send_email(to_email, f"Итоги недели — {APP_NAME}", html)
+        await send_email(to_email, f"Дайджест недели — {APP_NAME}", html)
