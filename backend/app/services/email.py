@@ -340,14 +340,16 @@ async def send_weekly_stats_email(
     def plan_block_ru(items: list) -> str:
         if not items:
             return ""
-        rows = "".join(
-            f"<tr style='border-bottom:1px solid #2a2a3a'>"
-            f"<td style='padding:6px 8px;color:#aaa;white-space:nowrap'>{it['date']}</td>"
-            f"<td style='padding:6px 8px;color:#ccc'><b>{it['type']}</b> — {it['desc']}"
-            f"{f\" · {it['km']:.0f} км\" if it.get('km') else ''}</td>"
-            f"</tr>"
-            for it in items
-        )
+        rows_html = []
+        for it in items:
+            km_str = (" · " + str(round(it["km"])) + " км") if it.get("km") else ""
+            rows_html.append(
+                f"<tr style='border-bottom:1px solid #2a2a3a'>"
+                f"<td style='padding:6px 8px;color:#aaa;white-space:nowrap'>{it['date']}</td>"
+                f"<td style='padding:6px 8px;color:#ccc'><b>{it['type']}</b> — {it['desc']}{km_str}</td>"
+                f"</tr>"
+            )
+        rows = "".join(rows_html)
         return (
             f"<br><b>На следующей неделе запланировано {len(items)} тренировок:</b><br><br>"
             f"<table style='width:100%;border-collapse:collapse;font-size:14px'>{rows}</table>"
@@ -358,14 +360,17 @@ async def send_weekly_stats_email(
             return ""
         type_en = {"Лёгкий бег": "Easy run", "Темповая": "Tempo", "Интервалы": "Intervals",
                    "Длинная": "Long run", "Восстановление": "Recovery", "Отдых": "Rest"}
-        rows = "".join(
-            f"<tr style='border-bottom:1px solid #2a2a3a'>"
-            f"<td style='padding:6px 8px;color:#aaa;white-space:nowrap'>{it['date']}</td>"
-            f"<td style='padding:6px 8px;color:#ccc'><b>{type_en.get(it['type'], it['type'])}</b> — {it['desc']}"
-            f"{f\" · {it['km']:.0f} km\" if it.get('km') else ''}</td>"
-            f"</tr>"
-            for it in items
-        )
+        rows_html = []
+        for it in items:
+            km_str = (" · " + str(round(it["km"])) + " km") if it.get("km") else ""
+            t = type_en.get(it["type"], it["type"])
+            rows_html.append(
+                f"<tr style='border-bottom:1px solid #2a2a3a'>"
+                f"<td style='padding:6px 8px;color:#aaa;white-space:nowrap'>{it['date']}</td>"
+                f"<td style='padding:6px 8px;color:#ccc'><b>{t}</b> — {it['desc']}{km_str}</td>"
+                f"</tr>"
+            )
+        rows = "".join(rows_html)
         return (
             f"<br><b>Next week: {len(items)} workouts planned:</b><br><br>"
             f"<table style='width:100%;border-collapse:collapse;font-size:14px'>{rows}</table>"
