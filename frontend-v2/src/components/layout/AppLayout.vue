@@ -47,6 +47,10 @@
           <i class="fas fa-globe"></i>
           <span>{{ nextLang }}</span>
         </button>
+        <a href="/blog/" class="nav-item" target="_blank" rel="noopener">
+          <i class="fas fa-newspaper"></i>
+          <span>Блог</span>
+        </a>
         <button class="nav-item logout" @click="logout()">
           <i class="fas fa-sign-out-alt"></i>
           <span>{{ t('header.logout') }}</span>
@@ -90,6 +94,9 @@
             <button class="mobile-menu-item" @click="changeLang(); menuOpen = false">
               <i class="fas fa-globe"></i> {{ nextLang }}
             </button>
+            <a href="/blog/" class="mobile-menu-item" target="_blank" rel="noopener" @click="menuOpen = false">
+              <i class="fas fa-newspaper"></i> Блог
+            </a>
             <button class="mobile-menu-item logout" @click="logout(); menuOpen = false">
               <i class="fas fa-sign-out-alt"></i> {{ t('header.logout') }}
             </button>

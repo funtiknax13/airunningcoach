@@ -231,8 +231,7 @@
     <button class="theme-btn" onclick="toggleTheme()" aria-label="Сменить тему">
       <i id="theme-icon" class="fas fa-moon"></i>
     </button>
-    <a href="/?login=1" class="btn btn-ghost btn-sm">Войти</a>
-    <a href="/?register=1&utm_source=blog&utm_medium=nav" class="btn btn-primary btn-sm">Попробовать</a>
+    <div id="nav-auth"></div>
   </div>
 </nav>
 
@@ -294,6 +293,16 @@ function updateThemeBtn(isDark) {
   var icon = document.getElementById('theme-icon');
   if (icon) icon.className = isDark ? 'fas fa-sun' : 'fas fa-moon';
 }
+(function() {
+  var el = document.getElementById('nav-auth');
+  if (!el) return;
+  if (localStorage.getItem('access_token')) {
+    el.innerHTML = '<a href="/dashboard" class="btn btn-primary btn-sm"><i class="fas fa-tachometer-alt"></i> Дашборд</a>';
+  } else {
+    el.innerHTML = '<a href="/?login=1" class="btn btn-ghost btn-sm">Войти</a>' +
+      '<a href="/?register=1&utm_source=blog&utm_medium=nav" class="btn btn-primary btn-sm">Попробовать</a>';
+  }
+})();
 </script>
 </body>
 </html>
