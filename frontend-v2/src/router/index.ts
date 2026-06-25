@@ -12,6 +12,7 @@ const router = createRouter({
     { path: '/coach',       component: () => import('@/pages/CoachPage.vue'),       meta: { auth: true } },
     { path: '/subscription',  component: () => import('@/pages/SubscriptionPage.vue'), meta: { auth: true } },
     { path: '/payment/success', component: () => import('@/pages/PaymentSuccessPage.vue'), meta: { auth: true } },
+    { path: '/onboarding',      component: () => import('@/pages/OnboardingPage.vue'),   meta: { auth: true } },
     { path: '/auth/callback',   component: () => import('@/pages/AuthCallbackPage.vue') },
     { path: '/:pathMatch(.*)*', redirect: '/' },
   ],
@@ -26,6 +27,10 @@ router.beforeEach(async (to) => {
   if (to.path === '/' && auth.loggedIn) return '/dashboard'
   if (!to.meta.auth) return true
   if (!auth.loggedIn) return '/'
+  // Новые пользователи без онбординга → на онбординг (кроме самой страницы онбординга)
+  if (auth.user && !auth.user.onboarding_completed && to.path !== '/onboarding') {
+    return '/onboarding'
+  }
   return true
 })
 

@@ -46,6 +46,11 @@ class UserResponse(BaseModel):
     is_verified: bool
     is_premium: bool
     premium_until: Optional[datetime]
+    fitness_level: Optional[str]
+    running_goal: Optional[str]
+    weekly_km: Optional[float]
+    training_days: Optional[int]
+    onboarding_completed: bool
     created_at: datetime
 
     class Config:
@@ -57,6 +62,11 @@ class UserUpdate(BaseModel):
     age: Optional[int] = Field(None, ge=10, le=120)
     weight: Optional[float] = Field(None, gt=0, le=500)
     height: Optional[float] = Field(None, gt=0, le=300)
+    fitness_level: Optional[str] = None
+    running_goal: Optional[str] = None
+    weekly_km: Optional[float] = None
+    training_days: Optional[int] = None
+    onboarding_completed: Optional[bool] = None
 
 
 class PasswordChange(BaseModel):

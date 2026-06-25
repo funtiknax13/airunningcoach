@@ -7,12 +7,30 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pathlib import Path
 
+from sqlalchemy import text
 from app.database import engine, Base
 from app.routers import auth, activities, goals, training, chat, ai_insights, payments
 from app.core.config import settings
 from app.services.trial_emails import start_scheduler, stop_scheduler
 
 Base.metadata.create_all(bind=engine)
+
+def _migrate():
+    """Добавляет новые колонки к существующим таблицам (идемпотентно)."""
+    migrations = [
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS fitness_level VARCHAR(20)",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS running_goal VARCHAR(20)",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS weekly_km FLOAT",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS training_days INTEGER",
+        # server_default TRUE — существующие пользователи не попадают в онбординг
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS onboarding_completed BOOLEAN DEFAULT TRUE",
+    ]
+    with engine.connect() as conn:
+        for sql in migrations:
+            conn.execute(text(sql))
+        conn.commit()
+
+_migrate()
 
 
 @asynccontextmanager

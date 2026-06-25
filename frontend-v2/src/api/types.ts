@@ -30,6 +30,11 @@ export interface UserResponse {
   is_verified: boolean
   is_premium: boolean
   premium_until: string | null
+  fitness_level: string | null
+  running_goal: string | null
+  weekly_km: number | null
+  training_days: number | null
+  onboarding_completed: boolean
   created_at: string
 }
 
@@ -52,6 +57,11 @@ export interface UserUpdate {
   age?: number | null
   weight?: number | null
   height?: number | null
+  fitness_level?: string | null
+  running_goal?: string | null
+  weekly_km?: number | null
+  training_days?: number | null
+  onboarding_completed?: boolean
 }
 
 export interface PasswordChange {

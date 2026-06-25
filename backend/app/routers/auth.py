@@ -46,6 +46,7 @@ async def register(user_data: UserCreate, db: Session = Depends(get_db)):
         is_verified=False,
         verification_token=token, verification_token_expires=expires,
         is_premium=True, premium_until=trial_until,
+        onboarding_completed=False,
     )
     db.add(db_user)
     db.commit()
@@ -292,6 +293,7 @@ async def google_callback(code: str, db: Session = Depends(get_db)):
             google_id=google_id,
             is_verified=True,           # Верификация не нужна — Google уже подтвердил
             is_premium=True, premium_until=trial_until,
+            onboarding_completed=False,
         )
         db.add(user)
         db.commit()

@@ -25,6 +25,11 @@ class User(Base):
     is_premium = Column(Boolean, default=False, nullable=False)
     premium_until = Column(DateTime(timezone=True), nullable=True)
     trial_last_email_day = Column(Integer, nullable=True)
+    fitness_level = Column(String(20), nullable=True)       # beginner | intermediate | advanced
+    running_goal = Column(String(20), nullable=True)        # 5k | 10k | half_marathon | marathon | fitness
+    weekly_km = Column(Float, nullable=True)                # текущий объём км/нед
+    training_days = Column(Integer, nullable=True)          # дней в неделю
+    onboarding_completed = Column(Boolean, default=False, nullable=False, server_default='true')
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
