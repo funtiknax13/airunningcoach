@@ -11,7 +11,7 @@ from typing import Optional
 
 from app.database import get_db
 from app.dependencies import get_current_user
-from app.models import User
+from app.models import User, Goal
 from app.schemas import (
     UserCreate, UserLogin, Token, UserResponse,
     UserUpdate, PasswordChange,
@@ -149,14 +149,37 @@ def get_limits(
     }
 
 
+_RUNNING_GOAL_TO_GOAL_TYPE = {
+    "5k":            "5k",
+    "10k":           "10k",
+    "half_marathon": "half_marathon",
+    "marathon":      "full_marathon",
+}
+
 @router.patch("/me", response_model=UserResponse)
 def update_profile(
     data: UserUpdate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    for field, value in data.model_dump(exclude_unset=True).items():
+    payload = data.model_dump(exclude_unset=True)
+    for field, value in payload.items():
         setattr(current_user, field, value)
+
+    # При завершении онбординга автоматически создаём цель (если есть running_goal и ещё нет такой цели)
+    completing_onboarding = payload.get("onboarding_completed") is True
+    running_goal = payload.get("running_goal") or current_user.running_goal
+    goal_type = _RUNNING_GOAL_TO_GOAL_TYPE.get(running_goal) if running_goal else None
+
+    if completing_onboarding and goal_type:
+        existing = db.query(Goal).filter(
+            Goal.user_id == current_user.id,
+            Goal.goal_type == goal_type,
+            Goal.is_active == True,
+        ).first()
+        if not existing:
+            db.add(Goal(user_id=current_user.id, goal_type=goal_type, is_active=True))
+
     db.commit()
     db.refresh(current_user)
     return current_user
