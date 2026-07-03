@@ -94,3 +94,9 @@ export const chatApi = {
 export const insightsApi = {
   dashboard: () => api.request<DashboardInsights>('/api/ai-insights/dashboard'),
 }
+
+// ── Support ───────────────────────────────────────────────────────────────
+export const supportApi = {
+  contact: (subject: string, message: string, lang = 'ru') =>
+    api.request<{ message: string }>('/api/support/contact', 'POST', { subject, message, lang }),
+}

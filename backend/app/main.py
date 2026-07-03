@@ -9,7 +9,7 @@ from pathlib import Path
 
 from sqlalchemy import text
 from app.database import engine, Base
-from app.routers import auth, activities, goals, training, chat, ai_insights, payments
+from app.routers import auth, activities, goals, training, chat, ai_insights, payments, support
 from app.core.config import settings
 from app.services.trial_emails import start_scheduler, stop_scheduler
 
@@ -67,6 +67,7 @@ app.include_router(training.router,    prefix="/api")
 app.include_router(chat.router,        prefix="/api")
 app.include_router(ai_insights.router, prefix="/api")
 app.include_router(payments.router,    prefix="/api")
+app.include_router(support.router,     prefix="/api")
 
 
 @app.get("/health")

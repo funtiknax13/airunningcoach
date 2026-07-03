@@ -420,3 +420,55 @@ async def send_weekly_stats_email(
             accent="#6c63ff",
         )
         await send_email(to_email, f"Дайджест недели — {APP_NAME}", html)
+
+
+# ── Support contact form ───────────────────────────────────────────────────────
+
+async def send_support_notification(
+    support_email: str, user_name: str, user_email: str, subject: str, message: str
+) -> None:
+    """Уведомление в поддержку о новом обращении пользователя."""
+    body = (
+        f"<b>От:</b> {user_name} ({user_email})<br>"
+        f"<b>Тема:</b> {subject}<br><br>"
+        f"<b>Сообщение:</b><br>{message}".replace(chr(10), "<br>")
+    )
+    html = _build_email_html(
+        heading="Новое обращение в поддержку",
+        body=body,
+        button_text="Ответить",
+        button_url=f"mailto:{user_email}",
+        footer=f"{APP_NAME} — уведомление формы поддержки",
+        accent="#f97316",
+    )
+    await send_email(support_email, f"[Поддержка] {subject} — {user_name}", html)
+
+
+_SUPPORT_AUTOREPLY = {
+    "ru": {
+        "subject": f"Мы получили ваше обращение — {APP_NAME}",
+        "heading": "Спасибо, мы получили ваше сообщение! 📩",
+        "body": "Обычно отвечаем в течение 1-2 рабочих дней. Мы напишем вам на этот email.",
+        "footer": "Если вопрос срочный — просто ответьте на это письмо.",
+    },
+    "en": {
+        "subject": f"We received your message — {APP_NAME}",
+        "heading": "Thanks, we got your message! 📩",
+        "body": "We usually reply within 1-2 business days. We'll get back to you at this email.",
+        "footer": "If it's urgent, just reply to this email.",
+    },
+}
+
+
+async def send_support_autoreply(to_email: str, name: str, lang: str = "ru") -> None:
+    lang = lang if lang in _SUPPORT_AUTOREPLY else "ru"
+    c = _SUPPORT_AUTOREPLY[lang]
+    html = _build_email_html(
+        heading=c["heading"],
+        body=f"{name}, {c['body']}",
+        button_text=APP_NAME,
+        button_url=settings.APP_BASE_URL,
+        footer=c["footer"],
+        accent="#4f46e5",
+    )
+    await send_email(to_email, c["subject"], html)

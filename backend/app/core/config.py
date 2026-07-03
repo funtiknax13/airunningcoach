@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     GMAIL_USER: str = ""
     GMAIL_APP_PASSWORD: str = ""
     EMAIL_FROM_NAME: str = "AI PaceMaker"
+    SUPPORT_EMAIL: str = ""  # если пусто — уведомления поддержки идут на GMAIL_USER
 
     # App base URL for verification links
     APP_BASE_URL: str = "http://localhost:8000"

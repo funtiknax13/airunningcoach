@@ -96,6 +96,11 @@ export default {
     currentPw: 'Current password', newPw: 'New password', confirmPw: 'Confirm new password',
     updated: '✓ Profile updated', pwUpdated: '✓ Password changed', errMismatch: 'Passwords do not match',
   },
+  support: {
+    title: 'Support', subject: 'Subject', message: 'Describe your question or issue',
+    send: 'Send', sent: "✓ Message sent, we'll reply by email",
+    errValidation: 'Fill in the subject and describe your issue (min. 10 characters)',
+  },
   time: { h: 'h', min: 'min', sec: 'sec' },
   btn: { save: 'Save', cancel: 'Cancel', confirm: 'Confirm', delete: 'Delete' },
   misc: { km: 'km' },

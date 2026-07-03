@@ -250,3 +250,10 @@ class AIChatRequest(BaseModel):
     message: str
     context_type: Optional[str] = "general"
     lang: Optional[str] = "ru"
+
+
+# Support contact form
+class SupportContactRequest(BaseModel):
+    subject: str = Field(..., min_length=1, max_length=150)
+    message: str = Field(..., min_length=10, max_length=3000)
+    lang: Optional[str] = "ru"

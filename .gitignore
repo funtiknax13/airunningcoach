@@ -14,3 +14,7 @@ frontend-v2/.env
 # Локальная разработка — не деплоить на сервер
 docker-compose.override.yml
 nginx/nginx-local.conf
+
+# Claude Code — локальные настройки и токены
+.claude/
+.mcp.json
