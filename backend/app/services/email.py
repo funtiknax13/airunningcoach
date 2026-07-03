@@ -11,20 +11,21 @@ APP_NAME = "AI RunningCoach"
 APP_URL = "{base_url}/dashboard"
 
 
-def _send_smtp(to_email: str, subject: str, html_body: str) -> None:
+def _send_smtp(to_email: str | list[str], subject: str, html_body: str) -> None:
+    recipients = to_email if isinstance(to_email, list) else [to_email]
     msg = MIMEMultipart("alternative")
     msg["Subject"] = subject
     msg["From"] = f"{settings.EMAIL_FROM_NAME} <{settings.GMAIL_USER}>"
-    msg["To"] = to_email
+    msg["To"] = ", ".join(recipients)
     msg.attach(MIMEText(html_body, "html", "utf-8"))
 
     context = ssl.create_default_context()
     with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=context) as server:
         server.login(settings.GMAIL_USER, settings.GMAIL_APP_PASSWORD)
-        server.sendmail(settings.GMAIL_USER, to_email, msg.as_string())
+        server.sendmail(settings.GMAIL_USER, recipients, msg.as_string())
 
 
-async def send_email(to_email: str, subject: str, html_body: str) -> None:
+async def send_email(to_email: str | list[str], subject: str, html_body: str) -> None:
     loop = asyncio.get_event_loop()
     await loop.run_in_executor(None, partial(_send_smtp, to_email, subject, html_body))
 
@@ -425,23 +426,23 @@ async def send_weekly_stats_email(
 # ── Support contact form ───────────────────────────────────────────────────────
 
 async def send_support_notification(
-    support_email: str, user_name: str, user_email: str, subject: str, message: str
+    admin_emails: list[str], user_name: str, user_email: str, subject: str, message: str
 ) -> None:
-    """Уведомление в поддержку о новом обращении пользователя."""
+    """Уведомление администратор(ам) о новом обращении пользователя."""
     body = (
         f"<b>От:</b> {user_name} ({user_email})<br>"
         f"<b>Тема:</b> {subject}<br><br>"
         f"<b>Сообщение:</b><br>{message}".replace(chr(10), "<br>")
     )
     html = _build_email_html(
-        heading="Новое обращение в поддержку",
+        heading="Обращение в поддержку",
         body=body,
         button_text="Ответить",
         button_url=f"mailto:{user_email}",
         footer=f"{APP_NAME} — уведомление формы поддержки",
         accent="#f97316",
     )
-    await send_email(support_email, f"[Поддержка] {subject} — {user_name}", html)
+    await send_email(admin_emails, f"Обращение: {subject}", html)
 
 
 _SUPPORT_AUTOREPLY = {
