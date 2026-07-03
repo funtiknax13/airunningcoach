@@ -51,6 +51,10 @@
           <i class="fas fa-newspaper"></i>
           <span>Блог</span>
         </a>
+        <button class="nav-item" @click="supportModal?.open()">
+          <i class="fas fa-life-ring"></i>
+          <span>{{ t('support.title') }}</span>
+        </button>
         <button class="nav-item logout" @click="logout()">
           <i class="fas fa-sign-out-alt"></i>
           <span>{{ t('header.logout') }}</span>
@@ -97,6 +101,9 @@
             <a href="/blog/" class="mobile-menu-item" target="_blank" rel="noopener" @click="menuOpen = false">
               <i class="fas fa-newspaper"></i> Блог
             </a>
+            <button class="mobile-menu-item" @click="supportModal?.open(); menuOpen = false">
+              <i class="fas fa-life-ring"></i> {{ t('support.title') }}
+            </button>
             <button class="mobile-menu-item logout" @click="logout(); menuOpen = false">
               <i class="fas fa-sign-out-alt"></i> {{ t('header.logout') }}
             </button>
@@ -124,6 +131,7 @@
   </nav>
 
   <ProfileModal ref="profileModal" v-model="showProfile" />
+  <SupportModal ref="supportModal" v-model="showSupport" />
   <AppDialog />
   <TrialExpiredBanner />
 </template>
@@ -137,6 +145,7 @@ import { useAuthStore } from '@/stores/auth'
 import { useChatStore } from '@/stores/chat'
 import { useTheme } from '@/composables/useTheme'
 import ProfileModal       from '@/components/profile/ProfileModal.vue'
+import SupportModal       from '@/components/support/SupportModal.vue'
 import AppDialog          from '@/components/common/AppDialog.vue'
 import TrialExpiredBanner from '@/components/common/TrialExpiredBanner.vue'
 
@@ -144,6 +153,8 @@ const { t, locale } = useI18n()
 const route     = useRoute()
 const auth      = useAuthStore()
 const chatStore = useChatStore()
+const supportModal = ref<InstanceType<typeof SupportModal> | null>(null)
+const showSupport  = ref(false)
 
 const isPremium = computed(() => {
   if (!auth.user?.is_premium) return false
