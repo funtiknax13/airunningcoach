@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>Бесплатные калькуляторы для бегунов | AI RunningCoach</title>
+  <meta name="description" content="Бесплатные инструменты для бегунов: калькулятор темпа, прогноз результата на дистанции, пульсовые зоны и анализатор GPX/FIT-файлов. Без регистрации.">
+  <link rel="canonical" href="https://airunningcoach.pro/tools/">
+  <meta name="robots" content="index, follow">
+
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://airunningcoach.pro/tools/">
+  <meta property="og:title" content="Бесплатные калькуляторы для бегунов | AI RunningCoach">
+  <meta property="og:description" content="Темп, пульсовые зоны, прогноз результата и анализ GPX/FIT — бесплатно, без регистрации.">
+  <meta property="og:image" content="https://airunningcoach.pro/images/og-image.png">
+  <meta property="og:locale" content="ru_RU">
+  <meta property="og:site_name" content="AI RunningCoach">
+
+  <link rel="shortcut icon" href="/favicon.ico">
+  <link rel="icon" type="image/x-icon" href="/favicon.ico">
+  <link rel="icon" type="image/png" sizes="32x32" href="/logo.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/logo.png">
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "CollectionPage",
+    "name": "Бесплатные калькуляторы для бегунов",
+    "url": "https://airunningcoach.pro/tools/",
+    "description": "Калькулятор темпа, прогноз результата, пульсовые зоны и анализатор GPX/FIT",
+    "publisher": { "@type": "Organization", "name": "AI RunningCoach", "url": "https://airunningcoach.pro" },
+    "inLanguage": "ru"
+  }
+  </script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Главная","item":"https://airunningcoach.pro/"},{"@type":"ListItem","position":2,"name":"Инструменты","item":"https://airunningcoach.pro/tools/"}]}</script>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+
+  <script type="text/javascript">
+    (function(m,e,t,r,i,k,a){m[i]=m[i]||function(){(m[i].a=m[i].a||[]).push(arguments)};m[i].l=1*new Date();for(var j=0;j<document.scripts.length;j++){if(document.scripts[j].src===r){return;}}k=e.createElement(t),a=e.getElementsByTagName(t)[0],k.async=1,k.src=r,a.parentNode.insertBefore(k,a)})(window,document,'script','https://mc.yandex.ru/metrika/tag.js?id=110093497','ym');
+    ym(110093497,'init',{ssr:true,webvisor:true,clickmap:true,accurateTrackBounce:true,trackLinks:true});
+  </script>
+  <noscript><div><img src="https://mc.yandex.ru/watch/110093497" style="position:absolute;left:-9999px;" alt=""></div></noscript>
+
+  <style>
+    :root {
+      --brand:       #F85C1E;
+      --brand-hover: #E04A0D;
+      --brand-light: rgba(248,92,30,0.10);
+      --brand-glow:  rgba(248,92,30,0.25);
+      --bg:        #F0F2F5;
+      --surface:   #FFFFFF;
+      --surface-2: #F7F8FA;
+      --surface-3: #EEF0F3;
+      --border:    #E5E7EB;
+      --border-2:  #D1D5DB;
+      --text:   #111827;
+      --text-2: #4B5563;
+      --text-3: #9CA3AF;
+      --green:  #16A34A;
+      --blue:   #3B82F6;
+      --yellow: #D97706;
+      --shadow-sm: 0 1px 3px rgba(0,0,0,0.06);
+      --shadow:    0 4px 12px rgba(0,0,0,0.08);
+      --r: 10px; --r-md: 14px; --r-lg: 18px; --r-xl: 24px;
+      --font: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+    [data-theme="dark"] {
+      --bg:        #0D1117;
+      --surface:   #161B22;
+      --surface-2: #1C2128;
+      --surface-3: #21262D;
+      --border:    rgba(240,246,252,0.08);
+      --border-2:  rgba(240,246,252,0.14);
+      --text:      #F0F6FC;
+      --text-2:    #8B949E;
+      --text-3:    #484F58;
+      --green:     #3FB950;
+      --shadow-sm: 0 1px 3px rgba(0,0,0,0.3);
+      --shadow:    0 4px 12px rgba(0,0,0,0.4);
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body { font-family: var(--font); background: var(--bg); color: var(--text); line-height: 1.6; -webkit-font-smoothing: antialiased; }
+    a { color: inherit; text-decoration: none; }
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-thumb { background: var(--border-2); border-radius: 10px; }
+
+    /* ── Nav (идентично блогу) ── */
+    .landing-nav { position: sticky; top: 0; z-index: 50; background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 32px; height: 64px; display: flex; align-items: center; justify-content: space-between; }
+    .landing-nav-logo { display: flex; align-items: center; gap: 10px; font-size: 1rem; font-weight: 800; color: var(--text); letter-spacing: -0.02em; }
+    .landing-nav-logo img { width: 32px; height: 32px; }
+    .landing-nav-logo span { color: var(--brand); }
+    .landing-nav-actions { display: flex; align-items: center; gap: 10px; }
+    .theme-btn { background: none; border: 1px solid var(--border); border-radius: var(--r); padding: 7px 10px; color: var(--text-2); font-size: 0.9rem; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; }
+    .theme-btn:hover { border-color: var(--border-2); color: var(--text); background: var(--surface-2); }
+    .btn { display: inline-flex; align-items: center; gap: 6px; padding: 10px 20px; border-radius: var(--r-md); font-size: 0.9rem; font-weight: 700; border: none; font-family: var(--font); cursor: pointer; transition: all 0.2s; white-space: nowrap; text-decoration: none; }
+    .btn-primary { background: var(--brand); color: white; }
+    .btn-primary:hover { background: var(--brand-hover); box-shadow: 0 4px 14px var(--brand-glow); transform: translateY(-1px); }
+    .btn-ghost { background: none; color: var(--text-2); border: 1px solid var(--border); }
+    .btn-ghost:hover { background: var(--surface-2); color: var(--text); }
+    .btn-sm { padding: 7px 14px; font-size: 0.8rem; }
+    #nav-auth { display: contents; }
+
+    /* ── Hero ── */
+    .tools-hero { max-width: 1100px; margin: 0 auto; padding: 52px 32px 36px; }
+    .tools-hero-label { display: inline-flex; align-items: center; gap: 6px; background: var(--brand-light); color: var(--brand); border: 1px solid rgba(248,92,30,0.2); padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; margin-bottom: 16px; }
+    .tools-hero h1 { font-size: clamp(1.8rem, 3.5vw, 2.6rem); font-weight: 800; letter-spacing: -0.03em; color: var(--text); margin-bottom: 12px; }
+    .tools-hero p { font-size: 1rem; color: var(--text-2); max-width: 560px; line-height: 1.65; }
+
+    /* ── Tool grid ── */
+    .tools-grid { max-width: 1100px; margin: 0 auto; padding: 0 32px 80px; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 20px; }
+    .tool-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); padding: 28px 24px; display: flex; flex-direction: column; transition: all 0.25s; position: relative; overflow: hidden; }
+    .tool-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, var(--brand), #FF6B35); transform: scaleX(0); transform-origin: left; transition: transform 0.3s ease; }
+    .tool-card:hover::before { transform: scaleX(1); }
+    .tool-card:hover { border-color: rgba(248,92,30,0.3); box-shadow: var(--shadow); transform: translateY(-3px); }
+    .tool-icon { width: 46px; height: 46px; border-radius: var(--r-md); background: var(--brand-light); color: var(--brand); display: flex; align-items: center; justify-content: center; font-size: 1.2rem; margin-bottom: 18px; }
+    .tool-card-title { font-size: 1.05rem; font-weight: 700; color: var(--text); line-height: 1.35; margin-bottom: 10px; }
+    .tool-card:hover .tool-card-title { color: var(--brand); }
+    .tool-card-desc { font-size: 0.87rem; color: var(--text-2); flex: 1; line-height: 1.6; margin-bottom: 18px; }
+    .tool-card-cta { color: var(--brand); font-weight: 600; font-size: 0.82rem; }
+
+    /* ── CTA ── */
+    .tools-cta { max-width: 1100px; margin: 0 auto; padding: 0 32px 80px; }
+    .cta-block { background: linear-gradient(135deg, var(--brand) 0%, #FF6B35 100%); border-radius: var(--r-xl); padding: 52px 40px; color: white; text-align: center; }
+    .cta-block h2 { font-size: 1.8rem; font-weight: 800; letter-spacing: -0.03em; margin-bottom: 12px; }
+    .cta-block p { font-size: 1rem; opacity: 0.85; margin-bottom: 28px; }
+    .btn-white { background: white; color: var(--brand); padding: 13px 28px; border-radius: var(--r-md); border: none; font-size: 0.95rem; font-weight: 700; font-family: var(--font); cursor: pointer; transition: all 0.2s; display: inline-block; text-decoration: none; }
+    .btn-white:hover { box-shadow: 0 8px 24px rgba(0,0,0,0.2); transform: translateY(-2px); }
+
+    /* ── Footer ── */
+    .landing-footer { border-top: 1px solid var(--border); text-align: center; padding: 20px 32px; color: var(--text-3); font-size: 0.8rem; }
+    .footer-links { display: flex; justify-content: center; gap: 16px; margin-top: 8px; }
+    .footer-links a { color: var(--text-3); }
+    .footer-links a:hover { color: var(--text-2); }
+
+    @media (max-width: 768px) {
+      .landing-nav { padding: 0 16px; height: 56px; }
+      .tools-hero { padding: 36px 16px 24px; }
+      .tools-grid { padding: 0 16px 48px; }
+      .tools-cta { padding: 0 16px 48px; }
+      .cta-block { padding: 36px 20px; }
+    }
+    @media (max-width: 480px) {
+      .landing-nav-actions .btn-ghost { display: none; }
+      .landing-nav-actions .btn-primary { padding: 7px 12px; font-size: 0.78rem; }
+      .tools-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<nav class="landing-nav">
+  <a href="/" class="landing-nav-logo">
+    <img src="/logo.png" alt="AIRunningCoach" width="32" height="32">
+    <span>AI</span>RunningCoach
+  </a>
+  <div class="landing-nav-actions">
+    <button class="theme-btn" onclick="toggleTheme()" aria-label="Сменить тему">
+      <i id="theme-icon" class="fas fa-moon"></i>
+    </button>
+    <div id="nav-auth"></div>
+  </div>
+</nav>
+
+<div class="tools-hero">
+  <div class="tools-hero-label"><i class="fas fa-calculator"></i> Бесплатные инструменты</div>
+  <h1>Калькуляторы и анализ для бегунов</h1>
+  <p>Темп, пульсовые зоны, прогноз результата и разбор пробежки из файла — бесплатно и без регистрации. Результат считается сразу в браузере.</p>
+</div>
+
+<div class="tools-grid">
+
+  <a href="/tools/analiz-gpx-fit/" class="tool-card">
+    <div class="tool-icon"><i class="fas fa-file-import"></i></div>
+    <div class="tool-card-title">Анализатор GPX/FIT-файла</div>
+    <div class="tool-card-desc">Загрузите трек из Garmin, Coros, Suunto или Strava — увидите дистанцию, темп, пульс, сплиты по километрам и набор высоты.</div>
+    <div class="tool-card-cta">Открыть анализатор →</div>
+  </a>
+
+  <a href="/tools/kalkulyator-tempa/" class="tool-card">
+    <div class="tool-icon"><i class="fas fa-tachometer-alt"></i></div>
+    <div class="tool-card-title">Калькулятор темпа бега</div>
+    <div class="tool-card-desc">Введите целевое время на дистанции — получите нужный темп на километр и милю, плюс тренировочные зоны под эту цель.</div>
+    <div class="tool-card-cta">Рассчитать темп →</div>
+  </a>
+
+  <a href="/tools/prognoz-rezultata/" class="tool-card">
+    <div class="tool-icon"><i class="fas fa-chart-line"></i></div>
+    <div class="tool-card-title">Прогноз результата на дистанции</div>
+    <div class="tool-card-desc">По результату на одной дистанции (например, 5 км) — прогноз времени на 10 км, полумарафоне и марафоне.</div>
+    <div class="tool-card-cta">Спрогнозировать →</div>
+  </a>
+
+  <a href="/tools/pulsovye-zony/" class="tool-card">
+    <div class="tool-icon"><i class="fas fa-heart-pulse"></i></div>
+    <div class="tool-card-title">Калькулятор пульсовых зон</div>
+    <div class="tool-card-desc">По возрасту или известному максимальному пульсу — 5 тренировочных зон по методу Карвонена с диапазонами уд/мин.</div>
+    <div class="tool-card-cta">Рассчитать зоны →</div>
+  </a>
+
+</div>
+
+<div class="tools-cta">
+  <div class="cta-block">
+    <h2>Хотите полный AI-разбор своих тренировок?</h2>
+    <p>AI-тренер анализирует историю пробежек и строит план под вашу цель — 14 дней Premium бесплатно.</p>
+    <a href="/?register=1&utm_source=tools&utm_medium=cta" class="btn-white">Начать бесплатно →</a>
+  </div>
+</div>
+
+<footer class="landing-footer">
+  <p>© 2026 AI RunningCoach. Тренируйтесь умнее каждый день.</p>
+  <nav class="footer-links">
+    <a href="/">Главная</a>
+    <a href="/blog/">Блог</a>
+    <a href="/tools/">Инструменты</a>
+    <a href="/sitemap.xml" rel="nofollow">Sitemap</a>
+  </nav>
+</footer>
+
+<script>
+(function() {
+  var saved = localStorage.getItem('theme');
+  var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  var isDark = saved ? saved === 'dark' : prefersDark;
+  if (isDark) { document.documentElement.setAttribute('data-theme', 'dark'); updateThemeBtn(true); }
+})();
+function toggleTheme() {
+  var isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+  if (isDark) { document.documentElement.removeAttribute('data-theme'); localStorage.setItem('theme', 'light'); updateThemeBtn(false); }
+  else { document.documentElement.setAttribute('data-theme', 'dark'); localStorage.setItem('theme', 'dark'); updateThemeBtn(true); }
+}
+function updateThemeBtn(isDark) {
+  var icon = document.getElementById('theme-icon');
+  if (icon) icon.className = isDark ? 'fas fa-sun' : 'fas fa-moon';
+}
+(function() {
+  var el = document.getElementById('nav-auth');
+  if (!el) return;
+  if (localStorage.getItem('access_token')) {
+    el.innerHTML = '<a href="/dashboard" class="btn btn-primary btn-sm"><i class="fas fa-tachometer-alt"></i> Дашборд</a>';
+  } else {
+    el.innerHTML = '<a href="/?login=1" class="btn btn-ghost btn-sm">Войти</a>' +
+      '<a href="/?register=1&utm_source=tools&utm_medium=nav" class="btn btn-primary btn-sm">Попробовать</a>';
+  }
+})();
+</script>
+</body>
+</html>

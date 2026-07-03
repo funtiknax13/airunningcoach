@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Калькулятор пульсовых зон для бега (метод Карвонена) | AI RunningCoach</title>
+  <meta name="description" content="Бесплатный калькулятор пульсовых зон для бега. Введите возраст или максимальный пульс — получите 5 тренировочных зон по методу Карвонена с диапазонами уд/мин.">
+  <meta name="keywords" content="пульсовые зоны калькулятор, зоны пульса бег, максимальный пульс формула, метод карвонена, тренировочные зоны по пульсу">
+  <link rel="canonical" href="https://airunningcoach.pro/tools/pulsovye-zony/">
+  <meta name="robots" content="index, follow">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://airunningcoach.pro/tools/pulsovye-zony/">
+  <meta property="og:title" content="Калькулятор пульсовых зон — AI RunningCoach">
+  <meta property="og:description" content="5 тренировочных зон по пульсу — бесплатно, без регистрации.">
+  <meta property="og:image" content="https://airunningcoach.pro/images/og-image.png">
+  <meta property="og:locale" content="ru_RU">
+  <meta property="og:site_name" content="AI RunningCoach">
+  <link rel="shortcut icon" href="/favicon.ico">
+  <link rel="icon" type="image/x-icon" href="/favicon.ico">
+  <link rel="apple-touch-icon" sizes="180x180" href="/logo.png">
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"WebApplication","name":"Калькулятор пульсовых зон","url":"https://airunningcoach.pro/tools/pulsovye-zony/","applicationCategory":"SportsApplication","operatingSystem":"Any","offers":{"@type":"Offer","price":"0","priceCurrency":"RUB"},"inLanguage":"ru"}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Главная","item":"https://airunningcoach.pro/"},{"@type":"ListItem","position":2,"name":"Инструменты","item":"https://airunningcoach.pro/tools/"},{"@type":"ListItem","position":3,"name":"Пульсовые зоны","item":"https://airunningcoach.pro/tools/pulsovye-zony/"}]}</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+  <script type="text/javascript">(function(m,e,t,r,i,k,a){m[i]=m[i]||function(){(m[i].a=m[i].a||[]).push(arguments)};m[i].l=1*new Date();for(var j=0;j<document.scripts.length;j++){if(document.scripts[j].src===r){return;}}k=e.createElement(t),a=e.getElementsByTagName(t)[0],k.async=1,k.src=r,a.parentNode.insertBefore(k,a)})(window,document,'script','https://mc.yandex.ru/metrika/tag.js?id=110093497','ym');ym(110093497,'init',{ssr:true,webvisor:true,clickmap:true,accurateTrackBounce:true,trackLinks:true});</script>
+  <noscript><div><img src="https://mc.yandex.ru/watch/110093497" style="position:absolute;left:-9999px;" alt=""></div></noscript>
+  <style>
+    :root{--brand:#F85C1E;--brand-hover:#E04A0D;--brand-light:rgba(248,92,30,0.10);--brand-glow:rgba(248,92,30,0.25);--bg:#F0F2F5;--surface:#FFFFFF;--surface-2:#F7F8FA;--surface-3:#EEF0F3;--border:#E5E7EB;--border-2:#D1D5DB;--text:#111827;--text-2:#4B5563;--text-3:#9CA3AF;--green:#16A34A;--green-dim:rgba(22,163,74,0.10);--red:#DC2626;--yellow:#D97706;--blue:#3B82F6;--shadow-sm:0 1px 3px rgba(0,0,0,0.06);--shadow:0 4px 12px rgba(0,0,0,0.08);--r:10px;--r-md:14px;--r-lg:18px;--r-xl:24px;--font:'Plus Jakarta Sans',-apple-system,BlinkMacSystemFont,sans-serif}
+    [data-theme="dark"]{--bg:#0D1117;--surface:#161B22;--surface-2:#1C2128;--surface-3:#21262D;--border:rgba(240,246,252,0.08);--border-2:rgba(240,246,252,0.14);--text:#F0F6FC;--text-2:#8B949E;--text-3:#484F58;--green:#3FB950;--green-dim:rgba(63,185,80,0.12);--shadow:0 4px 12px rgba(0,0,0,0.4)}
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}body{font-family:var(--font);background:var(--bg);color:var(--text);line-height:1.65;-webkit-font-smoothing:antialiased}a{color:inherit;text-decoration:none}::-webkit-scrollbar{width:5px}::-webkit-scrollbar-thumb{background:var(--border-2);border-radius:10px}
+    .landing-nav{position:sticky;top:0;z-index:50;background:var(--surface);border-bottom:1px solid var(--border);padding:0 32px;height:64px;display:flex;align-items:center;justify-content:space-between}.landing-nav-logo{display:flex;align-items:center;gap:10px;font-size:1rem;font-weight:800;color:var(--text);letter-spacing:-0.02em}.landing-nav-logo img{width:32px;height:32px}.landing-nav-logo span{color:var(--brand)}.landing-nav-actions{display:flex;align-items:center;gap:10px}.theme-btn{background:none;border:1px solid var(--border);border-radius:var(--r);padding:7px 10px;color:var(--text-2);font-size:0.9rem;cursor:pointer;transition:all 0.2s;display:flex;align-items:center}.theme-btn:hover{border-color:var(--border-2);color:var(--text);background:var(--surface-2)}.btn{display:inline-flex;align-items:center;gap:6px;padding:10px 20px;border-radius:var(--r-md);font-size:0.9rem;font-weight:700;border:none;font-family:var(--font);cursor:pointer;transition:all 0.2s;white-space:nowrap;text-decoration:none}.btn-primary{background:var(--brand);color:white}.btn-primary:hover{background:var(--brand-hover);box-shadow:0 4px 14px var(--brand-glow);transform:translateY(-1px)}.btn-ghost{background:none;color:var(--text-2);border:1px solid var(--border)}.btn-ghost:hover{background:var(--surface-2);color:var(--text)}.btn-sm{padding:7px 14px;font-size:0.8rem}
+    #nav-auth{display:contents}
+    .page-wrap{max-width:1100px;margin:0 auto;padding:0 32px}.breadcrumbs{padding:20px 0 0;font-size:0.82rem;color:var(--text-3)}.breadcrumbs a{color:var(--text-3)}.breadcrumbs a:hover{color:var(--brand)}.breadcrumbs span{margin:0 6px}
+    .article-layout{display:grid;grid-template-columns:1fr 260px;gap:40px;padding:28px 0 80px;align-items:start}
+    .article-tag{display:inline-flex;align-items:center;background:var(--brand-light);color:var(--brand);border:1px solid rgba(248,92,30,0.2);padding:4px 12px;border-radius:20px;font-size:0.75rem;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;margin-bottom:16px}
+    h1{font-size:clamp(1.7rem,3.5vw,2.3rem);font-weight:800;line-height:1.2;letter-spacing:-0.03em;color:var(--text);margin-bottom:16px}.article-meta{display:flex;align-items:center;gap:20px;font-size:0.82rem;color:var(--text-3);flex-wrap:wrap;margin-bottom:24px}.article-meta i{margin-right:5px;color:var(--brand)}.article-intro{font-size:1.05rem;color:var(--text-2);line-height:1.75;padding:18px 22px;background:var(--surface);border:1px solid var(--border);border-left:3px solid var(--brand);border-radius:0 var(--r-md) var(--r-md) 0;margin-bottom:32px}
+    article h2{font-size:1.4rem;font-weight:800;letter-spacing:-0.02em;color:var(--text);margin:40px 0 14px;scroll-margin-top:80px}article p{margin-bottom:16px;color:var(--text-2)}article strong{color:var(--text);font-weight:600}
+    .calc-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:28px;margin:8px 0 32px}
+    .field-row{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:20px}
+    .field-group{flex:1;min-width:180px}
+    .field-label{display:block;font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-3);margin-bottom:8px}
+    .field-hint{font-size:0.75rem;color:var(--text-3);margin-top:6px}
+    .field-select,.field-input{width:100%;padding:12px 14px;background:var(--surface-2);border:1px solid var(--border-2);border-radius:var(--r);color:var(--text);font-family:var(--font);font-size:0.95rem;outline:none;transition:border-color 0.2s,box-shadow 0.2s}
+    .field-select:focus,.field-input:focus{border-color:var(--brand);box-shadow:0 0 0 3px var(--brand-glow)}
+    .btn-calc{width:100%;padding:14px;font-size:1rem;justify-content:center}
+    .calc-error{color:var(--red);font-size:0.85rem;margin-top:10px}
+    .zones{display:none;gap:10px;margin:24px 0 0}
+    .zones.show{display:grid;animation:resultIn 0.45s cubic-bezier(0.16,1,0.3,1)}
+    @keyframes resultIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+    .zone-row{display:grid;grid-template-columns:32px 160px 1fr auto;gap:14px;align-items:center;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--r-md);padding:14px 18px}
+    .zone-dot{width:14px;height:14px;border-radius:50%;flex-shrink:0}
+    .zone-name{font-weight:700;font-size:0.9rem;color:var(--text)}
+    .zone-desc{font-size:0.85rem;color:var(--text-2)}
+    .zone-pace{font-size:0.9rem;font-weight:700;color:var(--text);white-space:nowrap;text-align:right;font-variant-numeric:tabular-nums}
+    .max-hr-line{font-size:0.85rem;color:var(--text-2);margin-top:12px}
+    .max-hr-line strong{color:var(--text)}
+    .cta-block{background:linear-gradient(135deg,var(--brand) 0%,#FF6B35 100%);border-radius:var(--r-xl);padding:48px 40px;text-align:center;color:white;margin:48px 0 0}.cta-block h2{font-size:1.7rem;font-weight:800;letter-spacing:-0.03em;margin:0 0 12px!important;padding:0!important;color:white}.cta-block p{font-size:1rem;opacity:0.88;margin-bottom:28px;color:white}.btn-white{background:white;color:var(--brand);padding:13px 32px;border-radius:var(--r-md);border:none;font-size:0.95rem;font-weight:700;font-family:var(--font);cursor:pointer;transition:all 0.2s;display:inline-block;text-decoration:none}.btn-white:hover{box-shadow:0 8px 24px rgba(0,0,0,0.2);transform:translateY(-2px)}.cta-note{font-size:0.8rem;opacity:0.7;margin-top:12px}
+    hr{border:none;border-top:1px solid var(--border);margin:32px 0}
+    .sidebar{position:sticky;top:84px}.sidebar-box{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:20px 22px;margin-bottom:16px}.sidebar-title{font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-3);margin-bottom:14px}.toc-list{list-style:none}.toc-list li{margin-bottom:2px}.toc-list a{color:var(--text-2);font-size:0.87rem;display:block;padding:5px 0 5px 10px;border-left:2px solid transparent;transition:all 0.15s;line-height:1.4}.toc-list a:hover{color:var(--brand);border-left-color:var(--brand)}.sidebar-cta{background:var(--brand-light);border:1px solid rgba(248,92,30,0.2);border-radius:var(--r-lg);padding:20px 22px;text-align:center}.sidebar-cta p{font-size:0.87rem;color:var(--text-2);margin-bottom:14px;line-height:1.5}.sidebar-cta a{display:block;background:var(--brand);color:white;padding:11px;border-radius:var(--r);font-weight:700;font-size:0.88rem;transition:background 0.2s}.sidebar-cta a:hover{background:var(--brand-hover)}.sidebar-cta .note{font-size:0.75rem;color:var(--text-3);margin-top:10px}
+    .landing-footer{border-top:1px solid var(--border);text-align:center;padding:20px 32px;color:var(--text-3);font-size:0.8rem}.footer-links{display:flex;justify-content:center;gap:16px;margin-top:8px}.footer-links a{color:var(--text-3)}.footer-links a:hover{color:var(--text-2)}
+    @media(max-width:768px){.article-layout{grid-template-columns:1fr;gap:24px}.sidebar{position:static;order:-1}.page-wrap{padding:0 16px}.landing-nav{padding:0 16px;height:56px}.cta-block{padding:32px 20px}.zone-row{grid-template-columns:32px 1fr auto}.zone-desc{display:none}}
+    @media(max-width:540px){h1{font-size:1.55rem}.landing-nav-actions .btn-ghost{display:none}.landing-nav-actions .btn-primary{padding:7px 12px;font-size:0.78rem}}
+  </style>
+</head>
+<body>
+<nav class="landing-nav">
+  <a href="/" class="landing-nav-logo"><img src="/logo.png" alt="AIRunningCoach" width="32" height="32"><span>AI</span>RunningCoach</a>
+  <div class="landing-nav-actions">
+    <button class="theme-btn" onclick="toggleTheme()" aria-label="Сменить тему"><i id="theme-icon" class="fas fa-moon"></i></button>
+    <div id="nav-auth"></div>
+  </div>
+</nav>
+<div class="page-wrap">
+  <nav class="breadcrumbs"><a href="/">Главная</a><span>›</span><a href="/tools/">Инструменты</a><span>›</span>Пульсовые зоны</nav>
+  <div class="article-layout">
+    <main>
+      <header>
+        <div class="article-tag"><i class="fas fa-heart-pulse"></i>&nbsp; Калькулятор</div>
+        <h1>Калькулятор пульсовых зон</h1>
+        <div class="article-meta">
+          <span><i class="fas fa-bolt"></i>Результат мгновенно, без регистрации</span>
+        </div>
+        <div class="article-intro">Укажите возраст (или свой известный максимальный пульс) — калькулятор рассчитает 5 тренировочных зон по методу Карвонена. Если укажете пульс покоя, расчёт будет точнее.</div>
+      </header>
+      <article>
+
+        <div class="calc-card">
+          <div class="field-row">
+            <div class="field-group">
+              <label class="field-label" for="age">Возраст</label>
+              <input type="number" id="age" class="field-input" placeholder="напр. 30" min="10" max="100">
+              <div class="field-hint">Макс. пульс оценивается как 220 − возраст</div>
+            </div>
+            <div class="field-group">
+              <label class="field-label" for="max-hr">Известный макс. пульс (если есть)</label>
+              <input type="number" id="max-hr" class="field-input" placeholder="напр. 188" min="100" max="230">
+              <div class="field-hint">Необязательно — перебивает расчёт по возрасту</div>
+            </div>
+          </div>
+          <div class="field-row">
+            <div class="field-group">
+              <label class="field-label" for="rest-hr">Пульс покоя (если известен)</label>
+              <input type="number" id="rest-hr" class="field-input" placeholder="напр. 58" min="30" max="100">
+              <div class="field-hint">Необязательно — без него зоны считаются от % от макс. пульса</div>
+            </div>
+          </div>
+          <button class="btn btn-primary btn-calc" onclick="calcZones()">Рассчитать зоны</button>
+          <div id="calc-error" class="calc-error"></div>
+          <div class="max-hr-line" id="max-hr-line" style="display:none"></div>
+          <div class="zones" id="zones-block"></div>
+        </div>
+
+        <h2 id="metod-karvonena">Метод Карвонена</h2>
+        <p>Метод резерва пульса (Карвонена) точнее простого расчёта «% от максимума», потому что учитывает ваш пульс покоя — показатель общей тренированности сердца. Формула: <strong>целевой пульс = ((макс. пульс − пульс покоя) × % интенсивности) + пульс покоя</strong>.</p>
+        <p>Если вы не знаете пульс покоя — измерьте его утром, сразу после пробуждения, лёжа в кровати, посчитав удары за 60 секунд несколько дней подряд и взяв среднее.</p>
+
+        <hr>
+        <div class="cta-block">
+          <h2>AI-тренер точнее калькулятора</h2>
+          <p>Загрузите пробежки — AI определит ваши реальные пульсовые зоны по фактическим данным, а не по формуле.</p>
+          <a href="/?register=1&utm_source=tools&utm_medium=cta&utm_campaign=pulsovye-zony" class="btn-white">Проверить свои зоны →</a>
+          <div class="cta-note">14 дней Premium бесплатно · Без привязки карты</div>
+        </div>
+      </article>
+    </main>
+    <aside class="sidebar">
+      <div class="sidebar-box">
+        <div class="sidebar-title">Другие инструменты</div>
+        <ul class="toc-list">
+          <li><a href="/tools/kalkulyator-tempa/">Калькулятор темпа</a></li>
+          <li><a href="/tools/prognoz-rezultata/">Прогноз результата</a></li>
+          <li><a href="/tools/analiz-gpx-fit/">Анализ GPX/FIT</a></li>
+          <li><a href="/tools/">Все инструменты →</a></li>
+        </ul>
+      </div>
+      <div class="sidebar-cta">
+        <p>AI-тренер отслеживает пульс по вашим реальным пробежкам.</p>
+        <a href="/?register=1&utm_source=tools&utm_medium=sidebar&utm_campaign=pulsovye-zony">Попробовать AI-тренера</a>
+        <p class="note">14 дней Premium бесплатно</p>
+      </div>
+    </aside>
+  </div>
+</div>
+<footer class="landing-footer">
+  <p>© 2026 AI RunningCoach. Тренируйтесь умнее каждый день.</p>
+  <nav class="footer-links"><a href="/">Главная</a><a href="/blog/">Блог</a><a href="/tools/">Инструменты</a><a href="/sitemap.xml" rel="nofollow">Sitemap</a></nav>
+</footer>
+<script>
+(function(){var s=localStorage.getItem('theme'),p=window.matchMedia('(prefers-color-scheme: dark)').matches,d=s?s==='dark':p;if(d){document.documentElement.setAttribute('data-theme','dark');upd(true);}})();
+function toggleTheme(){var d=document.documentElement.getAttribute('data-theme')==='dark';if(d){document.documentElement.removeAttribute('data-theme');localStorage.setItem('theme','light');upd(false);}else{document.documentElement.setAttribute('data-theme','dark');localStorage.setItem('theme','dark');upd(true);}}
+function upd(d){var i=document.getElementById('theme-icon');if(i)i.className=d?'fas fa-sun':'fas fa-moon';}
+(function(){var el=document.getElementById('nav-auth');if(!el)return;if(localStorage.getItem('access_token')){el.innerHTML='<a href="/dashboard" class="btn btn-primary btn-sm"><i class="fas fa-tachometer-alt"></i> Дашборд</a>';}else{el.innerHTML='<a href="/?login=1" class="btn btn-ghost btn-sm">Войти</a><a href="/?register=1&utm_source=tools&utm_medium=nav&utm_campaign=pulsovye-zony" class="btn btn-primary btn-sm">Попробовать</a>';}})();
+
+var ZONE_DEFS = [
+  { color: '#94a3b8', name: 'Зона 1 — Восстановление', desc: 'Очень лёгкая нагрузка, разминка и заминка.', lo: 0.50, hi: 0.60 },
+  { color: 'var(--green)', name: 'Зона 2 — Аэробная', desc: 'Разговорный темп. Строит выносливость.', lo: 0.60, hi: 0.70 },
+  { color: 'var(--blue)', name: 'Зона 3 — Темповая', desc: 'Комфортно-тяжело. Марафонский темп.', lo: 0.70, hi: 0.80 },
+  { color: 'var(--yellow)', name: 'Зона 4 — Пороговая', desc: 'Тяжело, но контролируемо.', lo: 0.80, hi: 0.90 },
+  { color: 'var(--brand)', name: 'Зона 5 — Максимальная', desc: 'Короткие интервалы на пределе.', lo: 0.90, hi: 1.00 },
+];
+
+function calcZones() {
+  var errEl = document.getElementById('calc-error');
+  errEl.textContent = '';
+  var age = parseInt(document.getElementById('age').value || '0', 10);
+  var maxHrInput = parseInt(document.getElementById('max-hr').value || '0', 10);
+  var restHr = parseInt(document.getElementById('rest-hr').value || '0', 10);
+
+  var maxHr = maxHrInput > 0 ? maxHrInput : (age > 0 ? 220 - age : 0);
+  if (!maxHr || maxHr <= 0) { errEl.textContent = 'Укажите возраст или известный максимальный пульс.'; return; }
+
+  var useKarvonen = restHr > 0;
+  var maxHrLine = document.getElementById('max-hr-line');
+  maxHrLine.style.display = 'block';
+  maxHrLine.innerHTML = 'Максимальный пульс: <strong>' + maxHr + ' уд/мин</strong>' +
+    (useKarvonen ? ' · метод Карвонена (с учётом пульса покоя ' + restHr + ')' : ' · расчёт по % от максимума (укажите пульс покоя для точности)');
+
+  var block = document.getElementById('zones-block');
+  block.innerHTML = '';
+  ZONE_DEFS.forEach(function(z) {
+    var lo, hi;
+    if (useKarvonen) {
+      lo = Math.round((maxHr - restHr) * z.lo + restHr);
+      hi = Math.round((maxHr - restHr) * z.hi + restHr);
+    } else {
+      lo = Math.round(maxHr * z.lo);
+      hi = Math.round(maxHr * z.hi);
+    }
+    var row = document.createElement('div');
+    row.className = 'zone-row';
+    row.innerHTML = '<div class="zone-dot" style="background:' + z.color + '"></div>' +
+      '<div class="zone-name">' + z.name + '</div>' +
+      '<div class="zone-desc">' + z.desc + '</div>' +
+      '<div class="zone-pace">' + lo + '–' + hi + ' уд/мин</div>';
+    block.appendChild(row);
+  });
+  block.classList.add('show');
+  block.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+</script>
+</body>
+</html>
