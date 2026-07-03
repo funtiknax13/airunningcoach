@@ -45,12 +45,16 @@ jobs:
       - name: Deploy backend
         run: |
           if [ "${{ steps.changes.outputs.backend }}" = "true" ]; then
-            ssh ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} \
-              "cd ${{ secrets.SERVER_PATH }} && git pull && docker compose up -d --build"
+            CMD="cd ${{ secrets.SERVER_PATH }} && git pull && docker compose up -d --build"
           else
-            ssh ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} \
-              "cd ${{ secrets.SERVER_PATH }} && git pull && docker compose up -d"
+            CMD="cd ${{ secrets.SERVER_PATH }} && git pull && docker compose up -d"
           fi
+          # Сервер иногда роняет исходящий DNS (нестабильная сеть VPS-провайдера),
+          # что валит git pull / сборку образа — повторяем так же, как ниже для фронтенда.
+          for attempt in 1 2 3; do
+            ssh ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} "$CMD" \
+            && break || { echo "Attempt $attempt failed, retrying..."; sleep 10; }
+          done
 
       - name: Upload frontend
         run: |
