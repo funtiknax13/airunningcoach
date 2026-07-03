@@ -51,6 +51,10 @@
           <i class="fas fa-newspaper"></i>
           <span>Блог</span>
         </a>
+        <a href="/tools/" class="nav-item" target="_blank" rel="noopener">
+          <i class="fas fa-calculator"></i>
+          <span>Инструменты</span>
+        </a>
         <button class="nav-item" @click="supportModal?.open()">
           <i class="fas fa-life-ring"></i>
           <span>{{ t('support.title') }}</span>
@@ -100,6 +104,9 @@
             </button>
             <a href="/blog/" class="mobile-menu-item" target="_blank" rel="noopener" @click="menuOpen = false">
               <i class="fas fa-newspaper"></i> Блог
+            </a>
+            <a href="/tools/" class="mobile-menu-item" target="_blank" rel="noopener" @click="menuOpen = false">
+              <i class="fas fa-calculator"></i> Инструменты
             </a>
             <button class="mobile-menu-item" @click="supportModal?.open(); menuOpen = false">
               <i class="fas fa-life-ring"></i> {{ t('support.title') }}
