@@ -47,10 +47,6 @@
           <i class="fas fa-globe"></i>
           <span>{{ nextLang }}</span>
         </button>
-        <button v-if="push.supported" class="nav-item" @click="togglePush" :disabled="push.loading.value">
-          <i class="fas" :class="push.subscribed.value ? 'fa-bell' : 'fa-bell-slash'"></i>
-          <span>{{ push.subscribed.value ? 'Уведомления вкл.' : 'Включить уведомления' }}</span>
-        </button>
         <a href="/blog/" class="nav-item" target="_blank" rel="noopener">
           <i class="fas fa-newspaper"></i>
           <span>Блог</span>
@@ -106,10 +102,6 @@
             <button class="mobile-menu-item" @click="changeLang(); menuOpen = false">
               <i class="fas fa-globe"></i> {{ nextLang }}
             </button>
-            <button v-if="push.supported" class="mobile-menu-item" @click="togglePush(); menuOpen = false" :disabled="push.loading.value">
-              <i class="fas" :class="push.subscribed.value ? 'fa-bell' : 'fa-bell-slash'"></i>
-              {{ push.subscribed.value ? 'Уведомления вкл.' : 'Включить уведомления' }}
-            </button>
             <a href="/blog/" class="mobile-menu-item" target="_blank" rel="noopener" @click="menuOpen = false">
               <i class="fas fa-newspaper"></i> Блог
             </a>
@@ -152,14 +144,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed } from 'vue'
 import { useRoute, RouterLink } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { toggleLang } from '@/i18n'
 import { useAuthStore } from '@/stores/auth'
 import { useChatStore } from '@/stores/chat'
 import { useTheme } from '@/composables/useTheme'
-import { usePush } from '@/composables/usePush'
 import ProfileModal       from '@/components/profile/ProfileModal.vue'
 import SupportModal       from '@/components/support/SupportModal.vue'
 import AppDialog          from '@/components/common/AppDialog.vue'
@@ -185,13 +176,6 @@ const daysLeft = computed(() => {
 const { theme, toggle: themeToggle } = useTheme()
 const profileModal = ref<InstanceType<typeof ProfileModal> | null>(null)
 const showProfile  = ref(false)
-
-const push = usePush()
-onMounted(() => { push.checkStatus() })
-function togglePush() {
-  if (push.subscribed.value) push.unsubscribe()
-  else push.subscribe()
-}
 
 const nextLang = computed(() => locale.value === 'ru' ? 'EN' : 'RU')
 function changeLang() { toggleLang() }

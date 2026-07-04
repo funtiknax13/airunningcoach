@@ -9,14 +9,42 @@
 
     <!-- Profile info -->
     <div v-if="tab === 'info'" class="profile-tab-content active">
-      <input type="text"   v-model="info.name"   class="modal-input" :placeholder="$t('profile.name')">
-      <input type="number" v-model.number="info.age"    class="modal-input" :placeholder="$t('profile.age')">
-      <input type="number" v-model.number="info.weight" class="modal-input" :placeholder="$t('profile.weight')" step="0.1">
-      <input type="number" v-model.number="info.height" class="modal-input" :placeholder="$t('profile.height')" step="0.1">
+      <label class="modal-label">{{ $t('profile.name') }}</label>
+      <input type="text" v-model="info.name" class="modal-input" :placeholder="$t('profile.name')">
+
+      <label class="modal-label">{{ $t('profile.age') }}</label>
+      <div class="input-suffix-group">
+        <input type="number" v-model.number="info.age" class="modal-input" placeholder="—">
+        <span class="input-suffix">{{ $t('profile.ageUnit') }}</span>
+      </div>
+
+      <label class="modal-label">{{ $t('profile.weight') }}</label>
+      <div class="input-suffix-group">
+        <input type="number" v-model.number="info.weight" class="modal-input" placeholder="—" step="0.1">
+        <span class="input-suffix">{{ $t('profile.weightUnit') }}</span>
+      </div>
+
+      <label class="modal-label">{{ $t('profile.height') }}</label>
+      <div class="input-suffix-group">
+        <input type="number" v-model.number="info.height" class="modal-input" placeholder="—" step="0.1">
+        <span class="input-suffix">{{ $t('profile.heightUnit') }}</span>
+      </div>
+
       <div v-if="infoError" class="auth-error">{{ infoError }}</div>
       <div class="modal-buttons">
         <button class="btn-primary" @click="saveInfo" :disabled="savingInfo">{{ $t('profile.save') }}</button>
         <button class="btn-secondary" @click="show = false">{{ $t('btn.cancel') }}</button>
+      </div>
+
+      <div v-if="push.supported" class="switch-row">
+        <div class="switch-row-text">
+          <div class="switch-row-title">{{ $t('profile.pushTitle') }}</div>
+          <div class="switch-row-desc">{{ $t('profile.pushDesc') }}</div>
+        </div>
+        <label class="switch">
+          <input type="checkbox" :checked="push.subscribed.value" :disabled="push.loading.value" @change="togglePush">
+          <span class="switch-track"><span class="switch-thumb"></span></span>
+        </label>
       </div>
     </div>
 
@@ -39,6 +67,7 @@ import { ref } from 'vue'
 import BaseModal from '@/components/common/BaseModal.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useI18n } from 'vue-i18n'
+import { usePush } from '@/composables/usePush'
 
 const { t }   = useI18n()
 const auth    = useAuthStore()
@@ -46,6 +75,7 @@ const show    = defineModel<boolean>({ default: false })
 const tab     = ref<'info' | 'password'>('info')
 const savingInfo = ref(false); const infoError = ref('')
 const savingPw   = ref(false); const pwError   = ref('')
+const push = usePush()
 
 const info = ref({ name: '', age: null as number|null, weight: null as number|null, height: null as number|null })
 const pw   = ref({ current: '', new_: '', confirm: '' })
@@ -56,6 +86,12 @@ function open() {
                  weight: auth.user?.weight ?? null, height: auth.user?.height ?? null }
   pw.value = { current: '', new_: '', confirm: '' }
   show.value = true
+  push.checkStatus()
+}
+
+function togglePush() {
+  if (push.subscribed.value) push.unsubscribe()
+  else push.subscribe()
 }
 
 async function saveInfo() {

@@ -91,10 +91,12 @@ export default {
   },
   profile: {
     tabInfo: 'Профиль', tabPassword: 'Пароль',
-    name: 'Имя', age: 'Возраст', weight: 'Вес (кг)', height: 'Рост (см)',
+    name: 'Имя', age: 'Возраст', weight: 'Вес', height: 'Рост',
+    ageUnit: 'лет', weightUnit: 'кг', heightUnit: 'см',
     save: 'Сохранить', changePw: 'Изменить пароль',
     currentPw: 'Текущий пароль', newPw: 'Новый пароль', confirmPw: 'Повторите новый пароль',
     updated: '✓ Профиль обновлён', pwUpdated: '✓ Пароль изменён', errMismatch: 'Пароли не совпадают',
+    pushTitle: 'Push-уведомления', pushDesc: 'Напоминания о тренировках и ответы AI-тренера',
   },
   support: {
     title: 'Поддержка', subject: 'Тема обращения', message: 'Опишите проблему или вопрос',

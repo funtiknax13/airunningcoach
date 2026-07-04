@@ -91,10 +91,12 @@ export default {
   },
   profile: {
     tabInfo: 'Profile', tabPassword: 'Password',
-    name: 'Name', age: 'Age', weight: 'Weight (kg)', height: 'Height (cm)',
+    name: 'Name', age: 'Age', weight: 'Weight', height: 'Height',
+    ageUnit: 'yrs', weightUnit: 'kg', heightUnit: 'cm',
     save: 'Save', changePw: 'Change password',
     currentPw: 'Current password', newPw: 'New password', confirmPw: 'Confirm new password',
     updated: '✓ Profile updated', pwUpdated: '✓ Password changed', errMismatch: 'Passwords do not match',
+    pushTitle: 'Push notifications', pushDesc: 'Workout reminders and AI coach replies',
   },
   support: {
     title: 'Support', subject: 'Subject', message: 'Describe your question or issue',
