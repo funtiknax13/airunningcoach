@@ -3,7 +3,7 @@ import type {
   UserCreate, UserLogin, Token, UserResponse, UserUpdate, PasswordChange,
   Activity, ActivityDetail, ActivityCreate, ActivityUpdate, ActivityWithAnalysis,
   Goal, GoalCreate, GoalUpdate,
-  TrainingPlan, Workout,
+  TrainingPlan, Workout, WorkoutWithAnalysis,
   ChatMessage,
   DashboardInsights,
   MonthlyStats,
@@ -78,7 +78,7 @@ export const trainingApi = {
   activePlan:   ()                => api.request<TrainingPlan>('/api/training/plans/active'),
   generatePlan: ()                => api.request<TrainingPlan>('/api/training/plans/generate', 'POST'),
   completeWorkout: (id: number, notes?: string) =>
-    api.request<Workout>(`/api/training/workouts/${id}/complete?notes=${notes ?? ''}`, 'PUT'),
+    api.request<WorkoutWithAnalysis>(`/api/training/workouts/${id}/complete?notes=${notes ?? ''}`, 'PUT'),
   uncompleteWorkout: (id: number) =>
     api.request<Workout>(`/api/training/workouts/${id}/uncomplete`, 'PUT'),
 }

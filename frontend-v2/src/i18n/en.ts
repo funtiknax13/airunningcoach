@@ -87,6 +87,7 @@ export default {
     empty: 'No active plan.',
     status: {
       done: 'Done', approx: '≈ Close', mark: 'Mark done',
+      unconfirmed: 'Unconfirmed', retry: 'Check again',
       undoBtn: 'Undo', undoTitle: 'Undo completion',
       undoConfirm: 'Remove the completion mark for this workout?',
       futureTitle: 'Cannot mark a future workout as done',

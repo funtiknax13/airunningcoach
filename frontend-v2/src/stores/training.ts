@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { trainingApi } from '@/api'
+import { useChatStore } from '@/stores/chat'
 import type { TrainingPlan } from '@/api/types'
 
 export const useTrainingStore = defineStore('training', () => {
@@ -22,7 +23,8 @@ export const useTrainingStore = defineStore('training', () => {
   }
 
   async function completeWorkout(id: number, notes?: string) {
-    await trainingApi.completeWorkout(id, notes)
+    const result = await trainingApi.completeWorkout(id, notes)
+    if (result.ai_analysis) useChatStore().setUnread()
     await load()
   }
 

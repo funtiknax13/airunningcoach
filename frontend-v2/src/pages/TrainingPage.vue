@@ -53,6 +53,14 @@
                 <i class="fas fa-rotate-left"></i>
               </button>
             </template>
+            <!-- Checked, but no matching run found (or way off plan) — let them retry -->
+            <template v-else-if="w.completion_status === 'unconfirmed'">
+              <span class="badge badge-unconfirmed">{{ $t('plan.status.unconfirmed') }}</span>
+              <button class="btn-complete" @click="complete(w.id)">
+                <i class="fas fa-rotate-right"></i>
+                {{ $t('plan.status.retry') }}
+              </button>
+            </template>
             <!-- Future workout: disabled with tooltip -->
             <button v-else-if="isFuture(w)" class="btn-complete btn-complete--future" disabled :title="$t('plan.status.futureTitle')">
               <i class="fas fa-lock"></i>

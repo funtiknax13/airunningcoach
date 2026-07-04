@@ -17,6 +17,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.models import User, Activity, Goal, TrainingPlan, Workout, ChatMessage
+from app.services.workout_verification import STATUS_LABELS
 
 logger = logging.getLogger(__name__)
 
@@ -46,7 +47,14 @@ SYSTEM_PROMPT = """\
 - Если пользователь просит составить или пересобрать план — скажи \
   что план уже формируется и появится во вкладке «Тренировки» через несколько секунд
 - При болях — рекомендуй врача. Никогда не ставь диагнозов.
-- Отвечай на языке пользователя (указан ниже).\
+- Отвечай на языке пользователя (указан ниже).
+
+## Даты и цели — важно
+- Ориентируйся на дату «СЕГОДНЯ» в блоке контекста ниже, а не на даты из старых сообщений \
+  истории переписки (у каждого сообщения истории в квадратных скобках указана дата, когда \
+  оно было написано — оно могло устареть).
+- Если цель упоминалась в истории переписки, но сейчас не входит в текущий список активных \
+  или отменённых целей ниже — она больше не актуальна, не советуй по ней как по действующей.\
 """
 
 
@@ -107,6 +115,24 @@ def _build_user_context(user: User, db: Session) -> str:
             lines.append(" ".join(parts))
     else:
         lines.append("\n=== ЦЕЛИ ===\nЦели не установлены.")
+
+    # Недавно отменённые цели — явно помечаем как неактуальные, иначе модель может
+    # достроить их статус из старых сообщений истории чата (см. system prompt выше).
+    abandoned = (
+        db.query(Goal)
+        .filter(Goal.user_id == user.id, Goal.is_abandoned == True)
+        .order_by(Goal.updated_at.desc())
+        .limit(3)
+        .all()
+    )
+    if abandoned:
+        lines.append("\n=== ОТМЕНЁННЫЕ ЦЕЛИ (неактуальны, не советуй по ним как по действующим) ===")
+        for g in abandoned:
+            parts = [f"• {_goal_name(g.goal_type)}"]
+            if g.target_date:
+                parts.append(f"(была на {g.target_date.strftime('%d.%m.%Y')})")
+            parts.append("— отменена")
+            lines.append(" ".join(parts))
 
     # История тренировок (все)
     recent = (
@@ -186,7 +212,7 @@ def _build_user_context(user: User, db: Session) -> str:
         workouts = db.query(Workout).filter(Workout.training_plan_id == plan.id).all()
         lines.append(f"\n=== АКТИВНЫЙ ПЛАН (с {plan.week_start_date.strftime('%d.%m')}) ===")
         day_names = ["Пн","Вт","Ср","Чт","Пт","Сб","Вс"]
-        status_map = {"completed": "✓", "approximate": "≈", "none": "○"}
+        status_map = {"completed": "✓", "approximate": "≈", "unconfirmed": "✗", "none": "○"}
         for w in sorted(workouts, key=lambda x: (x.planned_date or datetime.min, x.day_of_week)):
             st   = status_map.get(w.completion_status or "none", "○")
             dist = f"{w.distance_km} км" if w.distance_km else ""
@@ -199,11 +225,17 @@ def _build_user_context(user: User, db: Session) -> str:
 
 
 def _build_history(messages: list[ChatMessage]) -> list[dict]:
-    """Конвертирует историю чата в формат OpenAI messages."""
+    """Конвертирует историю чата в формат OpenAI messages.
+
+    Каждое сообщение помечается датой, когда оно было написано — без этого модель
+    не может отличить «это было актуально тогда» от «это происходит сейчас» и
+    путает старые даты/цели из истории с текущим положением дел.
+    """
     result = []
     for m in messages[-20:]:  # последние 20 сообщений = ~контекст 10 ходов
         role = "user" if m.role == "user" else "assistant"
-        result.append({"role": role, "content": m.content})
+        prefix = f"[{m.created_at.strftime('%d.%m.%Y')}] " if m.created_at else ""
+        result.append({"role": role, "content": f"{prefix}{m.content}"})
     return result
 
 
@@ -291,6 +323,62 @@ def analyze_new_activity(activity, user: User, db: Session) -> str:
 
     db.add(ChatMessage(user_id=user.id, role="user", content=prompt, context_type="auto_analysis"))
     db.add(ChatMessage(user_id=user.id, role="ai", content=ai_text, context_type="auto_analysis"))
+    db.commit()
+
+    return ai_text
+
+
+def analyze_workout_completion(workout, activity, user: User, db: Session) -> str:
+    """Комментирует отметку тренировки из плана как выполненной — план vs факт.
+
+    Вызывается только когда есть подтверждающая Activity (activity is not None) —
+    без факта тренеру нечего разбирать, а комментировать «ничего не нашли» вслух
+    от лица AI-агента не имеет смысла."""
+    if _STUB_MODE:
+        return ""
+
+    client = _make_client()
+    if not client:
+        return ""
+
+    context = _build_user_context(user, db)
+    system = f"{SYSTEM_PROMPT}\nОтвечай на русском языке.\n\n{context}"
+
+    plan_parts = [f"план — {workout.workout_type}, {workout.description}"]
+    if workout.distance_km:
+        plan_parts.append(f"{workout.distance_km} км")
+    if workout.target_pace_min_km:
+        plan_parts.append(f"целевой темп {_fmt_pace(workout.target_pace_min_km)}/км")
+
+    pace_str = f"{_fmt_pace(activity.pace_min_per_km)}/км" if activity.pace_min_per_km else "—"
+    fact = f"факт — {activity.distance_km} км, {_fmt_time(activity.duration_min)}, темп {pace_str}"
+
+    status_label = STATUS_LABELS.get(workout.completion_status, workout.completion_status)
+
+    prompt = (
+        f"Я отметил(а) тренировку из плана как выполненную:\n\n"
+        f"{', '.join(plan_parts)}\n{fact}\n"
+        f"Статус по итогам сверки с планом: {status_label}\n\n"
+        f"Прокомментируй, как прошла эта тренировка относительно плана — коротко, по делу, без критики."
+    )
+
+    try:
+        resp = client.chat.completions.create(
+            model="deepseek-chat",
+            messages=[
+                {"role": "system", "content": system},
+                {"role": "user", "content": prompt},
+            ],
+            max_tokens=600,
+            temperature=0.7,
+        )
+        ai_text = resp.choices[0].message.content.strip()
+    except Exception as e:
+        logger.error("DeepSeek analyze_workout_completion error: %s", e)
+        return ""
+
+    db.add(ChatMessage(user_id=user.id, role="user", content=prompt, context_type="workout_check"))
+    db.add(ChatMessage(user_id=user.id, role="ai", content=ai_text, context_type="workout_check"))
     db.commit()
 
     return ai_text

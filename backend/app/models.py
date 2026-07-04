@@ -132,10 +132,12 @@ class Workout(Base):
     duration_min = Column(Float)  # рекомендуемая длительность
     planned_date      = Column(DateTime, nullable=True)       # конкретная дата тренировки
     completed         = Column(Boolean, default=False)
-    completion_status = Column(String(20), default="none")  # none | completed | approximate
+    completion_status = Column(String(20), default="none")  # none | completed | approximate | unconfirmed
+    activity_id       = Column(Integer, ForeignKey("activities.id"), nullable=True)  # подтверждающая пробежка
     notes_after = Column(Text)  # заметки после выполнения
 
     training_plan = relationship("TrainingPlan", back_populates="workouts")
+    activity = relationship("Activity")
 
     DAYS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс']
     def __str__(self):

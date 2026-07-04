@@ -211,10 +211,15 @@ class WorkoutResponse(BaseModel):
     duration_min: Optional[float]
     completed: bool
     completion_status: str
+    activity_id: Optional[int]
     notes_after: Optional[str]
 
     class Config:
         from_attributes = True
+
+
+class WorkoutWithAnalysis(WorkoutResponse):
+    ai_analysis: Optional[str] = None
 
 
 class TrainingPlanResponse(BaseModel):

@@ -629,6 +629,7 @@ input, select, textarea { font-family: var(--font); }
 .badge-abandoned { background: var(--surface-3);  color: var(--text-3); }
 .badge-done     { background: var(--green-dim);   color: var(--green); }
 .badge-approx   { background: var(--yellow-dim);  color: var(--yellow); }
+.badge-unconfirmed { background: var(--surface-3); color: var(--text-3); }
 
 .badge-type-easy      { background: var(--green-dim);  color: var(--green); }
 .badge-type-tempo     { background: var(--yellow-dim); color: var(--yellow); }

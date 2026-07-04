@@ -5,10 +5,11 @@ from datetime import datetime, timedelta
 
 from app.database import get_db
 from app.models import User, TrainingPlan, Workout, ChatMessage
-from app.schemas import TrainingPlanResponse, WorkoutResponse
+from app.schemas import TrainingPlanResponse, WorkoutResponse, WorkoutWithAnalysis
 from app.dependencies import get_current_user
-from app.services.ai_agent import generate_training_plan
+from app.services.ai_agent import generate_training_plan, analyze_workout_completion
 from app.services.rate_limit import check_and_record
+from app.services.workout_verification import find_matching_activity_for_workout, apply_verdict
 
 router = APIRouter(prefix="/training", tags=["training"])
 
@@ -93,13 +94,16 @@ def get_active_plan(
     return plan
 
 
-@router.put("/workouts/{workout_id}/complete", response_model=WorkoutResponse)
+@router.put("/workouts/{workout_id}/complete", response_model=WorkoutWithAnalysis)
 def complete_workout(
     workout_id: int,
     notes: str = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    """Отмечает тренировку выполненной — но не слепо: ищем подтверждающую пробежку
+    и проставляем реальный статус (выполнена / частично / не подтверждена) по допуску,
+    а не просто доверяем нажатию кнопки."""
     workout = (
         db.query(Workout)
         .join(TrainingPlan)
@@ -109,14 +113,21 @@ def complete_workout(
     if not workout:
         raise HTTPException(status_code=404, detail="Workout not found")
 
-    workout.completed          = True
-    workout.completion_status  = "completed"
+    activity = find_matching_activity_for_workout(workout, current_user.id, db)
+    apply_verdict(workout, activity)
     if notes:
         workout.notes_after = notes
 
     db.commit()
     db.refresh(workout)
-    return workout
+
+    ai_analysis = None
+    if activity is not None:
+        ai_analysis = analyze_workout_completion(workout, activity, current_user, db)
+
+    result = WorkoutWithAnalysis.model_validate(workout)
+    result.ai_analysis = ai_analysis or None
+    return result
 
 
 @router.put("/workouts/{workout_id}/uncomplete", response_model=WorkoutResponse)
@@ -137,6 +148,7 @@ def uncomplete_workout(
 
     workout.completed         = False
     workout.completion_status = "none"
+    workout.activity_id       = None
     workout.notes_after       = None
 
     db.commit()

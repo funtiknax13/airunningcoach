@@ -180,7 +180,7 @@ export interface Goal {
 
 // ── Training ──────────────────────────────────────────────────────────────
 export type WorkoutType = 'easy' | 'tempo' | 'interval' | 'long' | 'recovery' | 'rest'
-export type CompletionStatus = 'none' | 'completed' | 'approximate'
+export type CompletionStatus = 'none' | 'completed' | 'approximate' | 'unconfirmed'
 
 export interface Workout {
   id: number
@@ -193,7 +193,12 @@ export interface Workout {
   duration_min: number | null
   completed: boolean
   completion_status: CompletionStatus
+  activity_id: number | null
   notes_after: string | null
+}
+
+export interface WorkoutWithAnalysis extends Workout {
+  ai_analysis: string | null
 }
 
 export interface TrainingPlan {

@@ -6,7 +6,7 @@ from typing import List
 from datetime import datetime, date
 
 from app.database import get_db
-from app.models import User, Activity, TrainingPlan, Workout
+from app.models import User, Activity
 from app.schemas import ActivityCreate, ActivityResponse, ActivityUpdate
 from app.dependencies import get_current_user
 from app.services.insights_cache import invalidate_insights_cache
@@ -14,68 +14,17 @@ from app.services.achievements import recompute_achievements
 from app.services.gpx_parser import parse_gpx
 from app.services.fit_parser import parse_fit
 from app.services.ai_agent import analyze_new_activity
+from app.services.workout_verification import find_matching_workout_for_activity, apply_verdict
 from app.schemas import ActivityWithAnalysis
 
 router = APIRouter(prefix="/activities", tags=["activities"])
 
-DIST_TOLERANCE = 1.0       # ±1 км
-PACE_TOLERANCE = 10 / 60   # ±10 сек/км = ±0.1667 мин/км
-
 
 def _match_workout(activity: Activity, user_id: int, db: Session) -> None:
     """Сопоставляет пробежку с тренировкой активного плана и обновляет completion_status."""
-    plan = (
-        db.query(TrainingPlan)
-        .filter(TrainingPlan.user_id == user_id, TrainingPlan.is_active == True)
-        .first()
-    )
-    if not plan:
-        return
-
-    act_date = activity.date.date() if hasattr(activity.date, 'date') else activity.date
-
-    # Сначала ищем по planned_date (точное совпадение даты)
-    workout = None
-    candidates = db.query(Workout).filter(
-        Workout.training_plan_id == plan.id,
-        Workout.planned_date.isnot(None),
-    ).all()
-    for w in candidates:
-        w_date = w.planned_date.date() if hasattr(w.planned_date, 'date') else w.planned_date
-        if w_date == act_date:
-            workout = w
-            break
-
-    # Фолбэк: старый способ по дню недели (для планов без дат)
-    if not workout:
-        workout = (
-            db.query(Workout)
-            .filter(
-                Workout.training_plan_id == plan.id,
-                Workout.planned_date.is_(None),
-                Workout.day_of_week == activity.date.weekday(),
-            )
-            .first()
-        )
-    if not workout or workout.workout_type == "rest":
-        return
-
-    # Если у тренировки нет целевых показателей — считаем «выполнено»
-    has_dist = workout.distance_km is not None
-    has_pace = workout.target_pace_min_km is not None
-
-    dist_ok = (not has_dist) or (abs(activity.distance_km - workout.distance_km) <= DIST_TOLERANCE)
-    pace_ok = (not has_pace) or (
-        activity.pace_min_per_km is not None
-        and abs(activity.pace_min_per_km - workout.target_pace_min_km) <= PACE_TOLERANCE
-    )
-
-    if dist_ok and pace_ok:
-        workout.completion_status = "completed"
-    else:
-        workout.completion_status = "approximate"
-
-    workout.completed = True
+    workout = find_matching_workout_for_activity(activity, user_id, db)
+    if workout:
+        apply_verdict(workout, activity)
 
 
 @router.post("", response_model=ActivityWithAnalysis)

@@ -26,6 +26,7 @@ def _migrate():
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS onboarding_completed BOOLEAN DEFAULT TRUE",
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS gender VARCHAR(10)",
         "ALTER TABLE personal_records ADD COLUMN IF NOT EXISTS distance_km FLOAT",
+        "ALTER TABLE workouts ADD COLUMN IF NOT EXISTS activity_id INTEGER",
     ]
     with engine.connect() as conn:
         for sql in migrations:
