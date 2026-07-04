@@ -25,6 +25,7 @@ def _migrate():
         # server_default TRUE — существующие пользователи не попадают в онбординг
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS onboarding_completed BOOLEAN DEFAULT TRUE",
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS gender VARCHAR(10)",
+        "ALTER TABLE personal_records ADD COLUMN IF NOT EXISTS distance_km FLOAT",
     ]
     with engine.connect() as conn:
         for sql in migrations:

@@ -176,8 +176,9 @@ class PersonalRecord(Base):
 
     id            = Column(Integer, primary_key=True, index=True)
     user_id       = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
-    distance_key  = Column(String(30), nullable=False)
+    distance_key  = Column(String(30), nullable=False)  # ...marathon | "longest" (самая длинная дистанция, без разряда)
     activity_id   = Column(Integer, ForeignKey("activities.id"), nullable=False)
+    distance_km   = Column(Float, nullable=True)  # фактическая дистанция активности
     time_sec      = Column(Float, nullable=False)
     achieved_rank = Column(String(10), nullable=True)  # msmk | ms | kms | r1 | r2 | r3 | None
     updated_at    = Column(DateTime(timezone=True), onupdate=func.now(), server_default=func.now())
@@ -187,6 +188,25 @@ class PersonalRecord(Base):
 
     def __str__(self):
         return f"PR user={self.user_id} {self.distance_key}={self.time_sec}s ({self.achieved_rank})"
+
+
+class UserAchievement(Base):
+    """Разблокированное достижение — раз получено, не отзывается (даже если породившая
+    активность позже удалена/изменена — это история, а не текущий рекорд)."""
+    __tablename__ = "user_achievements"
+    __table_args__ = (Index("ix_ua_user_key", "user_id", "achievement_key", unique=True),)
+
+    id              = Column(Integer, primary_key=True, index=True)
+    user_id         = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    achievement_key = Column(String(40), nullable=False)
+    earned_at       = Column(DateTime(timezone=True), server_default=func.now())
+    activity_id     = Column(Integer, ForeignKey("activities.id"), nullable=True)
+
+    user = relationship("User")
+    activity = relationship("Activity")
+
+    def __str__(self):
+        return f"Achievement user={self.user_id} {self.achievement_key}"
 
 
 class InsightsCache(Base):

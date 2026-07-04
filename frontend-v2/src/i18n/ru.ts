@@ -11,12 +11,15 @@ export default {
   header: { logout: 'Выйти', profile: 'Профиль', dark: 'Тёмная', light: 'Светлая' },
   nav: {
     dashboard: 'Главная', activities: 'Пробежки', training: 'Тренировки',
-    goals: 'Цели', coach: 'AI Тренер', achievements: 'Ачивки',
+    goals: 'Цели', coach: 'AI Тренер', achievements: 'Достижения',
     home: 'Главная', runs: 'Пробежки', plan: 'План', ai: 'Тренер',
   },
   achievements: {
-    title: 'Кабинет с ачивками',
+    title: 'Достижения',
     subtitle: 'Личные рекорды и разряды ЕВСК по вашим пробежкам',
+    recordsTitle: 'Личные рекорды',
+    badgesTitle: 'Достижения',
+    badgesSubtitle: 'Разовые вехи — за тренировки, дистанции и объём бега',
     genderRequired: 'Укажи пол в профиле, чтобы увидеть свой разряд',
     genderRequiredCta: 'Открыть профиль',
     noRecord: 'Пока нет результата',

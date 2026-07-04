@@ -17,6 +17,9 @@ export default {
   achievements: {
     title: 'Achievements',
     subtitle: 'Personal records and official Russian running ranks from your runs',
+    recordsTitle: 'Personal records',
+    badgesTitle: 'Achievements',
+    badgesSubtitle: 'One-time milestones — for workouts, distances and running volume',
     genderRequired: 'Set your gender in your profile to see your rank',
     genderRequiredCta: 'Open profile',
     noRecord: 'No record yet',

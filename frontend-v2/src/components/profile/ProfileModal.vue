@@ -31,11 +31,12 @@
       </div>
 
       <label class="modal-label">{{ $t('profile.gender') }}</label>
-      <div class="gender-toggle">
-        <button type="button" class="gender-btn" :class="{ active: info.gender === 'male' }"
-                @click="info.gender = 'male'">{{ $t('profile.genderMale') }}</button>
-        <button type="button" class="gender-btn" :class="{ active: info.gender === 'female' }"
-                @click="info.gender = 'female'">{{ $t('profile.genderFemale') }}</button>
+      <div class="segmented">
+        <span class="segmented-thumb" :class="{ right: info.gender === 'female' }" v-show="info.gender"></span>
+        <button type="button" class="segmented-option" :class="{ active: info.gender === 'male' }"
+                @click="info.gender = 'male'"><i class="fas fa-mars"></i> {{ $t('profile.genderMale') }}</button>
+        <button type="button" class="segmented-option" :class="{ active: info.gender === 'female' }"
+                @click="info.gender = 'female'"><i class="fas fa-venus"></i> {{ $t('profile.genderFemale') }}</button>
       </div>
 
       <div v-if="infoError" class="auth-error">{{ infoError }}</div>

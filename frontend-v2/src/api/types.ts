@@ -248,6 +248,7 @@ export interface AchievementRecord {
   distance_key: string
   distance_label: string
   matched: boolean
+  distance_km?: number
   time_sec?: number
   pace_min_km?: number
   activity_id?: number
@@ -259,7 +260,17 @@ export interface AchievementRecord {
   gap_sec?: number | null
 }
 
+export interface BadgeAchievement {
+  key: string
+  label: string
+  description: string
+  icon: string
+  unlocked: boolean
+  earned_at?: string | null
+}
+
 export interface AchievementsResponse {
   gender_required: boolean
-  records: AchievementRecord[]
+  personal_records: AchievementRecord[]
+  badges: BadgeAchievement[]
 }

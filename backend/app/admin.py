@@ -5,7 +5,7 @@ from starlette.requests import Request
 from sqlalchemy import select
 
 from app.database import engine, SessionLocal
-from app.models import User, Activity, Goal, TrainingPlan, Workout, ChatMessage, PersonalRecord, PushSubscription
+from app.models import User, Activity, Goal, TrainingPlan, Workout, ChatMessage, PersonalRecord, PushSubscription, UserAchievement
 from app.auth import verify_password, create_access_token, decode_token
 
 
@@ -171,14 +171,32 @@ class PersonalRecordAdmin(ModelView, model=PersonalRecord):
     icon = "fa-solid fa-medal"
 
     column_list = [PersonalRecord.id, PersonalRecord.user, PersonalRecord.distance_key,
-                   PersonalRecord.time_sec, PersonalRecord.achieved_rank, PersonalRecord.updated_at]
+                   PersonalRecord.distance_km, PersonalRecord.time_sec,
+                   PersonalRecord.achieved_rank, PersonalRecord.updated_at]
     column_sortable_list = [PersonalRecord.id, PersonalRecord.time_sec, PersonalRecord.updated_at]
     column_labels = {
         "id": "ID", "user": "Пользователь", "distance_key": "Дистанция",
-        "activity": "Пробежка", "time_sec": "Время (сек)",
+        "activity": "Пробежка", "distance_km": "Дистанция (км)", "time_sec": "Время (сек)",
         "achieved_rank": "Разряд (на момент пересчёта)", "updated_at": "Обновлён",
     }
     can_create = False  # считается автоматически при изменении пробежек
+    can_edit = False
+    page_size = 25
+
+
+class UserAchievementAdmin(ModelView, model=UserAchievement):
+    name = "Достижение"
+    name_plural = "Достижения"
+    icon = "fa-solid fa-award"
+
+    column_list = [UserAchievement.id, UserAchievement.user, UserAchievement.achievement_key,
+                   UserAchievement.earned_at, UserAchievement.activity]
+    column_sortable_list = [UserAchievement.id, UserAchievement.earned_at]
+    column_labels = {
+        "id": "ID", "user": "Пользователь", "achievement_key": "Ключ достижения",
+        "earned_at": "Получено", "activity": "Пробежка",
+    }
+    can_create = False  # разблокируется автоматически при изменении пробежек
     can_edit = False
     page_size = 25
 
@@ -212,6 +230,6 @@ def create_admin(app) -> Admin:
     )
     for view in [UserAdmin, ActivityAdmin, GoalAdmin,
                  TrainingPlanAdmin, WorkoutAdmin, ChatMessageAdmin,
-                 PersonalRecordAdmin, PushSubscriptionAdmin]:
+                 PersonalRecordAdmin, UserAchievementAdmin, PushSubscriptionAdmin]:
         admin.add_view(view)
     return admin

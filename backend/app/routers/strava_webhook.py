@@ -10,7 +10,7 @@ from app.database import get_db
 from app.models import User, Activity
 from app.services.strava import refresh_token_if_needed, fetch_single_activity, strava_activity_to_dict
 from app.services.insights_cache import invalidate_insights_cache
-from app.services.achievements import recompute_personal_records
+from app.services.achievements import recompute_achievements
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/strava", tags=["strava-webhook"])
@@ -57,7 +57,7 @@ async def handle_webhook(request: Request, db: Session = Depends(get_db)):
         ).delete()
         db.commit()
         invalidate_insights_cache(user.id, db)
-        recompute_personal_records(user.id, db)
+        recompute_achievements(user.id, db)
         return {"status": "deleted"}
 
     if aspect_type in ("create", "update"):
@@ -84,7 +84,7 @@ async def handle_webhook(request: Request, db: Session = Depends(get_db)):
                     setattr(existing, k, v)
                 db.commit()
                 invalidate_insights_cache(user.id, db)
-                recompute_personal_records(user.id, db)
+                recompute_achievements(user.id, db)
             return {"status": "updated" if aspect_type == "update" else "already_exists"}
 
         # New activity — check time-based duplicate
@@ -103,7 +103,7 @@ async def handle_webhook(request: Request, db: Session = Depends(get_db)):
         db.add(act)
         db.commit()
         invalidate_insights_cache(user.id, db)
-        recompute_personal_records(user.id, db)
+        recompute_achievements(user.id, db)
         return {"status": "created"}
 
     return {"status": "ignored"}
