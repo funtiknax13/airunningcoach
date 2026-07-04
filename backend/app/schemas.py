@@ -43,6 +43,7 @@ class UserResponse(BaseModel):
     age: Optional[int]
     weight: Optional[float]
     height: Optional[float]
+    gender: Optional[str]
     is_verified: bool
     is_premium: bool
     premium_until: Optional[datetime]
@@ -62,6 +63,7 @@ class UserUpdate(BaseModel):
     age: Optional[int] = Field(None, ge=10, le=120)
     weight: Optional[float] = Field(None, gt=0, le=500)
     height: Optional[float] = Field(None, gt=0, le=300)
+    gender: Optional[str] = None
     fitness_level: Optional[str] = None
     running_goal: Optional[str] = None
     weekly_km: Optional[float] = None

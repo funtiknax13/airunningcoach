@@ -183,19 +183,21 @@ function logout() { auth.logout(); window.location.href = '/' }
 const menuOpen = ref(false)
 
 const navItems = computed(() => [
-  { to: '/dashboard',  icon: 'fas fa-home',          label: t('nav.dashboard')  },
-  { to: '/activities', icon: 'fas fa-person-running', label: t('nav.activities') },
-  { to: '/training',   icon: 'fas fa-calendar-week',  label: t('nav.training')   },
-  { to: '/goals',      icon: 'fas fa-bullseye',        label: t('nav.goals')      },
-  { to: '/coach',      icon: 'fas fa-robot',           label: t('nav.coach')      },
+  { to: '/dashboard',    icon: 'fas fa-home',          label: t('nav.dashboard')  },
+  { to: '/activities',   icon: 'fas fa-person-running', label: t('nav.activities') },
+  { to: '/training',     icon: 'fas fa-calendar-week',  label: t('nav.training')   },
+  { to: '/goals',        icon: 'fas fa-bullseye',        label: t('nav.goals')      },
+  { to: '/achievements', icon: 'fas fa-trophy',          label: t('nav.achievements') },
+  { to: '/coach',        icon: 'fas fa-robot',           label: t('nav.coach')      },
 ])
 
 const titles: Record<string, string> = {
-  '/dashboard':  'nav.dashboard',
-  '/activities': 'nav.activities',
-  '/training':   'nav.training',
-  '/goals':      'nav.goals',
-  '/coach':      'nav.coach',
+  '/dashboard':    'nav.dashboard',
+  '/activities':   'nav.activities',
+  '/training':     'nav.training',
+  '/goals':        'nav.goals',
+  '/achievements': 'nav.achievements',
+  '/coach':        'nav.coach',
 }
 const currentTitle = computed(() => t(titles[route.path] ?? 'nav.dashboard'))
 </script>

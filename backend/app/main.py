@@ -9,7 +9,7 @@ from pathlib import Path
 
 from sqlalchemy import text
 from app.database import engine, Base
-from app.routers import auth, activities, goals, training, chat, ai_insights, payments, support, tools, push
+from app.routers import auth, activities, goals, training, chat, ai_insights, payments, support, tools, push, achievements
 from app.core.config import settings
 from app.services.trial_emails import start_scheduler, stop_scheduler
 
@@ -24,6 +24,7 @@ def _migrate():
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS training_days INTEGER",
         # server_default TRUE — существующие пользователи не попадают в онбординг
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS onboarding_completed BOOLEAN DEFAULT TRUE",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS gender VARCHAR(10)",
     ]
     with engine.connect() as conn:
         for sql in migrations:
@@ -70,6 +71,7 @@ app.include_router(payments.router,    prefix="/api")
 app.include_router(support.router,     prefix="/api")
 app.include_router(tools.router,       prefix="/api")
 app.include_router(push.router,        prefix="/api")
+app.include_router(achievements.router, prefix="/api")
 
 
 @app.get("/health")

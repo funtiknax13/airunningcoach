@@ -30,6 +30,14 @@
         <span class="input-suffix">{{ $t('profile.heightUnit') }}</span>
       </div>
 
+      <label class="modal-label">{{ $t('profile.gender') }}</label>
+      <div class="gender-toggle">
+        <button type="button" class="gender-btn" :class="{ active: info.gender === 'male' }"
+                @click="info.gender = 'male'">{{ $t('profile.genderMale') }}</button>
+        <button type="button" class="gender-btn" :class="{ active: info.gender === 'female' }"
+                @click="info.gender = 'female'">{{ $t('profile.genderFemale') }}</button>
+      </div>
+
       <div v-if="infoError" class="auth-error">{{ infoError }}</div>
       <div class="modal-buttons">
         <button class="btn-primary" @click="saveInfo" :disabled="savingInfo">{{ $t('profile.save') }}</button>
@@ -77,13 +85,14 @@ const savingInfo = ref(false); const infoError = ref('')
 const savingPw   = ref(false); const pwError   = ref('')
 const push = usePush()
 
-const info = ref({ name: '', age: null as number|null, weight: null as number|null, height: null as number|null })
+const info = ref({ name: '', age: null as number|null, weight: null as number|null, height: null as number|null, gender: '' as string })
 const pw   = ref({ current: '', new_: '', confirm: '' })
 
 function open() {
   tab.value = 'info'; infoError.value = ''; pwError.value = ''
   info.value = { name: auth.user?.name ?? '', age: auth.user?.age ?? null,
-                 weight: auth.user?.weight ?? null, height: auth.user?.height ?? null }
+                 weight: auth.user?.weight ?? null, height: auth.user?.height ?? null,
+                 gender: auth.user?.gender ?? '' }
   pw.value = { current: '', new_: '', confirm: '' }
   show.value = true
   push.checkStatus()
@@ -98,7 +107,8 @@ async function saveInfo() {
   savingInfo.value = true; infoError.value = ''
   try {
     await auth.updateProfile({ name: info.value.name || undefined,
-      age: info.value.age, weight: info.value.weight, height: info.value.height })
+      age: info.value.age, weight: info.value.weight, height: info.value.height,
+      gender: info.value.gender || undefined })
     show.value = false
     toast(t('profile.updated'))
   } catch (e: any) { infoError.value = e.message }

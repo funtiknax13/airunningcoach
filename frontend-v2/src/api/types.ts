@@ -27,6 +27,7 @@ export interface UserResponse {
   age: number | null
   weight: number | null
   height: number | null
+  gender: string | null
   is_verified: boolean
   is_premium: boolean
   premium_until: string | null
@@ -57,6 +58,7 @@ export interface UserUpdate {
   age?: number | null
   weight?: number | null
   height?: number | null
+  gender?: string | null
   fitness_level?: string | null
   running_goal?: string | null
   weekly_km?: number | null
@@ -237,4 +239,27 @@ export interface MonthlyStats {
   activities_count: number
   prev_distance_km: number
   distance_delta: number
+}
+
+// ── Ачивки / разряды ЕВСК ────────────────────────────────────────────────────
+export type RankKey = 'msmk' | 'ms' | 'kms' | 'r1' | 'r2' | 'r3'
+
+export interface AchievementRecord {
+  distance_key: string
+  distance_label: string
+  matched: boolean
+  time_sec?: number
+  pace_min_km?: number
+  activity_id?: number
+  activity_date?: string
+  achieved_rank?: RankKey | null
+  achieved_rank_label?: string | null
+  next_rank?: RankKey | null
+  next_rank_label?: string | null
+  gap_sec?: number | null
+}
+
+export interface AchievementsResponse {
+  gender_required: boolean
+  records: AchievementRecord[]
 }

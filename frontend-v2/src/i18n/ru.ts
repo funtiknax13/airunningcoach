@@ -11,8 +11,19 @@ export default {
   header: { logout: 'Выйти', profile: 'Профиль', dark: 'Тёмная', light: 'Светлая' },
   nav: {
     dashboard: 'Главная', activities: 'Пробежки', training: 'Тренировки',
-    goals: 'Цели', coach: 'AI Тренер',
+    goals: 'Цели', coach: 'AI Тренер', achievements: 'Ачивки',
     home: 'Главная', runs: 'Пробежки', plan: 'План', ai: 'Тренер',
+  },
+  achievements: {
+    title: 'Кабинет с ачивками',
+    subtitle: 'Личные рекорды и разряды ЕВСК по вашим пробежкам',
+    genderRequired: 'Укажи пол в профиле, чтобы увидеть свой разряд',
+    genderRequiredCta: 'Открыть профиль',
+    noRecord: 'Пока нет результата',
+    noRecordHint: 'Пробеги эту дистанцию (±3%) — и здесь появится личный рекорд',
+    yourTime: 'Твоё время', pace: 'Темп', rank: 'Разряд', noRank: 'Норматив не выполнен',
+    gapToNext: 'До разряда', viewActivity: 'Смотреть пробежку',
+    ranks: { msmk: 'МСМК', ms: 'МС', kms: 'КМС', r1: 'I разряд', r2: 'II разряд', r3: 'III разряд' },
   },
   dash: {
     recentRuns: 'Последние пробежки', viewAll: 'Все →',
@@ -93,6 +104,7 @@ export default {
     tabInfo: 'Профиль', tabPassword: 'Пароль',
     name: 'Имя', age: 'Возраст', weight: 'Вес', height: 'Рост',
     ageUnit: 'лет', weightUnit: 'кг', heightUnit: 'см',
+    gender: 'Пол', genderMale: 'Мужской', genderFemale: 'Женский',
     save: 'Сохранить', changePw: 'Изменить пароль',
     currentPw: 'Текущий пароль', newPw: 'Новый пароль', confirmPw: 'Повторите новый пароль',
     updated: '✓ Профиль обновлён', pwUpdated: '✓ Пароль изменён', errMismatch: 'Пароли не совпадают',

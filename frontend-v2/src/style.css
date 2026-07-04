@@ -451,6 +451,19 @@ input, select, textarea { font-family: var(--font); }
   letter-spacing: 0;
 }
 
+/* ── Ачивки / разряды ЕВСК ─────────────────────────────────────────── */
+.achievements-subtitle { color: var(--text-3); font-size: 0.85rem; margin: -4px 0 16px; }
+.achievement-notice { display: flex; align-items: center; gap: 10px; padding: 14px 18px; margin-bottom: 16px; background: var(--brand-light); border: 1px solid var(--brand-glow); color: var(--text); font-size: 0.87rem; }
+.achievement-notice i { color: var(--brand); }
+.achievement-notice .btn { margin-left: auto; flex-shrink: 0; }
+.achievement-card { min-height: 128px; }
+.achievement-pace { font-size: 0.78rem; color: var(--text-3); margin-top: -2px; }
+.achievement-rank-badge { display: inline-flex; align-items: center; gap: 5px; width: fit-content; margin-top: 6px; padding: 3px 10px; border-radius: 20px; background: var(--brand); color: #fff; font-size: 0.75rem; font-weight: 700; }
+.achievement-no-rank { font-size: 0.75rem; color: var(--text-3); margin-top: 6px; }
+.achievement-gap { font-size: 0.72rem; color: var(--text-3); margin-top: 4px; }
+.achievement-empty { font-size: 0.85rem; color: var(--text-3); margin-top: 8px; }
+.achievement-empty-hint { font-size: 0.74rem; color: var(--text-3); opacity: 0.75; margin-top: 4px; line-height: 1.4; }
+
 /* ── Activity rows ───────────────────────────────────────────── */
 .activity-row {
   display: flex;
@@ -1021,6 +1034,11 @@ input, select, textarea { font-family: var(--font); }
 .input-suffix-group { position: relative; }
 .input-suffix-group .modal-input { padding-right: 44px; }
 .input-suffix { position: absolute; right: 13px; top: 50%; transform: translateY(-50%); font-size: 0.78rem; font-weight: 600; color: var(--text-3); pointer-events: none; }
+
+/* ── Gender toggle ───────────────────────────────────────────────── */
+.gender-toggle { display:flex; gap:8px; margin:5px 0 10px; }
+.gender-btn { flex:1; padding:9px; border-radius:var(--r); border:1px solid var(--border-2); background:var(--surface-2); color:var(--text-2); font-family:var(--font); font-weight:700; font-size:0.85rem; cursor:pointer; transition:all 0.15s; }
+.gender-btn.active { background:var(--brand); border-color:var(--brand); color:#fff; }
 
 /* ── Toggle switch ───────────────────────────────────────────────── */
 .switch-row { display:flex; align-items:center; justify-content:space-between; gap:16px; padding:14px 0 4px; margin-top:12px; border-top:1px solid var(--border); }

@@ -3,12 +3,30 @@
     <div class="onboarding-card">
       <!-- Прогресс -->
       <div class="progress-bar">
-        <div class="progress-fill" :style="{ width: `${(step / 3) * 100}%` }" />
+        <div class="progress-fill" :style="{ width: `${(step / 4) * 100}%` }" />
       </div>
-      <div class="step-label">Шаг {{ step }} из 3</div>
+      <div class="step-label">Шаг {{ step }} из 4</div>
 
-      <!-- Шаг 1: Уровень -->
+      <!-- Шаг 1: Пол -->
       <template v-if="step === 1">
+        <h1>Твой пол?</h1>
+        <p class="subtitle">Нужно, чтобы точно определять спортивный разряд по официальным нормативам</p>
+        <div class="options">
+          <button
+            v-for="opt in genderOptions"
+            :key="opt.value"
+            class="option-btn"
+            :class="{ selected: form.gender === opt.value }"
+            @click="form.gender = opt.value"
+          >
+            <span class="opt-icon">{{ opt.icon }}</span>
+            <span class="opt-title">{{ opt.label }}</span>
+          </button>
+        </div>
+      </template>
+
+      <!-- Шаг 2: Уровень -->
+      <template v-else-if="step === 2">
         <h1>Какой у тебя уровень?</h1>
         <p class="subtitle">Это поможет подобрать нагрузку именно под тебя</p>
         <div class="options">
@@ -26,8 +44,8 @@
         </div>
       </template>
 
-      <!-- Шаг 2: Цель -->
-      <template v-else-if="step === 2">
+      <!-- Шаг 3: Цель -->
+      <template v-else-if="step === 3">
         <h1>Какова твоя цель?</h1>
         <p class="subtitle">Тренер выстроит план именно под эту дистанцию</p>
         <div class="options">
@@ -45,7 +63,7 @@
         </div>
       </template>
 
-      <!-- Шаг 3: Нагрузка -->
+      <!-- Шаг 4: Нагрузка -->
       <template v-else>
         <h1>Текущая нагрузка</h1>
         <p class="subtitle">Тренер учтёт, откуда ты начинаешь</p>
@@ -85,7 +103,7 @@
           :disabled="!canProceed || saving"
           @click="next"
         >
-          {{ step < 3 ? 'Далее' : (saving ? 'Сохраняем...' : 'Начать тренировки') }}
+          {{ step < 4 ? 'Далее' : (saving ? 'Сохраняем...' : 'Начать тренировки') }}
         </button>
       </div>
     </div>
@@ -104,11 +122,17 @@ const step = ref(1)
 const saving = ref(false)
 
 const form = ref({
+  gender: '' as string,
   fitness_level: '' as string,
   running_goal: '' as string,
   weekly_km: null as number | null,
   training_days: null as number | null,
 })
+
+const genderOptions = [
+  { value: 'male',   icon: '🚹', label: 'Мужской' },
+  { value: 'female', icon: '🚺', label: 'Женский' },
+]
 
 const fitnessOptions = [
   { value: 'beginner',     icon: '🌱', label: 'Начинающий',  desc: 'Бегаю редко или только начинаю' },
@@ -140,19 +164,21 @@ const dayOptions = [
 ]
 
 const canProceed = computed(() => {
-  if (step.value === 1) return !!form.value.fitness_level
-  if (step.value === 2) return !!form.value.running_goal
+  if (step.value === 1) return !!form.value.gender
+  if (step.value === 2) return !!form.value.fitness_level
+  if (step.value === 3) return !!form.value.running_goal
   return form.value.weekly_km !== null && form.value.training_days !== null
 })
 
 async function next() {
-  if (step.value < 3) {
+  if (step.value < 4) {
     step.value++
     return
   }
   saving.value = true
   try {
     await auth.updateProfile({
+      gender: form.value.gender,
       fitness_level: form.value.fitness_level,
       running_goal: form.value.running_goal,
       weekly_km: form.value.weekly_km,

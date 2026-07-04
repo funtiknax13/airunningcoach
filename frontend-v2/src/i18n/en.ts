@@ -11,8 +11,19 @@ export default {
   header: { logout: 'Sign out', profile: 'Profile', dark: 'Dark', light: 'Light' },
   nav: {
     dashboard: 'Dashboard', activities: 'Activities', training: 'Training',
-    goals: 'Goals', coach: 'AI Coach',
+    goals: 'Goals', coach: 'AI Coach', achievements: 'Achievements',
     home: 'Home', runs: 'Runs', plan: 'Plan', ai: 'Coach',
+  },
+  achievements: {
+    title: 'Achievements',
+    subtitle: 'Personal records and official Russian running ranks from your runs',
+    genderRequired: 'Set your gender in your profile to see your rank',
+    genderRequiredCta: 'Open profile',
+    noRecord: 'No record yet',
+    noRecordHint: 'Run this distance (±3%) and your personal record will show up here',
+    yourTime: 'Your time', pace: 'Pace', rank: 'Rank', noRank: 'No rank yet',
+    gapToNext: 'To next rank', viewActivity: 'View activity',
+    ranks: { msmk: 'MSMK', ms: 'MS', kms: 'CMS', r1: 'Rank I', r2: 'Rank II', r3: 'Rank III' },
   },
   stats: { title: 'Stats', km: 'Distance', time: 'Time', pace: 'Avg pace', count: 'Workouts', thisMonth: 'This month' },
   dash: {
@@ -93,6 +104,7 @@ export default {
     tabInfo: 'Profile', tabPassword: 'Password',
     name: 'Name', age: 'Age', weight: 'Weight', height: 'Height',
     ageUnit: 'yrs', weightUnit: 'kg', heightUnit: 'cm',
+    gender: 'Gender', genderMale: 'Male', genderFemale: 'Female',
     save: 'Save', changePw: 'Change password',
     currentPw: 'Current password', newPw: 'New password', confirmPw: 'Confirm new password',
     updated: '✓ Profile updated', pwUpdated: '✓ Password changed', errMismatch: 'Passwords do not match',

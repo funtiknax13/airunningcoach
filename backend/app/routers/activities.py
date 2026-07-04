@@ -10,6 +10,7 @@ from app.models import User, Activity, TrainingPlan, Workout
 from app.schemas import ActivityCreate, ActivityResponse, ActivityUpdate
 from app.dependencies import get_current_user
 from app.services.insights_cache import invalidate_insights_cache
+from app.services.achievements import recompute_personal_records
 from app.services.gpx_parser import parse_gpx
 from app.services.fit_parser import parse_fit
 from app.services.ai_agent import analyze_new_activity
@@ -103,6 +104,7 @@ def create_activity(
     db.refresh(db_activity)
 
     invalidate_insights_cache(current_user.id, db)
+    recompute_personal_records(current_user.id, db)
 
     # Автоанализ для сегодняшних/вчерашних тренировок
     ai_analysis = None
@@ -178,6 +180,7 @@ async def import_activity_file(
     db.refresh(db_activity)
 
     invalidate_insights_cache(current_user.id, db)
+    recompute_personal_records(current_user.id, db)
 
     # Автоанализ для сегодняшних/вчерашних тренировок
     ai_analysis = None
@@ -322,6 +325,10 @@ def update_activity(
     _match_workout(activity, current_user.id, db)
     db.commit()
     db.refresh(activity)
+
+    invalidate_insights_cache(current_user.id, db)
+    recompute_personal_records(current_user.id, db)
+
     return activity
 
 
@@ -338,4 +345,8 @@ def delete_activity(
         raise HTTPException(status_code=404, detail="Activity not found")
     db.delete(activity)
     db.commit()
+
+    invalidate_insights_cache(current_user.id, db)
+    recompute_personal_records(current_user.id, db)
+
     return {"message": "Activity deleted"}

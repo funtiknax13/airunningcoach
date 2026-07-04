@@ -8,6 +8,7 @@ import type {
   DashboardInsights,
   MonthlyStats,
   RateLimitStatus,
+  AchievementsResponse,
 } from './types'
 
 // ── Auth ──────────────────────────────────────────────────────────────────
@@ -109,4 +110,9 @@ export const pushApi = {
   unsubscribe: (endpoint: string) =>
     api.request<{ message: string }>('/api/push/unsubscribe', 'POST', { endpoint }),
   test: () => api.request<{ sent: number }>('/api/push/test', 'POST'),
+}
+
+// ── Ачивки / разряды ЕВСК ────────────────────────────────────────────────────
+export const achievementsApi = {
+  list: () => api.request<AchievementsResponse>('/api/achievements'),
 }

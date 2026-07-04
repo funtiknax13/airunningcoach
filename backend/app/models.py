@@ -15,6 +15,7 @@ class User(Base):
     age = Column(Integer)
     weight = Column(Float)  # в кг
     height = Column(Float)  # в см
+    gender = Column(String(10), nullable=True)  # male | female — нужен для разрядов ЕВСК
     is_verified = Column(Boolean, default=False, nullable=False)
     is_admin = Column(Boolean, default=False, nullable=False)
     verification_token = Column(String(64), nullable=True, index=True)
@@ -166,6 +167,26 @@ class ApiUsage(Base):
     user_id    = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
     action     = Column(String(20), nullable=False)   # 'chat' | 'plan'
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+
+class PersonalRecord(Base):
+    """Личный рекорд на стандартной дистанции + достигнутый разряд ЕВСК."""
+    __tablename__ = "personal_records"
+    __table_args__ = (Index("ix_pr_user_distance", "user_id", "distance_key", unique=True),)
+
+    id            = Column(Integer, primary_key=True, index=True)
+    user_id       = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    distance_key  = Column(String(30), nullable=False)
+    activity_id   = Column(Integer, ForeignKey("activities.id"), nullable=False)
+    time_sec      = Column(Float, nullable=False)
+    achieved_rank = Column(String(10), nullable=True)  # msmk | ms | kms | r1 | r2 | r3 | None
+    updated_at    = Column(DateTime(timezone=True), onupdate=func.now(), server_default=func.now())
+
+    user = relationship("User")
+    activity = relationship("Activity")
+
+    def __str__(self):
+        return f"PR user={self.user_id} {self.distance_key}={self.time_sec}s ({self.achieved_rank})"
 
 
 class InsightsCache(Base):
