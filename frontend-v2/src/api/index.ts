@@ -100,3 +100,13 @@ export const supportApi = {
   contact: (subject: string, message: string, lang = 'ru') =>
     api.request<{ message: string }>('/api/support/contact', 'POST', { subject, message, lang }),
 }
+
+// ── Push-уведомления ────────────────────────────────────────────────────────
+export const pushApi = {
+  vapidKey: () => api.request<{ key: string }>('/api/push/vapid-public-key'),
+  subscribe: (sub: PushSubscriptionJSON) =>
+    api.request<{ message: string }>('/api/push/subscribe', 'POST', sub),
+  unsubscribe: (endpoint: string) =>
+    api.request<{ message: string }>('/api/push/unsubscribe', 'POST', { endpoint }),
+  test: () => api.request<{ sent: number }>('/api/push/test', 'POST'),
+}

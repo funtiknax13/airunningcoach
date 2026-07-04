@@ -16,6 +16,11 @@ class Settings(BaseSettings):
     # App base URL for verification links
     APP_BASE_URL: str = "http://localhost:8000"
 
+    # Web Push (VAPID)
+    VAPID_PUBLIC_KEY: str = ""
+    VAPID_PRIVATE_KEY: str = ""
+    VAPID_CLAIMS_EMAIL: str = "mailto:running.coach.mail@gmail.com"
+
     # DeepSeek AI
     DEEPSEEK_API_KEY: str = ""
 

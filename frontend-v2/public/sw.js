@@ -33,3 +33,31 @@ self.addEventListener('fetch', e => {
     })
   )
 })
+
+self.addEventListener('push', e => {
+  let data = { title: 'AI RunningCoach', body: '', url: '/dashboard' }
+  if (e.data) {
+    try { data = { ...data, ...e.data.json() } } catch (err) { data.body = e.data.text() }
+  }
+  e.waitUntil(
+    self.registration.showNotification(data.title, {
+      body: data.body,
+      icon: '/logo.png',
+      badge: '/logo.png',
+      data: { url: data.url || '/dashboard' },
+    })
+  )
+})
+
+self.addEventListener('notificationclick', e => {
+  e.notification.close()
+  const url = (e.notification.data && e.notification.data.url) || '/dashboard'
+  e.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(clients => {
+      for (const client of clients) {
+        if ('focus' in client) { client.navigate(url); return client.focus() }
+      }
+      if (self.clients.openWindow) return self.clients.openWindow(url)
+    })
+  )
+})

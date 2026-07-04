@@ -183,6 +183,20 @@ class InsightsCache(Base):
         return f"InsightsCache user_id={self.user_id}"
 
 
+class PushSubscription(Base):
+    """Web Push подписка браузера — один пользователь может иметь несколько (разные устройства)."""
+    __tablename__ = "push_subscriptions"
+
+    id         = Column(Integer, primary_key=True, index=True)
+    user_id    = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    endpoint   = Column(Text, unique=True, nullable=False)
+    p256dh     = Column(String(255), nullable=False)
+    auth       = Column(String(255), nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    user = relationship("User")
+
+
 class ChatMessage(Base):
     __tablename__ = "chat_messages"
     # История и контекст AI фильтруют по user_id и сортируют по created_at

@@ -18,3 +18,4 @@ openai==1.30.0
 fitparse==1.2.0
 apscheduler==3.10.4
 yookassa==3.1.0
+pywebpush==2.3.0

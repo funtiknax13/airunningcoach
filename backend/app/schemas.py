@@ -257,3 +257,18 @@ class SupportContactRequest(BaseModel):
     subject: str = Field(..., min_length=1, max_length=150)
     message: str = Field(..., min_length=10, max_length=3000)
     lang: Optional[str] = "ru"
+
+
+# Web Push
+class PushSubscriptionKeys(BaseModel):
+    p256dh: str
+    auth: str
+
+
+class PushSubscribeRequest(BaseModel):
+    endpoint: str
+    keys: PushSubscriptionKeys
+
+
+class PushUnsubscribeRequest(BaseModel):
+    endpoint: str
