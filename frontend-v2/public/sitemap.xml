@@ -111,4 +111,11 @@
     <priority>0.7</priority>
   </url>
 
+  <url>
+    <loc>https://airunningcoach.pro/tools/normativy-bega/</loc>
+    <lastmod>2026-07-04</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+
 </urlset>
