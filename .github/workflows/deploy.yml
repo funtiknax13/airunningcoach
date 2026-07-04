@@ -51,17 +51,38 @@ jobs:
           fi
           # Сервер иногда роняет исходящий DNS (нестабильная сеть VPS-провайдера),
           # что валит git pull / сборку образа — повторяем так же, как ниже для фронтенда.
+          # ВАЖНО: цикл должен явно упасть (exit 1), если все попытки провалились —
+          # раньше последняя ветка `|| { echo ...; sleep 10; }` сама завершалась успешно,
+          # и шаг репортился как success, даже если деплой ни разу не прошёл.
+          success=false
           for attempt in 1 2 3; do
-            ssh ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} "$CMD" \
-            && break || { echo "Attempt $attempt failed, retrying..."; sleep 10; }
+            if ssh ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} "$CMD"; then
+              success=true
+              break
+            fi
+            echo "Attempt $attempt failed, retrying..."
+            sleep 10
           done
+          if [ "$success" != "true" ]; then
+            echo "::error::Deploy backend failed after 3 attempts"
+            exit 1
+          fi
 
       - name: Upload frontend
         run: |
+          success=false
           for attempt in 1 2 3; do
-            tar -C frontend-v2-dist -czf - . | \
-            ssh ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} \
-              "mkdir -p ${{ secrets.SERVER_PATH }}/frontend-v2-dist && \
-               tar -C ${{ secrets.SERVER_PATH }}/frontend-v2-dist -xzf -" \
-            && break || { echo "Attempt $attempt failed, retrying..."; sleep 10; }
+            if tar -C frontend-v2-dist -czf - . | \
+               ssh ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} \
+                 "mkdir -p ${{ secrets.SERVER_PATH }}/frontend-v2-dist && \
+                  tar -C ${{ secrets.SERVER_PATH }}/frontend-v2-dist -xzf -"; then
+              success=true
+              break
+            fi
+            echo "Attempt $attempt failed, retrying..."
+            sleep 10
           done
+          if [ "$success" != "true" ]; then
+            echo "::error::Upload frontend failed after 3 attempts"
+            exit 1
+          fi

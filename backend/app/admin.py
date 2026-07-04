@@ -5,7 +5,7 @@ from starlette.requests import Request
 from sqlalchemy import select
 
 from app.database import engine, SessionLocal
-from app.models import User, Activity, Goal, TrainingPlan, Workout, ChatMessage
+from app.models import User, Activity, Goal, TrainingPlan, Workout, ChatMessage, PersonalRecord, PushSubscription
 from app.auth import verify_password, create_access_token, decode_token
 
 
@@ -165,6 +165,39 @@ class ChatMessageAdmin(ModelView, model=ChatMessage):
     can_create = False   # сообщения создаются только через API
 
 
+class PersonalRecordAdmin(ModelView, model=PersonalRecord):
+    name = "Личный рекорд"
+    name_plural = "Личные рекорды"
+    icon = "fa-solid fa-medal"
+
+    column_list = [PersonalRecord.id, PersonalRecord.user, PersonalRecord.distance_key,
+                   PersonalRecord.time_sec, PersonalRecord.achieved_rank, PersonalRecord.updated_at]
+    column_sortable_list = [PersonalRecord.id, PersonalRecord.time_sec, PersonalRecord.updated_at]
+    column_labels = {
+        "id": "ID", "user": "Пользователь", "distance_key": "Дистанция",
+        "activity": "Пробежка", "time_sec": "Время (сек)",
+        "achieved_rank": "Разряд (на момент пересчёта)", "updated_at": "Обновлён",
+    }
+    can_create = False  # считается автоматически при изменении пробежек
+    can_edit = False
+    page_size = 25
+
+
+class PushSubscriptionAdmin(ModelView, model=PushSubscription):
+    name = "Push-подписка"
+    name_plural = "Push-подписки"
+    icon = "fa-solid fa-bell"
+
+    column_list = [PushSubscription.id, PushSubscription.user, PushSubscription.endpoint, PushSubscription.created_at]
+    column_labels = {
+        "id": "ID", "user": "Пользователь", "endpoint": "Endpoint",
+        "p256dh": "p256dh", "auth": "Auth", "created_at": "Создана",
+    }
+    can_create = False  # подписка создаётся только браузером
+    can_edit = False
+    page_size = 25
+
+
 # ── Фабрика ───────────────────────────────────────────────────────────────────
 
 def create_admin(app) -> Admin:
@@ -178,6 +211,7 @@ def create_admin(app) -> Admin:
         base_url="/admin",
     )
     for view in [UserAdmin, ActivityAdmin, GoalAdmin,
-                 TrainingPlanAdmin, WorkoutAdmin, ChatMessageAdmin]:
+                 TrainingPlanAdmin, WorkoutAdmin, ChatMessageAdmin,
+                 PersonalRecordAdmin, PushSubscriptionAdmin]:
         admin.add_view(view)
     return admin
