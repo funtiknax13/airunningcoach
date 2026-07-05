@@ -27,6 +27,8 @@ export default {
     yourTime: 'Your time', pace: 'Pace', rank: 'Rank', noRank: 'No rank yet',
     gapToNext: 'To next rank', viewActivity: 'View activity',
     ranks: { msmk: 'MSMK', ms: 'MS', kms: 'CMS', r1: 'Rank I', r2: 'Rank II', r3: 'Rank III' },
+    shareBtn: 'Share',
+    shareFallback: 'Image saved, caption copied — paste it into Telegram/Instagram',
   },
   stats: { title: 'Stats', km: 'Distance', time: 'Time', pace: 'Avg pace', count: 'Workouts', thisMonth: 'This month' },
   dash: {

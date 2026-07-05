@@ -27,6 +27,8 @@ export default {
     yourTime: 'Твоё время', pace: 'Темп', rank: 'Разряд', noRank: 'Норматив не выполнен',
     gapToNext: 'До разряда', viewActivity: 'Смотреть пробежку',
     ranks: { msmk: 'МСМК', ms: 'МС', kms: 'КМС', r1: 'I разряд', r2: 'II разряд', r3: 'III разряд' },
+    shareBtn: 'Поделиться',
+    shareFallback: 'Картинка сохранена, текст скопирован — вставь в Telegram/Instagram',
   },
   dash: {
     recentRuns: 'Последние пробежки', viewAll: 'Все →',

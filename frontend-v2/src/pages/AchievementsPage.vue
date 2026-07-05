@@ -20,6 +20,9 @@
         <div v-for="r in personalRecords" :key="r.distance_key" class="stat-card achievement-card">
           <div class="stat-card-label">
             <i :class="r.distance_key === 'longest' ? 'fas fa-route' : 'fas fa-flag-checkered'"></i> {{ r.distance_label }}
+            <button v-if="r.matched" class="btn-share" :title="$t('achievements.shareBtn')" @click="onShareRecord(r)">
+              <i class="fas fa-share-nodes"></i>
+            </button>
           </div>
 
           <template v-if="r.matched">
@@ -53,6 +56,9 @@
 
       <div class="badge-grid">
         <div v-for="b in badges" :key="b.key" class="badge-card" :class="{ unlocked: b.unlocked }">
+          <button v-if="b.unlocked" class="btn-share btn-share--badge" :title="$t('achievements.shareBtn')" @click="onShareBadge(b)">
+            <i class="fas fa-share-nodes"></i>
+          </button>
           <div class="badge-icon"><i :class="`fas ${b.icon}`"></i></div>
           <div class="badge-label">{{ b.label }}</div>
           <div class="badge-desc">{{ b.description }}</div>
@@ -71,7 +77,10 @@ import AppLayout from '@/components/layout/AppLayout.vue'
 import SkeletonLoader from '@/components/common/SkeletonLoader.vue'
 import ProfileModal from '@/components/profile/ProfileModal.vue'
 import { achievementsApi } from '@/api'
+import { useShareCard } from '@/composables/useShareCard'
 import type { AchievementRecord, BadgeAchievement } from '@/api/types'
+
+const { share } = useShareCard()
 
 const loading = ref(true)
 const genderRequired = ref(false)
@@ -91,6 +100,18 @@ function fmtTime(totalSec: number): string {
 
 function fmtDate(iso: string): string {
   return new Date(iso).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric' })
+}
+
+function onShareBadge(b: BadgeAchievement) {
+  share({ emoji: '🏆', title: b.label, subtitle: b.description, utmCampaign: b.key })
+}
+
+function onShareRecord(r: AchievementRecord) {
+  const isLongest = r.distance_key === 'longest'
+  const title = isLongest ? `${r.distance_km?.toFixed(2)} км` : fmtTime(r.time_sec ?? 0)
+  const rankPart = r.achieved_rank_label ? `, разряд ${r.achieved_rank_label}` : ''
+  const subtitle = isLongest ? 'Моя самая длинная дистанция' : `${r.distance_label}${rankPart}`
+  share({ emoji: '⏱️', title, subtitle, utmCampaign: 'personal_record' })
 }
 
 onMounted(async () => {
