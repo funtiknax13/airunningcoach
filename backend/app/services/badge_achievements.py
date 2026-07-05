@@ -263,3 +263,43 @@ def recompute_badge_achievements(user_id: int, db: Session) -> None:
     for key, earned_at in newly_earned.items():
         db.add(UserAchievement(user_id=user_id, achievement_key=key, earned_at=earned_at))
     db.commit()
+
+
+def recompute_and_fix_dates(user_id: int, db: Session) -> None:
+    """Как recompute_badge_achievements, но дополнительно ИСПРАВЛЯЕТ earned_at
+    у уже разблокированных достижений — на случай, если раньше (до появления
+    расчёта даты по активности) их проставили датой запуска пересчёта, а не
+    датой реального события. Разблокировку никогда не отменяет, только
+    корректирует дату у уже полученных и доразблокировывает недостающее."""
+    already_rows = {
+        ua.achievement_key: ua
+        for ua in db.query(UserAchievement).filter(UserAchievement.user_id == user_id).all()
+    }
+
+    stats = _collect_run_stats(user_id, db)
+    plan_stats = _collect_plan_stats(user_id, db)
+
+    computed: dict[str, datetime] = {}
+    for d in ACHIEVEMENT_DEFS:
+        if d["type"] == "meta":
+            continue
+        earned_at = _evaluate(d, stats, plan_stats)
+        if earned_at is not None:
+            computed[d["key"]] = earned_at
+
+    unlocked_after = set(already_rows.keys()) | set(computed.keys())
+    for d in ACHIEVEMENT_DEFS:
+        if d["type"] != "meta":
+            continue
+        required = {k for k in (x["key"] for x in ACHIEVEMENT_DEFS) if k not in d.get("exclude", []) and k != d["key"]}
+        if required <= unlocked_after:
+            dates = [computed.get(k) or (already_rows[k].earned_at if k in already_rows else None) for k in required]
+            dates = [dt for dt in dates if dt is not None]
+            computed[d["key"]] = max(dates) if dates else datetime.now()
+
+    for key, earned_at in computed.items():
+        if key in already_rows:
+            already_rows[key].earned_at = earned_at
+        else:
+            db.add(UserAchievement(user_id=user_id, achievement_key=key, earned_at=earned_at))
+    db.commit()
