@@ -5,7 +5,7 @@
   <script>if (localStorage.getItem('access_token')) location.replace('/dashboard');</script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>AI‑тренер по бегу — персональные планы тренировок онлайн | AIRunningCoach</title>
-  <meta name="description" content="AI RunningCoach — ИИ-тренер по бегу: персональные планы тренировок, анализ пробежек из Garmin, Coros, Suunto, советы 24/7. Подходит для начинающих и опытных бегунов. 14 дней Premium бесплатно.">
+  <meta name="description" content="AIRunningCoach — ИИ-тренер по бегу: персональные планы тренировок, анализ пробежек из Garmin, Coros, Suunto, советы 24/7. Подходит для начинающих и опытных бегунов. 14 дней Premium бесплатно.">
   <meta name="keywords" content="AI тренер по бегу, ИИ тренер по бегу, беговой ИИ-тренер, беговой AI-тренер, персональный тренер по бегу онлайн, план тренировок по бегу, план тренировок для начинающих бегунов, подготовка к марафону онлайн, подготовка к полумарафону, анализ пробежек, импорт GPX FIT Garmin, приложение для бегунов, тренер по бегу онлайн, онлайн тренер бег, советы по бегу">
   <link rel="canonical" href="https://airunningcoach.pro/">
 
@@ -81,12 +81,12 @@
       {
         "@type": "FAQPage",
         "mainEntity": [
-          { "@type": "Question", "name": "Что такое AI RunningCoach?", "acceptedAnswer": { "@type": "Answer", "text": "AI RunningCoach — веб-приложение с персональным AI-тренером по бегу. Он составляет индивидуальные планы тренировок, анализирует пробежки из Garmin, Coros, Suunto и других устройств, и отвечает на вопросы о технике, питании и восстановлении." } },
+          { "@type": "Question", "name": "Что такое AIRunningCoach?", "acceptedAnswer": { "@type": "Answer", "text": "AIRunningCoach — веб-приложение с персональным AI-тренером по бегу. Он составляет индивидуальные планы тренировок, анализирует пробежки из Garmin, Coros, Suunto и других устройств, и отвечает на вопросы о технике, питании и восстановлении." } },
           { "@type": "Question", "name": "Как импортировать пробежки из Garmin, Coros или Suunto?", "acceptedAnswer": { "@type": "Answer", "text": "Экспортируйте тренировку из Garmin Connect, Coros или Suunto в формате GPX или FIT, затем загрузите файл в раздел «Пробежки». Приложение автоматически извлечёт темп, пульс, каденс, сплиты по километрам и высотный профиль." } },
-          { "@type": "Question", "name": "Можно ли подготовиться к марафону с AI?", "acceptedAnswer": { "@type": "Answer", "text": "Да. AI RunningCoach составляет персональные планы подготовки к 5 км, 10 км, полумарафону (21,1 км) и марафону (42,2 км). Планы учитывают ваш текущий уровень, историю тренировок и целевое время финиша." } },
+          { "@type": "Question", "name": "Можно ли подготовиться к марафону с AI?", "acceptedAnswer": { "@type": "Answer", "text": "Да. AIRunningCoach составляет персональные планы подготовки к 5 км, 10 км, полумарафону (21,1 км) и марафону (42,2 км). Планы учитывают ваш текущий уровень, историю тренировок и целевое время финиша." } },
           { "@type": "Question", "name": "Сколько стоит приложение?", "acceptedAnswer": { "@type": "Answer", "text": "Базовый план бесплатный: запись пробежек, импорт GPX/FIT, AI‑тренер до 10 сообщений в день. Premium‑план — 490 рублей в месяц: безлимитный AI‑тренер, генерация планов, детальная аналитика. При регистрации — 14 дней Premium бесплатно." } },
-          { "@type": "Question", "name": "Нужно ли скачивать приложение?", "acceptedAnswer": { "@type": "Answer", "text": "Нет. AI RunningCoach — это веб‑приложение, которое работает прямо в браузере на компьютере и телефоне. Никакой установки не требуется." } },
-          { "@type": "Question", "name": "Подходит ли AI-тренер для начинающих бегунов?", "acceptedAnswer": { "@type": "Answer", "text": "Да. AI RunningCoach отлично подходит для начинающих бегунов — он учитывает ваш текущий уровень и строит план с нуля. Неважно, бежите вы впервые или готовитесь к первому старту на 5 км: ИИ-тренер адаптирует нагрузку под вас и объяснит каждый шаг плана тренировок." } }
+          { "@type": "Question", "name": "Нужно ли скачивать приложение?", "acceptedAnswer": { "@type": "Answer", "text": "Нет. AIRunningCoach — это веб‑приложение, которое работает прямо в браузере на компьютере и телефоне. Никакой установки не требуется." } },
+          { "@type": "Question", "name": "Подходит ли AI-тренер для начинающих бегунов?", "acceptedAnswer": { "@type": "Answer", "text": "Да. AIRunningCoach отлично подходит для начинающих бегунов — он учитывает ваш текущий уровень и строит план с нуля. Неважно, бежите вы впервые или готовитесь к первому старту на 5 км: ИИ-тренер адаптирует нагрузку под вас и объяснит каждый шаг плана тренировок." } }
         ]
       }
     ]
@@ -187,7 +187,10 @@
     }
     .landing-nav-logo { display: flex; align-items: center; gap: 10px; font-size: 1rem; font-weight: 800; color: var(--text); letter-spacing: -0.02em; }
     .landing-nav-logo img { width: 32px; height: 32px; }
-    .landing-nav-logo span { color: var(--brand); }
+    .landing-nav-logo-brand { display: flex; flex-direction: column; gap: 2px; }
+    .landing-nav-logo-text { line-height: 1.1; }
+    .landing-nav-logo-ai { color: var(--brand); }
+    .landing-nav-ecg { width: 90px; height: 12px; display: block; opacity: 0.65; }
     .landing-nav-actions { display: flex; align-items: center; gap: 10px; }
 
     /* ── Theme toggle ── */
@@ -404,7 +407,8 @@
     }
     @media (max-width: 480px) {
       .landing-nav { padding: 0 16px; height: 56px; }
-      .landing-nav-logo span { font-size: 0.9rem; }
+      .landing-nav-logo-text { font-size: 0.9rem; }
+      .landing-nav-ecg { width: 70px; }
       .landing-nav-actions { gap: 6px; }
       .landing-nav-actions .btn-ghost { display: none; }
       .landing-nav-actions .btn-primary { padding: 7px 12px; font-size: 0.78rem; }
@@ -434,7 +438,13 @@
 <nav class="landing-nav" role="navigation" aria-label="Основная навигация">
   <a href="/" class="landing-nav-logo" aria-label="AIRunningCoach — главная">
     <img src="/logo.png" alt="AIRunningCoach логотип" width="32" height="32">
-    <span>AI</span>RunningCoach
+    <div class="landing-nav-logo-brand">
+      <div class="landing-nav-logo-text"><span class="landing-nav-logo-ai">AI</span>RunningCoach</div>
+      <svg class="landing-nav-ecg" viewBox="0 0 110 18" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <polyline points="0,9 14,9 18,9 20,5 22,14 24,2 26,14 28,9 32,9 38,9 40,6 42,9 46,9 60,9 62,7 64,9 68,9 110,9"
+                  stroke="#F85C1E" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none" opacity="0.7"/>
+      </svg>
+    </div>
   </a>
   <div class="landing-nav-actions">
     <button class="theme-btn" onclick="toggleTheme()" aria-label="Сменить тему">
@@ -717,8 +727,8 @@
     <h2 class="faq-title">Часто задаваемые вопросы</h2>
     <dl class="faq-list">
       <div class="faq-item">
-        <dt class="faq-q" onclick="toggleFaq(this)"><span>Что такое AI RunningCoach?</span><i class="fas fa-chevron-down"></i></dt>
-        <dd class="faq-a" style="display:none">AI RunningCoach — веб-приложение с персональным AI-тренером по бегу. Он составляет индивидуальные планы тренировок, анализирует пробежки из Garmin, Coros, Suunto и других устройств, и отвечает на вопросы о технике, питании и восстановлении.</dd>
+        <dt class="faq-q" onclick="toggleFaq(this)"><span>Что такое AIRunningCoach?</span><i class="fas fa-chevron-down"></i></dt>
+        <dd class="faq-a" style="display:none">AIRunningCoach — веб-приложение с персональным AI-тренером по бегу. Он составляет индивидуальные планы тренировок, анализирует пробежки из Garmin, Coros, Suunto и других устройств, и отвечает на вопросы о технике, питании и восстановлении.</dd>
       </div>
       <div class="faq-item">
         <dt class="faq-q" onclick="toggleFaq(this)"><span>Как импортировать пробежки из Garmin, Coros или Suunto?</span><i class="fas fa-chevron-down"></i></dt>
@@ -726,7 +736,7 @@
       </div>
       <div class="faq-item">
         <dt class="faq-q" onclick="toggleFaq(this)"><span>Можно ли подготовиться к марафону или полумарафону с AI?</span><i class="fas fa-chevron-down"></i></dt>
-        <dd class="faq-a" style="display:none">Да. AI RunningCoach составляет персональные планы подготовки к 5 км, 10 км, полумарафону (21,1 км) и марафону (42,2 км). Планы учитывают ваш текущий уровень, историю тренировок и целевое время финиша.</dd>
+        <dd class="faq-a" style="display:none">Да. AIRunningCoach составляет персональные планы подготовки к 5 км, 10 км, полумарафону (21,1 км) и марафону (42,2 км). Планы учитывают ваш текущий уровень, историю тренировок и целевое время финиша.</dd>
       </div>
       <div class="faq-item">
         <dt class="faq-q" onclick="toggleFaq(this)"><span>Сколько стоит приложение?</span><i class="fas fa-chevron-down"></i></dt>
@@ -734,11 +744,11 @@
       </div>
       <div class="faq-item">
         <dt class="faq-q" onclick="toggleFaq(this)"><span>Нужно ли скачивать приложение?</span><i class="fas fa-chevron-down"></i></dt>
-        <dd class="faq-a" style="display:none">Нет. AI RunningCoach — это веб‑приложение, которое работает прямо в браузере на компьютере и телефоне. Никакой установки не требуется.</dd>
+        <dd class="faq-a" style="display:none">Нет. AIRunningCoach — это веб‑приложение, которое работает прямо в браузере на компьютере и телефоне. Никакой установки не требуется.</dd>
       </div>
       <div class="faq-item">
         <dt class="faq-q" onclick="toggleFaq(this)"><span>Подходит ли AI-тренер для начинающих бегунов?</span><i class="fas fa-chevron-down"></i></dt>
-        <dd class="faq-a" style="display:none">Да. AI RunningCoach отлично подходит для начинающих бегунов — он учитывает ваш текущий уровень и строит план с нуля. Неважно, бежите вы впервые или готовитесь к своему первому старту на 5 км: ИИ-тренер адаптирует нагрузку под вас и объяснит каждый шаг плана тренировок.</dd>
+        <dd class="faq-a" style="display:none">Да. AIRunningCoach отлично подходит для начинающих бегунов — он учитывает ваш текущий уровень и строит план с нуля. Неважно, бежите вы впервые или готовитесь к своему первому старту на 5 км: ИИ-тренер адаптирует нагрузку под вас и объяснит каждый шаг плана тренировок.</dd>
       </div>
     </dl>
   </div>
@@ -755,7 +765,7 @@
 
 <!-- ── Footer ── -->
 <footer class="landing-footer" role="contentinfo">
-  <p>© 2026 AI RunningCoach. Тренируйтесь умнее каждый день.</p>
+  <p>© 2026 AIRunningCoach. Тренируйтесь умнее каждый день.</p>
   <nav class="footer-links" aria-label="Ссылки в подвале">
     <a href="/blog/">Блог</a>
     <a href="/tools/">Инструменты</a>

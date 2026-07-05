@@ -5,7 +5,7 @@
   <script>if (localStorage.getItem('access_token')) location.replace('/dashboard');</script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>AI Running Coach — Personalized Training Plans Online | AIRunningCoach</title>
-  <meta name="description" content="AI RunningCoach — your personal AI running coach. Builds individual training plans, analyzes runs from Garmin, Coros, Suunto and answers questions 24/7. Free. No installation.">
+  <meta name="description" content="AIRunningCoach — your personal AI running coach. Builds individual training plans, analyzes runs from Garmin, Coros, Suunto and answers questions 24/7. Free. No installation.">
   <meta name="keywords" content="AI running coach, personal running trainer online, running training plan, marathon preparation, run analysis, GPX FIT import, app for runners">
   <link rel="canonical" href="https://airunningcoach.pro/en/">
 
@@ -82,11 +82,11 @@
       {
         "@type": "FAQPage",
         "mainEntity": [
-          { "@type": "Question", "name": "What is AI RunningCoach?", "acceptedAnswer": { "@type": "Answer", "text": "AI RunningCoach is a web app with a personal AI running coach. It builds individual training plans, analyzes your runs from Garmin, Coros, Suunto and other devices, and answers questions about technique, nutrition, and recovery." } },
+          { "@type": "Question", "name": "What is AIRunningCoach?", "acceptedAnswer": { "@type": "Answer", "text": "AIRunningCoach is a web app with a personal AI running coach. It builds individual training plans, analyzes your runs from Garmin, Coros, Suunto and other devices, and answers questions about technique, nutrition, and recovery." } },
           { "@type": "Question", "name": "How do I import runs from Garmin, Coros, or Suunto?", "acceptedAnswer": { "@type": "Answer", "text": "Export your workout from Garmin Connect, Coros or Suunto as a GPX or FIT file, then upload it in the Runs section. The app automatically extracts pace, heart rate, cadence, per-km splits and elevation profile." } },
-          { "@type": "Question", "name": "Can I train for a marathon or half-marathon with AI?", "acceptedAnswer": { "@type": "Answer", "text": "Yes. AI RunningCoach builds personalized training plans for 5K, 10K, half-marathon (21.1 km) and marathon (42.2 km). Plans account for your current fitness level, training history, and goal finish time." } },
+          { "@type": "Question", "name": "Can I train for a marathon or half-marathon with AI?", "acceptedAnswer": { "@type": "Answer", "text": "Yes. AIRunningCoach builds personalized training plans for 5K, 10K, half-marathon (21.1 km) and marathon (42.2 km). Plans account for your current fitness level, training history, and goal finish time." } },
           { "@type": "Question", "name": "How much does it cost?", "acceptedAnswer": { "@type": "Answer", "text": "The Basic plan is free: run logging, GPX/FIT import, AI coach up to 10 messages per day. Premium is 490 RUB/month: unlimited AI coach, plan generation, detailed analytics. 14 days of Premium free on sign-up." } },
-          { "@type": "Question", "name": "Do I need to download an app?", "acceptedAnswer": { "@type": "Answer", "text": "No. AI RunningCoach is a web application that works directly in your browser on desktop and mobile. No installation required." } }
+          { "@type": "Question", "name": "Do I need to download an app?", "acceptedAnswer": { "@type": "Answer", "text": "No. AIRunningCoach is a web application that works directly in your browser on desktop and mobile. No installation required." } }
         ]
       }
     ]
@@ -187,7 +187,10 @@
     }
     .landing-nav-logo { display: flex; align-items: center; gap: 10px; font-size: 1rem; font-weight: 800; color: var(--text); letter-spacing: -0.02em; }
     .landing-nav-logo img { width: 32px; height: 32px; }
-    .landing-nav-logo span { color: var(--brand); }
+    .landing-nav-logo-brand { display: flex; flex-direction: column; gap: 2px; }
+    .landing-nav-logo-text { line-height: 1.1; }
+    .landing-nav-logo-ai { color: var(--brand); }
+    .landing-nav-ecg { width: 90px; height: 12px; display: block; opacity: 0.65; }
     .landing-nav-actions { display: flex; align-items: center; gap: 10px; }
 
     /* ── Theme toggle ── */
@@ -404,7 +407,8 @@
     }
     @media (max-width: 480px) {
       .landing-nav { padding: 0 16px; height: 56px; }
-      .landing-nav-logo span { font-size: 0.9rem; }
+      .landing-nav-logo-text { font-size: 0.9rem; }
+      .landing-nav-ecg { width: 70px; }
       .landing-nav-actions { gap: 6px; }
       .landing-nav-actions .btn-ghost { display: none; }
       .landing-nav-actions .btn-primary { padding: 7px 12px; font-size: 0.78rem; }
@@ -434,7 +438,13 @@
 <nav class="landing-nav" role="navigation" aria-label="Main navigation">
   <a href="/en/" class="landing-nav-logo" aria-label="AIRunningCoach — home">
     <img src="/logo.png" alt="AIRunningCoach logo" width="32" height="32">
-    <span>AI</span>RunningCoach
+    <div class="landing-nav-logo-brand">
+      <div class="landing-nav-logo-text"><span class="landing-nav-logo-ai">AI</span>RunningCoach</div>
+      <svg class="landing-nav-ecg" viewBox="0 0 110 18" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <polyline points="0,9 14,9 18,9 20,5 22,14 24,2 26,14 28,9 32,9 38,9 40,6 42,9 46,9 60,9 62,7 64,9 68,9 110,9"
+                  stroke="#F85C1E" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none" opacity="0.7"/>
+      </svg>
+    </div>
   </a>
   <div class="landing-nav-actions">
     <button class="theme-btn" onclick="toggleTheme()" aria-label="Toggle theme">
@@ -715,8 +725,8 @@
     <h2 class="faq-title">Frequently Asked Questions</h2>
     <dl class="faq-list">
       <div class="faq-item">
-        <dt class="faq-q" onclick="toggleFaq(this)"><span>What is AI RunningCoach?</span><i class="fas fa-chevron-down"></i></dt>
-        <dd class="faq-a" style="display:none">AI RunningCoach is a web app with a personal AI running coach. It builds individual training plans, analyzes your runs from Garmin, Coros, Suunto and other devices, and answers questions about technique, nutrition, and recovery.</dd>
+        <dt class="faq-q" onclick="toggleFaq(this)"><span>What is AIRunningCoach?</span><i class="fas fa-chevron-down"></i></dt>
+        <dd class="faq-a" style="display:none">AIRunningCoach is a web app with a personal AI running coach. It builds individual training plans, analyzes your runs from Garmin, Coros, Suunto and other devices, and answers questions about technique, nutrition, and recovery.</dd>
       </div>
       <div class="faq-item">
         <dt class="faq-q" onclick="toggleFaq(this)"><span>How do I import runs from Garmin, Coros, or Suunto?</span><i class="fas fa-chevron-down"></i></dt>
@@ -724,7 +734,7 @@
       </div>
       <div class="faq-item">
         <dt class="faq-q" onclick="toggleFaq(this)"><span>Can I train for a marathon or half-marathon with AI?</span><i class="fas fa-chevron-down"></i></dt>
-        <dd class="faq-a" style="display:none">Yes. AI RunningCoach builds personalized training plans for 5K, 10K, half-marathon (21.1 km) and marathon (42.2 km). Plans account for your current fitness level, training history, and goal finish time.</dd>
+        <dd class="faq-a" style="display:none">Yes. AIRunningCoach builds personalized training plans for 5K, 10K, half-marathon (21.1 km) and marathon (42.2 km). Plans account for your current fitness level, training history, and goal finish time.</dd>
       </div>
       <div class="faq-item">
         <dt class="faq-q" onclick="toggleFaq(this)"><span>How much does it cost?</span><i class="fas fa-chevron-down"></i></dt>
@@ -732,7 +742,7 @@
       </div>
       <div class="faq-item">
         <dt class="faq-q" onclick="toggleFaq(this)"><span>Do I need to download an app?</span><i class="fas fa-chevron-down"></i></dt>
-        <dd class="faq-a" style="display:none">No. AI RunningCoach is a web application that works directly in your browser on desktop and mobile. No installation required.</dd>
+        <dd class="faq-a" style="display:none">No. AIRunningCoach is a web application that works directly in your browser on desktop and mobile. No installation required.</dd>
       </div>
     </dl>
   </div>
@@ -749,7 +759,7 @@
 
 <!-- ── Footer ── -->
 <footer class="landing-footer" role="contentinfo">
-  <p>© 2026 AI RunningCoach. Train smarter every day.</p>
+  <p>© 2026 AIRunningCoach. Train smarter every day.</p>
   <nav class="footer-links" aria-label="Footer links">
     <a href="/sitemap.xml" rel="nofollow">Sitemap</a>
     <a href="/">Русский</a>
