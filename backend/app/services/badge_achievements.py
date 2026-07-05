@@ -1,13 +1,33 @@
 # app/services/badge_achievements.py
 """Разблокировка «достижений» (бейджей) — односторонний храповик: только
-добавляет новые заработанные достижения, никогда не отзывает уже полученные."""
+добавляет новые заработанные достижения, никогда не отзывает уже полученные.
+
+earned_at всегда ставится по дате пробежки/события, которое реально закрыло
+условие — не по дате запуска пересчёта. Это важно для бэкафилла: у давно
+зарегистрированных пользователей достижения "задним числом" получают дату,
+когда они были фактически заслужены, а не сегодняшнюю.
+"""
 from collections import defaultdict
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 from sqlalchemy.orm import Session
 
 from app.models import Activity, Goal, TrainingPlan, UserAchievement, Workout
 from app.services.achievement_defs import ACHIEVEMENT_DEFS
+
+
+def _to_dt(value) -> datetime | None:
+    """Приводит date/datetime к datetime (полночь для чистой date)."""
+    if value is None:
+        return None
+    if isinstance(value, datetime):
+        return value
+    return datetime.combine(value, datetime.min.time())
+
+
+def _week_start(value):
+    d = value.date() if hasattr(value, "date") else value
+    return d - timedelta(days=d.weekday())
 
 
 def _longest_consecutive_week_run(week_starts: set) -> int:
@@ -22,6 +42,50 @@ def _longest_consecutive_week_run(week_starts: set) -> int:
     return best
 
 
+def _streak_completion_date(week_starts: set, weeks_needed: int) -> datetime | None:
+    """Дата (воскресенье завершающей недели), когда впервые набралась
+    непрерывная последовательность из weeks_needed недель подряд."""
+    weeks_sorted = sorted(week_starts)
+    run_len = 0
+    prev = None
+    for wk in weeks_sorted:
+        run_len = run_len + 1 if prev is not None and (wk - prev).days == 7 else 1
+        prev = wk
+        if run_len >= weeks_needed:
+            return _to_dt(wk + timedelta(days=6))
+    return None
+
+
+def _first_match_date(activities: list[Activity], predicate) -> datetime | None:
+    for a in activities:
+        if a.date and predicate(a):
+            return a.date
+    return None
+
+
+def _first_crossing_date(activities: list[Activity], value_fn, threshold: float) -> datetime | None:
+    """Дата активности, на которой накопленная (по value_fn) сумма впервые достигла threshold."""
+    total = 0.0
+    for a in activities:
+        total += value_fn(a) or 0.0
+        if total >= threshold:
+            return a.date
+    return None
+
+
+def _monthly_crossing_date(activities: list[Activity], threshold: float) -> datetime | None:
+    """Дата активности, на которой сумма км за ЕЁ календарный месяц впервые достигла threshold."""
+    running: dict[tuple, float] = defaultdict(float)
+    for a in activities:
+        if not a.date or not a.distance_km:
+            continue
+        key = (a.date.year, a.date.month)
+        running[key] += a.distance_km
+        if running[key] >= threshold:
+            return a.date
+    return None
+
+
 def _collect_run_stats(user_id: int, db: Session) -> dict:
     activities = (
         db.query(Activity)
@@ -30,28 +94,12 @@ def _collect_run_stats(user_id: int, db: Session) -> dict:
         .all()
     )
 
-    monthly_totals: dict[tuple, float] = defaultdict(float)
     weekly_counts: dict = defaultdict(int)  # week_start (date, monday) -> кол-во пробежек
-
     for a in activities:
-        if not a.date:
-            continue
-        d = a.date.date() if hasattr(a.date, 'date') else a.date
-        if a.distance_km:
-            monthly_totals[(d.year, d.month)] += a.distance_km
-        week_start = d - timedelta(days=d.weekday())
-        weekly_counts[week_start] += 1
+        if a.date:
+            weekly_counts[_week_start(a.date)] += 1
 
-    return {
-        "activities": activities,
-        "total_count": len(activities),
-        "max_distance": max((a.distance_km or 0 for a in activities), default=0),
-        "total_distance": sum(a.distance_km or 0 for a in activities),
-        "max_elevation": max((a.elevation_gain or 0 for a in activities), default=0),
-        "total_elevation": sum(a.elevation_gain or 0 for a in activities),
-        "best_month": max(monthly_totals.values(), default=0),
-        "weekly_counts": weekly_counts,
-    }
+    return {"activities": activities, "weekly_counts": weekly_counts}
 
 
 def _collect_plan_stats(user_id: int, db: Session) -> dict:
@@ -66,104 +114,127 @@ def _collect_plan_stats(user_id: int, db: Session) -> dict:
         for w in db.query(Workout).filter(Workout.training_plan_id.in_([p.id for p in plans])).all():
             workouts_by_plan[w.training_plan_id].append(w)
 
-    perfect_week = False
+    perfect_week_date = None
     clean_weeks = set()
-    workout_types_completed = set()
+    variety_events: list[tuple[datetime, str]] = []  # (дата, workout_type) для completed/approximate
 
     for p in plans:
         ws = workouts_by_plan.get(p.id, [])
         non_rest = [w for w in ws if w.workout_type != "rest"]
-        if non_rest and all(w.completion_status == "completed" for w in non_rest):
-            perfect_week = True
+        if non_rest and all(w.completion_status == "completed" for w in non_rest) and perfect_week_date is None:
+            perfect_week_date = p.week_end_date or p.week_start_date
         if non_rest and all(w.completion_status != "unconfirmed" for w in non_rest):
-            wsd = p.week_start_date.date() if hasattr(p.week_start_date, 'date') else p.week_start_date
-            clean_weeks.add(wsd)
+            clean_weeks.add(_week_start(p.week_start_date))
         for w in ws:
             if w.completion_status in ("completed", "approximate"):
-                workout_types_completed.add(w.workout_type)
+                w_date = (w.activity.date if w.activity and w.activity.date else w.planned_date) or p.week_start_date
+                variety_events.append((w_date, w.workout_type))
 
-    goal_achieved = (
-        db.query(Goal).filter(Goal.user_id == user_id, Goal.is_achieved == True).first() is not None
+    variety_events.sort(key=lambda x: x[0])
+
+    goals_achieved = (
+        db.query(Goal)
+        .filter(Goal.user_id == user_id, Goal.is_achieved == True)
+        .order_by(Goal.updated_at.asc())
+        .all()
     )
 
     return {
-        "perfect_week": perfect_week,
-        "clean_week_streak": _longest_consecutive_week_run(clean_weeks),
-        "workout_type_variety": len(workout_types_completed),
-        "goal_achieved": goal_achieved,
+        "perfect_week_date": perfect_week_date,
+        "clean_weeks": clean_weeks,
+        "variety_events": variety_events,
+        "goals_achieved": goals_achieved,
     }
 
 
-def _check(d: dict, stats: dict, plan_stats: dict) -> bool:
+def _evaluate(d: dict, stats: dict, plan_stats: dict) -> datetime | None:
+    """Возвращает дату, когда достижение было заслужено, либо None, если ещё не заслужено."""
     t = d["type"]
+    activities = stats["activities"]
 
     if t == "count":
-        return stats["total_count"] >= d["value"]
+        n = d["value"]
+        return activities[n - 1].date if len(activities) >= n else None
+
     if t == "distance":
         # Дистанцию нужно пробежать (можно больше — без потолка), но допускаем
         # погрешность GPS-трека в 0.5% в меньшую сторону, иначе честный полумарафон
         # на 21.0км (а не ровно 21.0975) не засчитался бы.
-        return stats["max_distance"] >= d["value"] * 0.995
+        threshold = d["value"] * 0.995
+        return _first_match_date(activities, lambda a: (a.distance_km or 0) >= threshold)
+
     if t == "total_distance":
-        return stats["total_distance"] >= d["value"]
+        return _first_crossing_date(activities, lambda a: a.distance_km, d["value"])
+
     if t == "monthly_volume":
-        return stats["best_month"] >= d["value"]
+        return _monthly_crossing_date(activities, d["value"])
+
     if t == "elevation":
-        return stats["max_elevation"] >= d["value"]
+        return _first_match_date(activities, lambda a: (a.elevation_gain or 0) >= d["value"])
+
     if t == "elevation_total":
-        return stats["total_elevation"] >= d["value"]
+        return _first_crossing_date(activities, lambda a: a.elevation_gain, d["value"])
 
     if t == "streak":
         min_per_week = d.get("min_per_week", 3)
         qualifying = {wk for wk, cnt in stats["weekly_counts"].items() if cnt >= min_per_week}
-        return _longest_consecutive_week_run(qualifying) >= d["weeks"]
+        return _streak_completion_date(qualifying, d["weeks"])
 
     if t == "pace":
         target_km = d["distance_km"]
         required_pace = d["max_time_min"] / target_km
-        return any(
-            a.distance_km and a.pace_min_per_km
+        return _first_match_date(
+            activities,
+            lambda a: a.distance_km and a.pace_min_per_km
             and a.distance_km >= target_km * 0.95
-            and a.pace_min_per_km <= required_pace
-            for a in stats["activities"]
+            and a.pace_min_per_km <= required_pace,
         )
 
     if t == "comeback":
         gap_days = d.get("gap_days", 30)
-        acts = stats["activities"]
-        return any(
-            a.date and b.date and (b.date - a.date).days >= gap_days
-            for a, b in zip(acts, acts[1:])
-        )
+        for a, b in zip(activities, activities[1:]):
+            if a.date and b.date and (b.date - a.date).days >= gap_days:
+                return b.date
+        return None
 
     if t == "time_of_day":
         if "before_hour" in d:
-            return any(a.date and a.date.hour < d["before_hour"] for a in stats["activities"])
+            return _first_match_date(activities, lambda a: a.date.hour < d["before_hour"])
         if "after_hour" in d:
-            return any(a.date and a.date.hour >= d["after_hour"] for a in stats["activities"])
-        return False
+            return _first_match_date(activities, lambda a: a.date.hour >= d["after_hour"])
+        return None
 
     if t == "plan_adherence":
         if d.get("mode") == "perfect_week":
-            return plan_stats["perfect_week"]
+            return _to_dt(plan_stats["perfect_week_date"])
         if d.get("mode") == "discipline":
-            return plan_stats["clean_week_streak"] >= d.get("weeks", 4)
-        return False
+            return _streak_completion_date(plan_stats["clean_weeks"], d.get("weeks", 4))
+        return None
 
     if t == "goal":
-        return plan_stats["goal_achieved"]
+        goals = plan_stats["goals_achieved"]
+        if not goals:
+            return None
+        first = goals[0]
+        return _to_dt(first.updated_at or first.created_at)
 
     if t == "variety":
-        return plan_stats["workout_type_variety"] >= d.get("min_types", 4)
+        min_types = d.get("min_types", 4)
+        seen = set()
+        for event_date, wtype in plan_stats["variety_events"]:
+            seen.add(wtype)
+            if len(seen) >= min_types:
+                return _to_dt(event_date)
+        return None
 
-    return False
+    return None
 
 
 def recompute_badge_achievements(user_id: int, db: Session) -> None:
-    already = {
-        ua.achievement_key
-        for ua in db.query(UserAchievement).filter(UserAchievement.user_id == user_id).all()
-    }
+    already_rows = db.query(UserAchievement).filter(UserAchievement.user_id == user_id).all()
+    already = {ua.achievement_key for ua in already_rows}
+    earned_at_by_key = {ua.achievement_key: ua.earned_at for ua in already_rows}
+
     remaining = [d for d in ACHIEVEMENT_DEFS if d["key"] not in already]
     if not remaining:
         return
@@ -171,21 +242,24 @@ def recompute_badge_achievements(user_id: int, db: Session) -> None:
     stats = _collect_run_stats(user_id, db)
     plan_stats = _collect_plan_stats(user_id, db)
 
-    newly_earned = set()
+    newly_earned: dict[str, datetime] = {}
     for d in remaining:
         if d["type"] == "meta":
             continue  # мета-достижение оценивается последним, после всех остальных
-        if _check(d, stats, plan_stats):
-            newly_earned.add(d["key"])
+        earned_at = _evaluate(d, stats, plan_stats)
+        if earned_at is not None:
+            newly_earned[d["key"]] = earned_at
 
-    unlocked_after = already | newly_earned
+    unlocked_after = already | newly_earned.keys()
     for d in remaining:
         if d["type"] != "meta":
             continue
         required = {k for k in (x["key"] for x in ACHIEVEMENT_DEFS) if k not in d.get("exclude", []) and k != d["key"]}
         if required <= unlocked_after:
-            newly_earned.add(d["key"])
+            dates = [earned_at_by_key.get(k) or newly_earned.get(k) for k in required]
+            dates = [dt for dt in dates if dt is not None]
+            newly_earned[d["key"]] = max(dates) if dates else datetime.now()
 
-    for key in newly_earned:
-        db.add(UserAchievement(user_id=user_id, achievement_key=key))
+    for key, earned_at in newly_earned.items():
+        db.add(UserAchievement(user_id=user_id, achievement_key=key, earned_at=earned_at))
     db.commit()
