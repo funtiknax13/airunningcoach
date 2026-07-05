@@ -25,7 +25,7 @@ export const useActivitiesStore = defineStore('activities', () => {
 
   async function create(data: ActivityCreate) {
     const result = await activitiesApi.create(data)
-    if (result.ai_analysis) useChatStore().setUnread()
+    if (result.ai_analysis_pending) useChatStore().setUnread()
     await load()
   }
 

@@ -1,6 +1,5 @@
 # app/routers/activities.py
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
-from starlette.concurrency import run_in_threadpool
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, UploadFile, File
 from sqlalchemy.orm import Session
 from typing import List
 from datetime import datetime, date
@@ -30,6 +29,7 @@ def _match_workout(activity: Activity, user_id: int, db: Session) -> None:
 @router.post("", response_model=ActivityWithAnalysis)
 def create_activity(
     activity: ActivityCreate,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -55,19 +55,21 @@ def create_activity(
     invalidate_insights_cache(current_user.id, db)
     recompute_achievements(current_user.id, db)
 
-    # Автоанализ для сегодняшних/вчерашних тренировок
-    ai_analysis = None
+    # Автоанализ для сегодняшних/вчерашних тренировок — уходит в фон (реальный
+    # сетевой вызов DeepSeek, может занять несколько секунд), не держим ответ клиенту.
     act_date = db_activity.date.date() if hasattr(db_activity.date, 'date') else db_activity.date
-    if (date.today() - act_date).days <= 1:
-        ai_analysis = analyze_new_activity(db_activity, current_user, db)
+    pending = (date.today() - act_date).days <= 1
+    if pending:
+        background_tasks.add_task(analyze_new_activity, db_activity, current_user, db)
 
     result = ActivityWithAnalysis.model_validate(db_activity)
-    result.ai_analysis = ai_analysis or None
+    result.ai_analysis_pending = pending
     return result
 
 
 @router.post("/import", response_model=ActivityWithAnalysis)
 async def import_activity_file(
+    background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -131,17 +133,14 @@ async def import_activity_file(
     invalidate_insights_cache(current_user.id, db)
     recompute_achievements(current_user.id, db)
 
-    # Автоанализ для сегодняшних/вчерашних тренировок
-    ai_analysis = None
+    # Автоанализ для сегодняшних/вчерашних тренировок — в фон (см. create_activity)
     act_date = db_activity.date.date() if hasattr(db_activity.date, 'date') else db_activity.date
-    if (date.today() - act_date).days <= 1:
-        # Блокирующий вызов DeepSeek → в threadpool, чтобы не морозить event loop
-        ai_analysis = await run_in_threadpool(
-            analyze_new_activity, db_activity, current_user, db
-        )
+    pending = (date.today() - act_date).days <= 1
+    if pending:
+        background_tasks.add_task(analyze_new_activity, db_activity, current_user, db)
 
     result = ActivityWithAnalysis.model_validate(db_activity)
-    result.ai_analysis = ai_analysis or None
+    result.ai_analysis_pending = pending
     return result
 
 

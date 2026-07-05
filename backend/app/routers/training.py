@@ -1,5 +1,5 @@
 # app/routers/training.py
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
 
@@ -97,6 +97,7 @@ def get_active_plan(
 @router.put("/workouts/{workout_id}/complete", response_model=WorkoutWithAnalysis)
 def complete_workout(
     workout_id: int,
+    background_tasks: BackgroundTasks,
     notes: str = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -121,12 +122,14 @@ def complete_workout(
     db.commit()
     db.refresh(workout)
 
-    ai_analysis = None
-    if activity is not None:
-        ai_analysis = analyze_workout_completion(workout, activity, current_user, db)
+    # Комментарий тренера — в фон, тот же принцип, что и для активностей
+    # (реальный вызов DeepSeek не должен держать ответ на клик "отметить").
+    pending = activity is not None
+    if pending:
+        background_tasks.add_task(analyze_workout_completion, workout, activity, current_user, db)
 
     result = WorkoutWithAnalysis.model_validate(workout)
-    result.ai_analysis = ai_analysis or None
+    result.ai_analysis_pending = pending
     return result
 
 

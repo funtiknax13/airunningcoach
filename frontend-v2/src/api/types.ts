@@ -143,6 +143,7 @@ export interface ActivityDetail extends Activity {
 
 export interface ActivityWithAnalysis extends Activity {
   ai_analysis: string | null
+  ai_analysis_pending: boolean
 }
 
 // ── Goals ─────────────────────────────────────────────────────────────────
@@ -199,6 +200,7 @@ export interface Workout {
 
 export interface WorkoutWithAnalysis extends Workout {
   ai_analysis: string | null
+  ai_analysis_pending: boolean
 }
 
 export interface TrainingPlan {

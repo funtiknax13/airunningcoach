@@ -137,6 +137,7 @@ class ActivityResponse(BaseModel):
 
 class ActivityWithAnalysis(ActivityResponse):
     ai_analysis: Optional[str] = None
+    ai_analysis_pending: bool = False
 
 
 class ActivityUpdate(BaseModel):
@@ -220,6 +221,7 @@ class WorkoutResponse(BaseModel):
 
 class WorkoutWithAnalysis(WorkoutResponse):
     ai_analysis: Optional[str] = None
+    ai_analysis_pending: bool = False
 
 
 class TrainingPlanResponse(BaseModel):

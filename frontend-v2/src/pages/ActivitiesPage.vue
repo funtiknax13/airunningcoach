@@ -167,7 +167,7 @@ async function onFileSelected(e: Event) {
   importError.value = ''
   try {
     const result = await activitiesApi.importFile(file)
-    if (result.ai_analysis) useChatStore().setUnread()
+    if (result.ai_analysis_pending) useChatStore().setUnread()
     await store.load()
   } catch (err: any) {
     if (err instanceof ApiError && err.status === 409 &&
