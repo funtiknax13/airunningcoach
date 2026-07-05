@@ -100,7 +100,10 @@ def _check(d: dict, stats: dict, plan_stats: dict) -> bool:
     if t == "count":
         return stats["total_count"] >= d["value"]
     if t == "distance":
-        return stats["max_distance"] >= d["value"]
+        # Дистанцию нужно пробежать (можно больше — без потолка), но допускаем
+        # погрешность GPS-трека в 0.5% в меньшую сторону, иначе честный полумарафон
+        # на 21.0км (а не ровно 21.0975) не засчитался бы.
+        return stats["max_distance"] >= d["value"] * 0.995
     if t == "total_distance":
         return stats["total_distance"] >= d["value"]
     if t == "monthly_volume":
