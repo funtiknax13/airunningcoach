@@ -95,8 +95,8 @@ def get_chat_history(
     messages = (
         db.query(ChatMessage)
         .filter(ChatMessage.user_id == current_user.id)
-        .order_by(ChatMessage.id.asc())
+        .order_by(ChatMessage.id.desc())
         .limit(limit)
         .all()
     )
-    return messages
+    return list(reversed(messages))

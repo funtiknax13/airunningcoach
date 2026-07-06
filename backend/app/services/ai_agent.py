@@ -9,6 +9,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import re
 from datetime import datetime, timedelta
 from typing import Optional
 
@@ -51,10 +52,12 @@ SYSTEM_PROMPT = """\
 
 ## Даты и цели — важно
 - Ориентируйся на дату «СЕГОДНЯ» в блоке контекста ниже, а не на даты из старых сообщений \
-  истории переписки (у каждого сообщения истории в квадратных скобках указана дата, когда \
-  оно было написано — оно могло устареть).
+  истории переписки (сообщения пользователя в истории помечены датой в квадратных скобках, \
+  когда они были написаны — это могло устареть).
 - Если цель упоминалась в истории переписки, но сейчас не входит в текущий список активных \
-  или отменённых целей ниже — она больше не актуальна, не советуй по ней как по действующей.\
+  или отменённых целей ниже — она больше не актуальна, не советуй по ней как по действующей.
+- Никогда не добавляй в начало СВОЕГО ответа пометку вида «[ДД.ММ.ГГГГ]» — это техническая \
+  метка только для сообщений пользователя в истории, не элемент твоего стиля общения.\
 """
 
 
@@ -227,16 +230,33 @@ def _build_user_context(user: User, db: Session) -> str:
 def _build_history(messages: list[ChatMessage]) -> list[dict]:
     """Конвертирует историю чата в формат OpenAI messages.
 
-    Каждое сообщение помечается датой, когда оно было написано — без этого модель
-    не может отличить «это было актуально тогда» от «это происходит сейчас» и
-    путает старые даты/цели из истории с текущим положением дел.
+    Только сообщения ПОЛЬЗОВАТЕЛЯ помечаются датой, когда они были написаны — без
+    этого модель не может отличить «это было актуально тогда» от «это происходит
+    сейчас» и путает старые даты/цели из истории с текущим положением дел.
+    Ответы самого агента датой НЕ помечаются: иначе модель видит в истории свои
+    же прошлые ответы с префиксом и начинает имитировать его в новых ответах —
+    а на следующем вызове сюда добавляется ещё один префикс поверх уже
+    сгенерированного моделью, и дата дублируется с каждым ходом (было замечено
+    в проде: "[05.07.2026] [05.07.2026] [05.07.2026] ...").
     """
     result = []
     for m in messages[-20:]:  # последние 20 сообщений = ~контекст 10 ходов
         role = "user" if m.role == "user" else "assistant"
-        prefix = f"[{m.created_at.strftime('%d.%m.%Y')}] " if m.created_at else ""
-        result.append({"role": role, "content": f"{prefix}{m.content}"})
+        if role == "user" and m.created_at:
+            content = f"[{m.created_at.strftime('%d.%m.%Y')}] {m.content}"
+        else:
+            content = m.content
+        result.append({"role": role, "content": content})
     return result
+
+
+_DATE_PREFIX_RE = re.compile(r"^(?:\[\d{2}\.\d{2}\.\d{4}\]\s*)+")
+
+
+def _strip_date_prefix(text: str) -> str:
+    """Защитная зачистка — на случай, если модель всё же имитирует префикс [ДД.ММ.ГГГГ]
+    из истории в своём ответе, убираем его перед сохранением/показом пользователю."""
+    return _DATE_PREFIX_RE.sub("", text).strip()
 
 
 # ── Публичные функции ─────────────────────────────────────────────────────────
@@ -268,7 +288,7 @@ async def chat_response(
             max_tokens=800,
             temperature=0.7,
         )
-        return resp.choices[0].message.content.strip()
+        return _strip_date_prefix(resp.choices[0].message.content.strip())
     except Exception as e:
         logger.error("DeepSeek chat error: %s", e)
         return "Извините, AI-тренер временно недоступен. Попробуйте позже."
@@ -316,7 +336,7 @@ def analyze_new_activity(activity, user: User, db: Session) -> str:
             max_tokens=600,
             temperature=0.7,
         )
-        ai_text = resp.choices[0].message.content.strip()
+        ai_text = _strip_date_prefix(resp.choices[0].message.content.strip())
     except Exception as e:
         logger.error("DeepSeek analyze_new_activity error: %s", e)
         return ""
@@ -372,7 +392,7 @@ def analyze_workout_completion(workout, activity, user: User, db: Session) -> st
             max_tokens=600,
             temperature=0.7,
         )
-        ai_text = resp.choices[0].message.content.strip()
+        ai_text = _strip_date_prefix(resp.choices[0].message.content.strip())
     except Exception as e:
         logger.error("DeepSeek analyze_workout_completion error: %s", e)
         return ""
