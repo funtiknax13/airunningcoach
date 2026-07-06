@@ -113,6 +113,8 @@ def complete_workout(
     )
     if not workout:
         raise HTTPException(status_code=404, detail="Workout not found")
+    if workout.workout_type == "rest":
+        raise HTTPException(status_code=400, detail="День отдыха не требует подтверждения")
 
     activity = find_matching_activity_for_workout(workout, current_user.id, db)
     apply_verdict(workout, activity)

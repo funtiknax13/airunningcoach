@@ -44,8 +44,12 @@
             </div>
           </div>
           <div class="workout-action">
+            <!-- Rest day: nothing to confirm, no button at all -->
+            <span v-if="isRest(w.workout_type)" class="badge badge-rest">
+              <i class="fas fa-moon"></i> {{ $t('plan.status.restDay') }}
+            </span>
             <!-- Completed: badge + undo button -->
-            <template v-if="w.completion_status === 'completed' || w.completion_status === 'approximate'">
+            <template v-else-if="w.completion_status === 'completed' || w.completion_status === 'approximate'">
               <span class="badge" :class="w.completion_status === 'completed' ? 'badge-done' : 'badge-approx'">
                 {{ w.completion_status === 'completed' ? $t('plan.status.done') : $t('plan.status.approx') }}
               </span>
