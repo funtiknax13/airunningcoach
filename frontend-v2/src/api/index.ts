@@ -24,7 +24,9 @@ export const authApi = {
 
   logout: () => setToken(null),
 
-  me: () => api.request<UserResponse>('/api/auth/me'),
+  // Короткий таймаут: это лёгкая проверка сессии, которая блокирует рендер всего
+  // приложения (router.beforeEach ждёт её) — не должна висеть по 2 минуты, как AI-эндпоинты.
+  me: () => api.request<UserResponse>('/api/auth/me', 'GET', undefined, 8_000),
 
   updateProfile: (d: UserUpdate) => api.request<UserResponse>('/api/auth/me', 'PATCH', d),
 

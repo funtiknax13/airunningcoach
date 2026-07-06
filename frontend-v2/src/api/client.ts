@@ -28,9 +28,9 @@ export function isAuthenticated(): boolean {
 // но не бесконечный, чтобы мёртвое соединение не висело вечно.
 const TIMEOUT_MS = 120_000
 
-async function fetchWithTimeout(url: string, init: RequestInit): Promise<Response> {
+async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs = TIMEOUT_MS): Promise<Response> {
   const ctrl = new AbortController()
-  const timer = setTimeout(() => ctrl.abort(), TIMEOUT_MS)
+  const timer = setTimeout(() => ctrl.abort(), timeoutMs)
   try {
     return await fetch(url, { ...init, signal: ctrl.signal })
   } catch (e) {
@@ -48,6 +48,7 @@ async function request<T>(
   path: string,
   method = 'GET',
   body?: unknown,
+  timeoutMs?: number,
 ): Promise<T> {
   const headers: Record<string, string> = { 'Content-Type': 'application/json' }
   const token = getToken()
@@ -57,7 +58,7 @@ async function request<T>(
     method,
     headers,
     body: body !== undefined ? JSON.stringify(body) : undefined,
-  })
+  }, timeoutMs)
 
   if (res.status === 204) return undefined as T
 
