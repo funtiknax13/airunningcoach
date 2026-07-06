@@ -16,6 +16,65 @@ try:
 except ImportError:
     _AVAILABLE = False
 
+if _AVAILABLE:
+    from fitparse.records import (
+        BASE_TYPES, BASE_TYPE_BYTE, FieldDefinition, DevFieldDefinition,
+        DefinitionMessage, get_dev_type,
+    )
+    from fitparse.profile import MESSAGE_TYPES
+
+    def _lenient_parse_definition_message(self, header):
+        """Заменяет fitparse.base.FitFile._parse_definition_message.
+
+        Апстрим падает с FitParseError, если размер поля не кратен размеру его
+        типа (встречается у некоторых устройств — сам fitparse признаёт в
+        комментарии "we could fall back to byte encoding... for now, just
+        throw"). Мы делаем этот фолбэк: читаем поле как сырые байты вместо
+        краха всего файла — смещение остальных полей не меняется, теряется
+        только типизация этого одного поля.
+        """
+        endian = '>' if self._read_struct('xB') else '<'
+        global_mesg_num, num_fields = self._read_struct('HB', endian=endian)
+        mesg_type = MESSAGE_TYPES.get(global_mesg_num)
+        field_defs = []
+
+        for _ in range(num_fields):
+            field_def_num, field_size, base_type_num = self._read_struct('3B', endian=endian)
+            field = mesg_type.fields.get(field_def_num) if mesg_type else None
+            base_type = BASE_TYPES.get(base_type_num, BASE_TYPE_BYTE)
+
+            if (field_size % base_type.size) != 0:
+                base_type = BASE_TYPE_BYTE
+
+            if field and field.components:
+                for component in field.components:
+                    if component.accumulate:
+                        accumulators = self._accumulators.setdefault(global_mesg_num, {})
+                        accumulators[component.def_num] = 0
+
+            field_defs.append(FieldDefinition(
+                field=field, def_num=field_def_num, base_type=base_type, size=field_size,
+            ))
+
+        dev_field_defs = []
+        if header.is_developer_data:
+            num_dev_fields = self._read_struct('B', endian=endian)
+            for _ in range(num_dev_fields):
+                field_def_num, field_size, dev_data_index = self._read_struct('3B', endian=endian)
+                field = get_dev_type(dev_data_index, field_def_num)
+                dev_field_defs.append(DevFieldDefinition(
+                    field=field, dev_data_index=dev_data_index, def_num=field_def_num, size=field_size,
+                ))
+
+        def_mesg = DefinitionMessage(
+            header=header, endian=endian, mesg_type=mesg_type, mesg_num=global_mesg_num,
+            field_defs=field_defs, dev_field_defs=dev_field_defs,
+        )
+        self._local_mesgs[header.local_mesg_num] = def_mesg
+        return def_mesg
+
+    fitparse.base.FitFile._parse_definition_message = _lenient_parse_definition_message
+
 
 def _to_utc(dt: Optional[datetime]) -> Optional[datetime]:
     if dt is None: return None
@@ -70,23 +129,26 @@ def parse_fit(content: bytes) -> dict:
     if not _AVAILABLE:
         raise ValueError("Библиотека fitparse не установлена. Используйте GPX-формат.")
 
-    ff = fitparse.FitFile(content)
+    try:
+        ff = fitparse.FitFile(content)
 
-    # ── Читаем все сообщения ──────────────────────────────────────────────────
-    session_data = {}
-    lap_msgs     = []
-    records      = []
+        # ── Читаем все сообщения ────────────────────────────────────────────
+        session_data = {}
+        lap_msgs     = []
+        records      = []
 
-    for msg in ff.get_messages():
-        name = msg.name
-        data = {f.name: f.value for f in msg if f.value is not None}
+        for msg in ff.get_messages():
+            name = msg.name
+            data = {f.name: f.value for f in msg if f.value is not None}
 
-        if name == "session":
-            session_data = data
-        elif name == "lap":
-            lap_msgs.append(data)
-        elif name == "record":
-            records.append(data)
+            if name == "session":
+                session_data = data
+            elif name == "lap":
+                lap_msgs.append(data)
+            elif name == "record":
+                records.append(data)
+    except fitparse.utils.FitParseError:
+        raise ValueError("Не удалось прочитать FIT-файл — он повреждён или экспортирован в нестандартном формате. Попробуйте экспортировать тренировку в GPX.")
 
     # ── Тип активности из session.sport ─────────────────────────────────────
     _FIT_SPORT_MAP = {
