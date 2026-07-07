@@ -7,6 +7,11 @@ const API_TARGET = process.env.VITE_API_TARGET ?? 'http://localhost:8000'
 
 export default defineConfig({
   plugins: [vue()],
+  // Меняется на каждой сборке — используется как ключ версии для localStorage-кеша
+  // стора (utils/cache.ts), чтобы новый деплой автоматически сбрасывал старый кеш.
+  define: {
+    __BUILD_ID__: JSON.stringify(Date.now().toString()),
+  },
   resolve: {
     alias: { '@': resolve(__dirname, 'src') },
   },

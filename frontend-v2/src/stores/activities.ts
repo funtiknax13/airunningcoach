@@ -2,12 +2,15 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { activitiesApi } from '@/api'
 import { useChatStore } from '@/stores/chat'
+import { loadCache, saveCache } from '@/utils/cache'
 import type { Activity, ActivityCreate, ActivityUpdate } from '@/api/types'
 
 const PAGE_SIZE = 7
 
 export const useActivitiesStore = defineStore('activities', () => {
-  const all     = ref<Activity[]>([])
+  // Гидратируем из localStorage синхронно — на перезагрузке страницы список
+  // не пустой, пока load() тихо не обновит его свежими данными с сервера.
+  const all     = ref<Activity[]>(loadCache<Activity[]>('activities') ?? [])
   const page    = ref(0)
   const loading = ref(false)
 
@@ -19,8 +22,10 @@ export const useActivitiesStore = defineStore('activities', () => {
 
   async function load() {
     loading.value = true
-    try { all.value = await activitiesApi.list() }
-    finally { loading.value = false }
+    try {
+      all.value = await activitiesApi.list()
+      saveCache('activities', all.value)
+    } finally { loading.value = false }
   }
 
   async function create(data: ActivityCreate) {

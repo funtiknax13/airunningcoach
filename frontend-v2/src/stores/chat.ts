@@ -2,10 +2,11 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { chatApi } from '@/api'
 import { i18n } from '@/i18n'
+import { loadCache, saveCache } from '@/utils/cache'
 import type { ChatMessage } from '@/api/types'
 
 export const useChatStore = defineStore('chat', () => {
-  const messages  = ref<ChatMessage[]>([])
+  const messages  = ref<ChatMessage[]>(loadCache<ChatMessage[]>('chat') ?? [])
   const typing    = ref(false)
   const hasUnread = ref(localStorage.getItem('ai_unread') === '1')
 
@@ -20,6 +21,7 @@ export const useChatStore = defineStore('chat', () => {
 
   async function load() {
     messages.value = await chatApi.history()
+    saveCache('chat', messages.value)
   }
 
   async function send(text: string) {
@@ -44,6 +46,7 @@ export const useChatStore = defineStore('chat', () => {
       })
     } finally {
       typing.value = false
+      saveCache('chat', messages.value)
     }
   }
 

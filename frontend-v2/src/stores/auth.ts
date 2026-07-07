@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { authApi } from '@/api'
 import { api, isAuthenticated, ApiError } from '@/api/client'
+import { clearCache } from '@/utils/cache'
 import type { UserResponse, UserUpdate, PasswordChange } from '@/api/types'
 
 export const useAuthStore = defineStore('auth', () => {
@@ -28,6 +29,7 @@ export const useAuthStore = defineStore('auth', () => {
 
   function logout() {
     authApi.logout()
+    clearCache()
     user.value = null
     loggedIn.value = false
   }
