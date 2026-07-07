@@ -63,10 +63,10 @@
             <p>{{ $t('activities.empty') }}</p>
           </div>
           <div v-else v-for="act in recentActivities" :key="act.id" class="activity-row">
-            <div class="activity-row-icon"><i class="fas fa-person-running"></i></div>
+            <div class="activity-row-icon"><i :class="activityIcon(act.activity_type)"></i></div>
             <div class="activity-row-info">
               <div class="activity-row-date">{{ formatDate(act.date) }}</div>
-              <div class="activity-row-note">{{ act.notes || $t('dash.run') }}</div>
+              <div class="activity-row-note">{{ act.notes || activityLabel(act.activity_type, locale) }}</div>
             </div>
             <div class="activity-row-stats">
               <div class="activity-stat">
@@ -197,6 +197,7 @@ import WeeklyVolumeChart from '@/components/dashboard/WeeklyVolumeChart.vue'
 import { useActivitiesStore } from '@/stores/activities'
 import { useGoalsStore }      from '@/stores/goals'
 import { useInsightsStore }   from '@/stores/insights'
+import { activityIcon, activityLabel } from '@/utils/activity'
 import { useTrainingStore }   from '@/stores/training'
 import { activitiesApi }      from '@/api'
 import type { GoalType, MonthlyStats } from '@/api/types'

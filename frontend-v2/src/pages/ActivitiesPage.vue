@@ -115,6 +115,7 @@ import { useChatStore } from '@/stores/chat'
 import { useDialog } from '@/composables/useDialog'
 import { activitiesApi } from '@/api'
 import { ApiError } from '@/api/client'
+import { activityIcon, activityLabel as sharedActivityLabel } from '@/utils/activity'
 
 const { t, locale } = useI18n()
 const store     = useActivitiesStore()
@@ -182,33 +183,8 @@ async function onFileSelected(e: Event) {
   }
 }
 
-const ACTIVITY_ICONS: Record<string, string> = {
-  run:      'fas fa-person-running',
-  ride:     'fas fa-bicycle',
-  walk:     'fas fa-person-walking',
-  hike:     'fas fa-mountain',
-  swim:     'fas fa-person-swimming',
-  strength: 'fas fa-dumbbell',
-  workout:  'fas fa-heart-pulse',
-  other:    'fas fa-bolt',
-}
-function activityIcon(type: string): string {
-  return ACTIVITY_ICONS[type] ?? 'fas fa-person-running'
-}
-
-const ACTIVITY_LABELS: Record<string, Record<string, string>> = {
-  run:      { ru: 'Пробежка', en: 'Run' },
-  ride:     { ru: 'Велопоездка', en: 'Ride' },
-  walk:     { ru: 'Прогулка', en: 'Walk' },
-  hike:     { ru: 'Поход', en: 'Hike' },
-  swim:     { ru: 'Плавание', en: 'Swim' },
-  strength: { ru: 'Силовая', en: 'Strength' },
-  workout:  { ru: 'Тренировка', en: 'Workout' },
-  other:    { ru: 'Активность', en: 'Activity' },
-}
 function activityLabel(type: string): string {
-  const lang = locale.value === 'ru' ? 'ru' : 'en'
-  return ACTIVITY_LABELS[type]?.[lang] ?? (lang === 'ru' ? 'Пробежка' : 'Run')
+  return sharedActivityLabel(type, locale.value)
 }
 
 function formatPace(p: number) {
