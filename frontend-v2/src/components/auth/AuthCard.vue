@@ -152,7 +152,15 @@ onMounted(() => {
 })
 
 async function afterLogin() {
-  await Promise.all([activities.load(), goals.load(), training.load(), chat.load(), insights.load()])
+  // Дашборд сам перезагрузит эти данные — не блокируем переход туда, если
+  // один из preload-запросов упадёт (иначе успешный логин показывает ошибку).
+  await Promise.all([
+    activities.load().catch(() => {}),
+    goals.load().catch(() => {}),
+    training.load().catch(() => {}),
+    chat.load().catch(() => {}),
+    insights.load().catch(() => {}),
+  ])
   router.push('/dashboard')
 }
 

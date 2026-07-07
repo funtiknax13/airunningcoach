@@ -133,7 +133,7 @@ class Workout(Base):
     planned_date      = Column(DateTime, nullable=True)       # конкретная дата тренировки
     completed         = Column(Boolean, default=False)
     completion_status = Column(String(20), default="none")  # none | completed | approximate | unconfirmed
-    activity_id       = Column(Integer, ForeignKey("activities.id"), nullable=True)  # подтверждающая пробежка
+    activity_id       = Column(Integer, ForeignKey("activities.id", ondelete="SET NULL"), nullable=True)  # подтверждающая пробежка
     notes_after = Column(Text)  # заметки после выполнения
 
     training_plan = relationship("TrainingPlan", back_populates="workouts")
@@ -179,7 +179,7 @@ class PersonalRecord(Base):
     id            = Column(Integer, primary_key=True, index=True)
     user_id       = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
     distance_key  = Column(String(30), nullable=False)  # ...marathon | "longest" (самая длинная дистанция, без разряда)
-    activity_id   = Column(Integer, ForeignKey("activities.id"), nullable=False)
+    activity_id   = Column(Integer, ForeignKey("activities.id", ondelete="CASCADE"), nullable=False)
     distance_km   = Column(Float, nullable=True)  # фактическая дистанция активности
     time_sec      = Column(Float, nullable=False)
     achieved_rank = Column(String(10), nullable=True)  # msmk | ms | kms | r1 | r2 | r3 | None
@@ -202,7 +202,7 @@ class UserAchievement(Base):
     user_id         = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
     achievement_key = Column(String(40), nullable=False)
     earned_at       = Column(DateTime(timezone=True), server_default=func.now())
-    activity_id     = Column(Integer, ForeignKey("activities.id"), nullable=True)
+    activity_id     = Column(Integer, ForeignKey("activities.id", ondelete="SET NULL"), nullable=True)
 
     user = relationship("User")
     activity = relationship("Activity")

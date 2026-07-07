@@ -15,6 +15,28 @@ from app.services.trial_emails import start_scheduler, stop_scheduler
 
 Base.metadata.create_all(bind=engine)
 
+def _fk_ondelete_sql(table: str, column: str, on_delete: str) -> str:
+    """DO-блок: находит текущее имя FK-constraint'а на table.column (создан
+    Base.metadata.create_all с дефолтным именем) и пересоздаёт с ON DELETE."""
+    return f"""
+    DO $$
+    DECLARE r RECORD;
+    BEGIN
+        FOR r IN
+            SELECT tc.constraint_name
+            FROM information_schema.table_constraints tc
+            JOIN information_schema.key_column_usage kcu
+              ON tc.constraint_name = kcu.constraint_name AND tc.table_schema = kcu.table_schema
+            WHERE tc.constraint_type = 'FOREIGN KEY'
+              AND tc.table_name = '{table}'
+              AND kcu.column_name = '{column}'
+        LOOP
+            EXECUTE format('ALTER TABLE {table} DROP CONSTRAINT %I', r.constraint_name);
+        END LOOP;
+        EXECUTE 'ALTER TABLE {table} ADD CONSTRAINT {table}_{column}_fkey FOREIGN KEY ({column}) REFERENCES activities(id) ON DELETE {on_delete}';
+    END $$;
+    """
+
 def _migrate():
     """Добавляет новые колонки к существующим таблицам (идемпотентно)."""
     migrations = [
@@ -27,6 +49,13 @@ def _migrate():
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS gender VARCHAR(10)",
         "ALTER TABLE personal_records ADD COLUMN IF NOT EXISTS distance_km FLOAT",
         "ALTER TABLE workouts ADD COLUMN IF NOT EXISTS activity_id INTEGER",
+        # activity_id FK-и изначально создались без ON DELETE — удаление пробежки,
+        # на которую ссылается тренировка/рекорд/достижение, падало с ForeignKeyViolation.
+        # Пересоздаём с ON DELETE SET NULL (история сохраняется) / CASCADE (рекорд
+        # пересчитывается в recompute_achievements сразу после удаления).
+        _fk_ondelete_sql("workouts", "activity_id", "SET NULL"),
+        _fk_ondelete_sql("personal_records", "activity_id", "CASCADE"),
+        _fk_ondelete_sql("user_achievements", "activity_id", "SET NULL"),
     ]
     with engine.connect() as conn:
         for sql in migrations:

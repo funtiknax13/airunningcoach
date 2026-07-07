@@ -211,11 +211,13 @@ const pageLoading  = ref(true)
 const monthlyStats = ref<MonthlyStats | null>(null)
 
 onMounted(async () => {
-  // Быстрые данные — ждём (activities, goals, training, месячная статистика)
+  // Быстрые данные — ждём (activities, goals, training, месячная статистика).
+  // .catch на всех — если один запрос упадёт (сеть/деплой/таймаут), скелетон
+  // не должен зависать навсегда: страница показывается с тем, что удалось загрузить.
   await Promise.all([
-    activities.load(),
-    goals.load(),
-    training.load(),
+    activities.load().catch(() => {}),
+    goals.load().catch(() => {}),
+    training.load().catch(() => {}),
     activitiesApi.stats().then(s => { monthlyStats.value = s }).catch(() => {}),
   ])
   pageLoading.value = false
