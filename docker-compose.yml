@@ -2,15 +2,15 @@ services:
 
   postgres:
     image: postgres:16-alpine
-    restart: unless-stopped
-    mem_limit: 256m
+    restart: always
+    mem_limit: 384m
     environment:
       POSTGRES_DB:       ${POSTGRES_DB:-runcoach}
       POSTGRES_USER:     ${POSTGRES_USER:-runcoach}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    # Тюнинг под малое ОЗУ (700 МБ сервер)
+    # Тюнинг под mem_limit контейнера (384m) — сервер сам по себе 2 ГБ ОЗУ
     command: >
       postgres
         -c shared_buffers=64MB
@@ -32,8 +32,8 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    restart: unless-stopped
-    mem_limit: 512m
+    restart: always
+    mem_limit: 768m
     env_file: .env
     depends_on:
       postgres:
@@ -43,8 +43,8 @@ services:
 
   nginx:
     image: nginx:alpine
-    restart: unless-stopped
-    mem_limit: 64m
+    restart: always
+    mem_limit: 160m
     ports:
       - "80:80"
       - "443:443"
