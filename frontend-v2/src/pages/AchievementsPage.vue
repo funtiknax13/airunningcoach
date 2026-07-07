@@ -59,7 +59,7 @@
           <button v-if="b.unlocked" class="btn-share btn-share--badge" :title="$t('achievements.shareBtn')" @click="onShareBadge(b)">
             <i class="fas fa-share-nodes"></i>
           </button>
-          <div class="badge-icon"><i :class="`fas ${b.icon}`"></i></div>
+          <div class="badge-icon"><img :src="b.icon_img" :alt="b.label" loading="lazy"></div>
           <div class="badge-label">{{ b.label }}</div>
           <div class="badge-desc">{{ b.description }}</div>
           <div v-if="b.unlocked && b.earned_at" class="badge-earned">{{ fmtDate(b.earned_at) }}</div>

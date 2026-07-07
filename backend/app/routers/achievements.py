@@ -86,6 +86,7 @@ def list_achievements(
             "label": d["label"],
             "description": d["description"],
             "icon": d["icon"],
+            "icon_img": f"/images/badges/{d['key']}.png",
             "unlocked": ua is not None,
             "earned_at": ua.earned_at.isoformat() if ua else None,
         })

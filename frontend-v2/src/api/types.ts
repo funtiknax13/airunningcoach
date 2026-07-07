@@ -272,6 +272,7 @@ export interface BadgeAchievement {
   label: string
   description: string
   icon: string
+  icon_img: string
   unlocked: boolean
   earned_at?: string | null
 }
