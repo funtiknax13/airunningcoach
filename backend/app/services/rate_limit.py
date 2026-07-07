@@ -91,4 +91,7 @@ def check_and_record(user: User, action: str, db: Session) -> None:
         )
 
     db.add(ApiUsage(user_id=user.id, action=action))
-    db.flush()
+    # commit, не flush: сразу после этого вызывающий код обычно уходит в await
+    # к DeepSeek и освобождает это соединение в пул на время ожидания — flush
+    # без commit откатился бы вместе с закрытием сессии, тихо теряя счётчик.
+    db.commit()

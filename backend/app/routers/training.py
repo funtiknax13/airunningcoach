@@ -20,10 +20,25 @@ async def generate_plan_ai(
     current_user: User = Depends(get_current_user),
 ):
     """AI генерирует план на основе целей и истории пробежек."""
-    # Проверяем rate limit
+    # Проверяем rate limit (check_and_record коммитит сам — важно сделать это
+    # до await ниже, а не оставлять как pending flush, см. generate_training_plan)
     check_and_record(current_user, "plan", db)
 
-    # Деактивируем старый план
+    # Берём историю чата чтобы учесть предпочтения пользователя
+    chat_history = (
+        db.query(ChatMessage)
+        .filter(ChatMessage.user_id == current_user.id)
+        .order_by(ChatMessage.created_at.desc())
+        .limit(30)
+        .all()[::-1]
+    )
+
+    # Получаем тренировки от агента. generate_training_plan() освобождает
+    # соединение в пул на время ожидания DeepSeek — до этого момента нарочно
+    # не создаём/не флашим ничего в БД, чтобы не откатить незакоммиченные строки.
+    workouts_data = await generate_training_plan(current_user, db, chat_history)
+
+    # Деактивируем старый план и создаём новый — уже после ответа AI
     db.query(TrainingPlan).filter(
         TrainingPlan.user_id == current_user.id,
         TrainingPlan.is_active == True,
@@ -41,18 +56,6 @@ async def generate_plan_ai(
     )
     db.add(db_plan)
     db.flush()
-
-    # Берём историю чата чтобы учесть предпочтения пользователя
-    chat_history = (
-        db.query(ChatMessage)
-        .filter(ChatMessage.user_id == current_user.id)
-        .order_by(ChatMessage.created_at.desc())
-        .limit(30)
-        .all()[::-1]
-    )
-
-    # Получаем тренировки от агента
-    workouts_data = await generate_training_plan(current_user, db, chat_history)
 
     for i, w in enumerate(workouts_data):
         offset = w.get("day_of_week", i)   # 0 = первый день плана (сегодня)

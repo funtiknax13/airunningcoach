@@ -37,7 +37,9 @@ async def chat_with_ai(
     # Проверяем rate limit
     check_and_record(current_user, "chat", db)
 
-    # Сохраняем сообщение пользователя
+    # Сохраняем сообщение пользователя. commit (не flush) — дальше идёт await
+    # к DeepSeek, во время которого chat_response() освобождает это соединение
+    # обратно в пул; flush без commit откатился бы вместе с закрытием сессии.
     user_msg = ChatMessage(
         user_id=current_user.id,
         role="user",
@@ -45,7 +47,7 @@ async def chat_with_ai(
         context_type=request.context_type,
     )
     db.add(user_msg)
-    db.flush()
+    db.commit()
 
     # Загружаем историю для контекста (последние 20 сообщений)
     history = (

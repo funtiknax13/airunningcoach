@@ -280,6 +280,15 @@ async def chat_response(
     messages += _build_history(history)
     messages.append({"role": "user", "content": user_message})
 
+    # Отдаём соединение обратно в пул на время ожидания DeepSeek (до 45с) —
+    # без этого оно простаивало бы занятым весь запрос, и под несколько
+    # одновременных AI-запросов пул мог исчерпаться, тормозя обычные быстрые
+    # эндпоинты. Всё нужное из db уже прочитано выше в context/history — после
+    # close() сессия остаётся рабочей, просто возьмёт новое соединение при
+    # следующем обращении (вызывающий код чата коммитит перед этим await, так
+    # что откатывать здесь нечего).
+    db.close()
+
     try:
         resp = await _acreate(
             client,
@@ -325,6 +334,11 @@ def analyze_new_activity(activity, user: User, db: Session) -> str:
         f"Разбери эту тренировку: как прошла, что хорошо, что можно улучшить, "
         f"как она вписывается в мою подготовку."
     )
+
+    # Освобождаем соединение на время (синхронного, блокирующего) вызова DeepSeek —
+    # этот код и так уже выполняется в фоновом потоке (BackgroundTasks), но сама
+    # сессия БД всё равно держала бы слот пула все эти секунды без close().
+    db.close()
 
     try:
         resp = client.chat.completions.create(
@@ -381,6 +395,10 @@ def analyze_workout_completion(workout, activity, user: User, db: Session) -> st
         f"Статус по итогам сверки с планом: {status_label}\n\n"
         f"Прокомментируй, как прошла эта тренировка относительно плана — коротко, по делу, без критики."
     )
+
+    # См. комментарий в analyze_new_activity — отдаём соединение в пул на время
+    # блокирующего вызова DeepSeek.
+    db.close()
 
     try:
         resp = client.chat.completions.create(
@@ -495,6 +513,11 @@ async def generate_training_plan(user: User, db: Session, chat_history: list[Cha
 Расставь отдых и длинную пробежку разумно в течение недели.
 Только JSON, без пояснений."""
 
+    # См. комментарий в chat_response — освобождаем соединение на время ожидания
+    # DeepSeek. Вызывающий код (generate_plan_ai/build_and_save_plan) нарочно не
+    # оставляет здесь ничего незакоммиченного до этого await.
+    db.close()
+
     try:
         resp = await _acreate(
             client,
@@ -533,6 +556,10 @@ async def generate_insights(user: User, db: Session) -> list[str]:
 Верни ТОЛЬКО JSON-массив строк, например:
 ["Совет 1", "Совет 2"]
 Каждый совет — одно предложение, конкретное, с цифрами где уместно."""
+
+    # См. комментарий в chat_response — освобождаем соединение на время ожидания
+    # DeepSeek. get_ai_dashboard() ничего не флашит перед этим await.
+    db.close()
 
     try:
         resp = await _acreate(
