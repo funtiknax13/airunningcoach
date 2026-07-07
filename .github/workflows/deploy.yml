@@ -38,10 +38,16 @@ jobs:
           # Сеть VPS нестабильна (см. историю деплоев) — ssh-keyscan тоже может не
           # достучаться с первого раза. Раньше ошибка глушилась `|| true`, и деплой
           # ниже падал с "Host key verification failed" из-за пустого known_hosts.
+          #
+          # ВАЖНО: GitHub Actions выполняет `run:` под `bash -e`. Присваивание вида
+          # `keys=$(cmd)` как отдельный statement — это НЕ условие if/while, поэтому
+          # `-e` считает его обычной командой и завершает скрипт при первом же падении
+          # ssh-keyscan, даже не дав циклу дойти до retry (проверено локально: без
+          # `if ... && ...` цикл падает молча на 1-й попытке). Держим команду именно
+          # внутри условия if, чтобы -e её не убивал.
           success=false
           for attempt in 1 2 3; do
-            keys=$(ssh-keyscan -H "${{ secrets.SERVER_HOST }}" 2>/dev/null)
-            if [ -n "$keys" ]; then
+            if keys=$(ssh-keyscan -H "${{ secrets.SERVER_HOST }}" 2>/dev/null) && [ -n "$keys" ]; then
               echo "$keys" >> ~/.ssh/known_hosts
               success=true
               break
