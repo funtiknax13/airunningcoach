@@ -34,7 +34,26 @@ jobs:
           mkdir -p ~/.ssh
           echo "${{ secrets.SERVER_SSH_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
-          ssh-keyscan -H "${{ secrets.SERVER_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null || true
+
+          # Сеть VPS нестабильна (см. историю деплоев) — ssh-keyscan тоже может не
+          # достучаться с первого раза. Раньше ошибка глушилась `|| true`, и деплой
+          # ниже падал с "Host key verification failed" из-за пустого known_hosts.
+          success=false
+          for attempt in 1 2 3; do
+            keys=$(ssh-keyscan -H "${{ secrets.SERVER_HOST }}" 2>/dev/null)
+            if [ -n "$keys" ]; then
+              echo "$keys" >> ~/.ssh/known_hosts
+              success=true
+              break
+            fi
+            echo "ssh-keyscan attempt $attempt failed, retrying..."
+            sleep 5
+          done
+          if [ "$success" != "true" ]; then
+            echo "::error::ssh-keyscan failed after 3 attempts"
+            exit 1
+          fi
+
           cat >> ~/.ssh/config <<EOF
           Host ${{ secrets.SERVER_HOST }}
             ServerAliveInterval 30
