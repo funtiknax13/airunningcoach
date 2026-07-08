@@ -51,43 +51,72 @@ async function renderCard(opts: { emoji: string; title: string; subtitle: string
   // реально рисуем картинку; для эмодзи-фолбэка круг остаётся брендовым.
   const badgeImage = opts.imageUrl ? await loadImage(opts.imageUrl).catch(() => null) : null
 
+  // Меряем текст заранее и центрируем всю группу (иконка + заголовок + подпись
+  // + брендинг) как единое целое по вертикали. Раньше блок текста начинался с
+  // фиксированного y, а подвал был жёстко прибит к низу карты — при коротком
+  // заголовке/подписи (частый случай) между ними оставался большой пустой
+  // провал, из-за чего карточка выглядела разбалансированной.
+  ctx.textAlign = 'center'
+  ctx.font = 'bold 64px sans-serif'
+  const titleLines = wrapText(ctx, opts.title, CARD_SIZE - 160)
+  ctx.font = '40px sans-serif'
+  const subtitleLines = wrapText(ctx, opts.subtitle, CARD_SIZE - 200)
+
+  const CIRCLE_D = 260
+  const GAP_CIRCLE_TITLE = 70
+  const TITLE_LH = 76
+  const GAP_TITLE_SUB = 30
+  const SUB_LH = 52
+  const GAP_SUB_BRAND = 70
+  const BRAND_BLOCK = 74
+
+  const blockHeight =
+    CIRCLE_D + GAP_CIRCLE_TITLE +
+    titleLines.length * TITLE_LH + GAP_TITLE_SUB +
+    subtitleLines.length * SUB_LH + GAP_SUB_BRAND +
+    BRAND_BLOCK
+  const top = (CARD_SIZE - blockHeight) / 2
+
+  const circleCenterY = top + CIRCLE_D / 2
   ctx.beginPath()
-  ctx.arc(CARD_SIZE / 2, 320, 130, 0, Math.PI * 2)
+  ctx.arc(CARD_SIZE / 2, circleCenterY, CIRCLE_D / 2, 0, Math.PI * 2)
   ctx.fillStyle = badgeImage ? '#FCEBE3' : BRAND
   ctx.fill()
 
   if (badgeImage) {
     const size = 190
-    ctx.drawImage(badgeImage, CARD_SIZE / 2 - size / 2, 320 - size / 2, size, size)
+    ctx.drawImage(badgeImage, CARD_SIZE / 2 - size / 2, circleCenterY - size / 2, size, size)
   } else {
-    ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
     ctx.font = '150px sans-serif'
-    ctx.fillText(opts.emoji, CARD_SIZE / 2, 330)
+    ctx.fillText(opts.emoji, CARD_SIZE / 2, circleCenterY + 10)
+    ctx.textBaseline = 'alphabetic'
   }
 
+  let y = top + CIRCLE_D + GAP_CIRCLE_TITLE + TITLE_LH * 0.7
   ctx.fillStyle = '#ffffff'
   ctx.font = 'bold 64px sans-serif'
-  let y = 560
-  for (const line of wrapText(ctx, opts.title, CARD_SIZE - 160)) {
+  for (const line of titleLines) {
     ctx.fillText(line, CARD_SIZE / 2, y)
-    y += 76
+    y += TITLE_LH
   }
 
-  y += 20
+  y += GAP_TITLE_SUB
   ctx.fillStyle = '#a3a3a3'
   ctx.font = '40px sans-serif'
-  for (const line of wrapText(ctx, opts.subtitle, CARD_SIZE - 200)) {
+  for (const line of subtitleLines) {
     ctx.fillText(line, CARD_SIZE / 2, y)
-    y += 52
+    y += SUB_LH
   }
 
+  y += GAP_SUB_BRAND
   ctx.fillStyle = BRAND
   ctx.font = 'bold 34px sans-serif'
-  ctx.fillText('AI RunningCoach', CARD_SIZE / 2, CARD_SIZE - 110)
+  ctx.fillText('AI RunningCoach', CARD_SIZE / 2, y)
+  y += 40
   ctx.fillStyle = '#737373'
   ctx.font = '28px sans-serif'
-  ctx.fillText('airunningcoach.pro', CARD_SIZE / 2, CARD_SIZE - 70)
+  ctx.fillText('airunningcoach.pro', CARD_SIZE / 2, y)
 
   return new Promise((resolve, reject) => {
     canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error('canvas.toBlob failed'))), 'image/png')
