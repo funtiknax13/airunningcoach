@@ -1902,6 +1902,14 @@ input, select, textarea { font-family: var(--font); }
   .card          { padding: 14px; }
   .card-title    { flex-wrap: wrap; }
 
+  /* Card header с вкладками (напр. Тренировки: Пробежки/Другие) — узкому
+     экрану не хватает места на заголовок + обе вкладки в одну строку, из-за
+     чего вторая вкладка обрезалась краем карточки. Переносим вкладки на
+     отдельную полноширинную строку под заголовком. */
+  .card-header   { flex-wrap: wrap; }
+  .act-tabs      { width: 100%; }
+  .act-tab       { flex: 1; justify-content: center; }
+
   /* Landing */
   .hero          { grid-template-columns: 1fr; padding: 40px 16px 32px; gap: 28px; }
   .hero-visual   { display: none; }
