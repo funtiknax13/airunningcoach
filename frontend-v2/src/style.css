@@ -469,9 +469,14 @@ input, select, textarea { font-family: var(--font); }
 /* ── Достижения (бейджи) ───────────────────────────────────────────── */
 .badge-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 14px; }
 .badge-card { position: relative; display: flex; flex-direction: column; align-items: center; text-align: center; padding: 16px 10px; border-radius: var(--r); background: var(--surface-2); border: 1px solid var(--border-2); }
-.badge-icon { width: 52px; height: 52px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-bottom: 8px; background: var(--surface-3); opacity: 0.5; filter: grayscale(1); transition: all 0.2s; }
-.badge-icon img { width: 34px; height: 34px; object-fit: contain; }
-.badge-card.unlocked .badge-icon { background: var(--brand-light); opacity: 1; filter: none; }
+/* Иконки — двухцветный PNG (оранжевый + тёмно-графитовый контур), нарисованы
+   в расчёте на светлую подложку: на тёмной теме графитовый контур сливается
+   с фоном карточки. Поэтому подложка под иконкой всегда светлая (фиксированный
+   цвет, а не --surface-3/--brand-light, которые в тёмной теме сами тёмные) —
+   не зависит от темы сайта. */
+.badge-icon { width: 68px; height: 68px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-bottom: 8px; background: #EAEAEC; opacity: 0.55; filter: grayscale(1); transition: all 0.2s; }
+.badge-icon img { width: 46px; height: 46px; object-fit: contain; }
+.badge-card.unlocked .badge-icon { background: #FCEBE3; opacity: 1; filter: none; }
 .badge-label { font-size: 0.8rem; font-weight: 700; }
 .badge-card:not(.unlocked) .badge-label { color: var(--text-3); }
 .badge-desc { font-size: 0.7rem; color: var(--text-3); margin-top: 2px; line-height: 1.3; }
