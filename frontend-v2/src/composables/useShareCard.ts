@@ -20,7 +20,16 @@ function wrapText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number)
   return lines
 }
 
-function renderCard(opts: { emoji: string; title: string; subtitle: string }): Promise<Blob> {
+function loadImage(src: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new Image()
+    img.onload = () => resolve(img)
+    img.onerror = () => reject(new Error(`failed to load ${src}`))
+    img.src = src
+  })
+}
+
+async function renderCard(opts: { emoji: string; title: string; subtitle: string; imageUrl?: string }): Promise<Blob> {
   const canvas = document.createElement('canvas')
   canvas.width = CARD_SIZE
   canvas.height = CARD_SIZE
@@ -36,15 +45,26 @@ function renderCard(opts: { emoji: string; title: string; subtitle: string }): P
   ctx.lineWidth = 6
   ctx.strokeRect(24, 24, CARD_SIZE - 48, CARD_SIZE - 48)
 
+  // Иконки достижений — двухцветный PNG (оранжевый + тёмный контур), рисовать
+  // их на сплошном оранжевом круге нельзя — оранжевые части сольются с фоном
+  // (та же история, что и с бейджами в интерфейсе). Светлый круг только когда
+  // реально рисуем картинку; для эмодзи-фолбэка круг остаётся брендовым.
+  const badgeImage = opts.imageUrl ? await loadImage(opts.imageUrl).catch(() => null) : null
+
   ctx.beginPath()
   ctx.arc(CARD_SIZE / 2, 320, 130, 0, Math.PI * 2)
-  ctx.fillStyle = BRAND
+  ctx.fillStyle = badgeImage ? '#FCEBE3' : BRAND
   ctx.fill()
 
-  ctx.textAlign = 'center'
-  ctx.textBaseline = 'middle'
-  ctx.font = '150px sans-serif'
-  ctx.fillText(opts.emoji, CARD_SIZE / 2, 330)
+  if (badgeImage) {
+    const size = 190
+    ctx.drawImage(badgeImage, CARD_SIZE / 2 - size / 2, 320 - size / 2, size, size)
+  } else {
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.font = '150px sans-serif'
+    ctx.fillText(opts.emoji, CARD_SIZE / 2, 330)
+  }
 
   ctx.fillStyle = '#ffffff'
   ctx.font = 'bold 64px sans-serif'
@@ -98,6 +118,7 @@ interface ShareOpts {
   title: string
   subtitle: string
   utmCampaign: string
+  imageUrl?: string
 }
 
 export function useShareCard() {

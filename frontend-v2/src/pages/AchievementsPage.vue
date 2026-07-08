@@ -103,7 +103,7 @@ function fmtDate(iso: string): string {
 }
 
 function onShareBadge(b: BadgeAchievement) {
-  share({ emoji: '🏆', title: b.label, subtitle: b.description, utmCampaign: b.key })
+  share({ emoji: '🏆', title: b.label, subtitle: b.description, utmCampaign: b.key, imageUrl: b.icon_img })
 }
 
 function onShareRecord(r: AchievementRecord) {
