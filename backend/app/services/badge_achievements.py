@@ -12,7 +12,7 @@ from datetime import datetime, timedelta
 
 from sqlalchemy.orm import Session
 
-from app.models import Activity, Goal, TrainingPlan, UserAchievement, Workout
+from app.models import Activity, Goal, UserAchievement, Workout
 from app.services.achievement_defs import ACHIEVEMENT_DEFS
 
 
@@ -103,31 +103,29 @@ def _collect_run_stats(user_id: int, db: Session) -> dict:
 
 
 def _collect_plan_stats(user_id: int, db: Session) -> dict:
-    plans = (
-        db.query(TrainingPlan)
-        .filter(TrainingPlan.user_id == user_id)
-        .order_by(TrainingPlan.week_start_date)
+    workouts = (
+        db.query(Workout)
+        .filter(Workout.user_id == user_id, Workout.planned_date.isnot(None))
+        .order_by(Workout.planned_date)
         .all()
     )
-    workouts_by_plan = defaultdict(list)
-    if plans:
-        for w in db.query(Workout).filter(Workout.training_plan_id.in_([p.id for p in plans])).all():
-            workouts_by_plan[w.training_plan_id].append(w)
+    workouts_by_week = defaultdict(list)
+    for w in workouts:
+        workouts_by_week[_week_start(w.planned_date)].append(w)
 
     perfect_week_date = None
     clean_weeks = set()
     variety_events: list[tuple[datetime, str]] = []  # (дата, workout_type) для completed/approximate
 
-    for p in plans:
-        ws = workouts_by_plan.get(p.id, [])
+    for week_start, ws in sorted(workouts_by_week.items()):
         non_rest = [w for w in ws if w.workout_type != "rest"]
         if non_rest and all(w.completion_status == "completed" for w in non_rest) and perfect_week_date is None:
-            perfect_week_date = p.week_end_date or p.week_start_date
+            perfect_week_date = _to_dt(week_start) + timedelta(days=6)
         if non_rest and all(w.completion_status != "unconfirmed" for w in non_rest):
-            clean_weeks.add(_week_start(p.week_start_date))
+            clean_weeks.add(week_start)
         for w in ws:
             if w.completion_status in ("completed", "approximate"):
-                w_date = (w.activity.date if w.activity and w.activity.date else w.planned_date) or p.week_start_date
+                w_date = w.activity.date if w.activity and w.activity.date else w.planned_date
                 variety_events.append((w_date, w.workout_type))
 
     variety_events.sort(key=lambda x: x[0])

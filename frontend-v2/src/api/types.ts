@@ -203,16 +203,6 @@ export interface WorkoutWithAnalysis extends Workout {
   ai_analysis_pending: boolean
 }
 
-export interface TrainingPlan {
-  id: number
-  week_start_date: string
-  week_end_date: string
-  goal_type: string
-  is_active: boolean
-  created_at: string
-  workouts: Workout[]
-}
-
 // ── Chat ──────────────────────────────────────────────────────────────────
 export interface ChatMessage {
   id: number

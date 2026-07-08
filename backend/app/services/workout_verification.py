@@ -4,11 +4,11 @@
 Допуск — относительный (% от плановой цели), а не абсолютный: план на 5 км
 и план на 30 км должны прощать разное абсолютное отклонение.
 """
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 from sqlalchemy.orm import Session
 
-from app.models import Activity, TrainingPlan, Workout
+from app.models import Activity, Workout
 
 DEVIATION_OK      = 0.07  # ≤7%  — план выполнен чисто
 DEVIATION_PARTIAL = 0.30  # 7-30% — частично (слишком быстро/медленно/не туда); >30% — не подтверждено
@@ -46,33 +46,26 @@ def verdict_for(activity: Activity | None, workout: Workout) -> str:
 
 
 def find_matching_workout_for_activity(activity: Activity, user_id: int, db: Session) -> Workout | None:
-    """Активность → ближайшая тренировка активного плана на ту же дату (тип rest не считается)."""
-    plan = (
-        db.query(TrainingPlan)
-        .filter(TrainingPlan.user_id == user_id, TrainingPlan.is_active == True)
+    """Активность → тренировка пользователя на ту же дату (тип rest не считается)."""
+    act_date = activity.date.date() if hasattr(activity.date, 'date') else activity.date
+    day_start = datetime.combine(act_date, datetime.min.time())
+    day_end = day_start + timedelta(days=1)
+
+    workout = (
+        db.query(Workout)
+        .filter(
+            Workout.user_id == user_id,
+            Workout.planned_date >= day_start,
+            Workout.planned_date < day_end,
+        )
         .first()
     )
-    if not plan:
-        return None
-
-    act_date = activity.date.date() if hasattr(activity.date, 'date') else activity.date
-
-    workout = None
-    candidates = db.query(Workout).filter(
-        Workout.training_plan_id == plan.id,
-        Workout.planned_date.isnot(None),
-    ).all()
-    for w in candidates:
-        w_date = w.planned_date.date() if hasattr(w.planned_date, 'date') else w.planned_date
-        if w_date == act_date:
-            workout = w
-            break
 
     if not workout:
         workout = (
             db.query(Workout)
             .filter(
-                Workout.training_plan_id == plan.id,
+                Workout.user_id == user_id,
                 Workout.planned_date.is_(None),
                 Workout.day_of_week == activity.date.weekday(),
             )

@@ -39,7 +39,7 @@ class User(Base):
 
     activities = relationship("Activity", back_populates="user", cascade="all, delete-orphan")
     goals = relationship("Goal", back_populates="user", cascade="all, delete-orphan")
-    training_plans = relationship("TrainingPlan", back_populates="user", cascade="all, delete-orphan")
+    workouts = relationship("Workout", back_populates="user", cascade="all, delete-orphan")
     chat_messages = relationship("ChatMessage", back_populates="user", cascade="all, delete-orphan")
 
 
@@ -100,43 +100,24 @@ class Goal(Base):
         return labels.get(self.goal_type, self.goal_type)
 
 
-class TrainingPlan(Base):
-    __tablename__ = "training_plans"
-
-    id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
-    week_start_date = Column(DateTime, nullable=False)
-    week_end_date = Column(DateTime, nullable=False)
-    goal_type = Column(String(50))  # для какой цели создан план
-    is_active = Column(Boolean, default=True)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-
-    user = relationship("User", back_populates="training_plans")
-    workouts = relationship("Workout", back_populates="training_plan", cascade="all, delete-orphan")
-
-    def __str__(self):
-        start = self.week_start_date.strftime('%d.%m.%Y') if self.week_start_date else '?'
-        return f"План с {start}"
-
-
 class Workout(Base):
     __tablename__ = "workouts"
 
     id = Column(Integer, primary_key=True, index=True)
-    training_plan_id = Column(Integer, ForeignKey("training_plans.id"), nullable=False, index=True)
-    day_of_week = Column(Integer, nullable=False)  # 0-6 (пн-вс)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    day_of_week = Column(Integer, nullable=False)  # 0-6 (пн-вс), совпадает с planned_date.weekday()
     workout_type = Column(String(50), nullable=False)  # easy, tempo, interval, long, recovery, rest
     description = Column(Text, nullable=False)
     distance_km = Column(Float)  # рекомендуемая дистанция
     target_pace_min_km = Column(Float)  # целевой темп
     duration_min = Column(Float)  # рекомендуемая длительность
-    planned_date      = Column(DateTime, nullable=True)       # конкретная дата тренировки
+    planned_date      = Column(DateTime, nullable=True)       # конкретная дата тренировки — единственный якорь
     completed         = Column(Boolean, default=False)
     completion_status = Column(String(20), default="none")  # none | completed | approximate | unconfirmed
     activity_id       = Column(Integer, ForeignKey("activities.id", ondelete="SET NULL"), nullable=True)  # подтверждающая пробежка
     notes_after = Column(Text)  # заметки после выполнения
 
-    training_plan = relationship("TrainingPlan", back_populates="workouts")
+    user = relationship("User", back_populates="workouts")
     activity = relationship("Activity")
 
     DAYS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс']

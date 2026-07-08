@@ -12,7 +12,7 @@ from alembic import context
 
 # Импортируем Base и модели
 from app.database import Base
-from app.models import User, Activity, Goal, TrainingPlan, Workout, ChatMessage, InsightsCache, ApiUsage
+from app.models import User, Activity, Goal, Workout, ChatMessage, InsightsCache, ApiUsage
 
 # Получаем конфигурацию Alembic
 config = context.config

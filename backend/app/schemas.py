@@ -185,22 +185,6 @@ class GoalResponse(BaseModel):
 
 
 # Training plan schemas
-class WorkoutCreate(BaseModel):
-    day_of_week: int
-    workout_type: str
-    description: str
-    distance_km: Optional[float] = None
-    target_pace_min_km: Optional[float] = None
-    duration_min: Optional[float] = None
-
-
-class TrainingPlanCreate(BaseModel):
-    week_start_date: datetime
-    week_end_date: datetime
-    goal_type: str
-    workouts: List[WorkoutCreate]
-
-
 class WorkoutResponse(BaseModel):
     id: int
     day_of_week: int
@@ -222,16 +206,6 @@ class WorkoutResponse(BaseModel):
 class WorkoutWithAnalysis(WorkoutResponse):
     ai_analysis: Optional[str] = None
     ai_analysis_pending: bool = False
-
-
-class TrainingPlanResponse(BaseModel):
-    id: int
-    week_start_date: datetime
-    week_end_date: datetime
-    goal_type: str
-    is_active: bool
-    created_at: datetime
-    workouts: List[WorkoutResponse]
 
     class Config:
         from_attributes = True

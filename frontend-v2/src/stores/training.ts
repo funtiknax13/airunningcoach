@@ -2,33 +2,29 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { trainingApi } from '@/api'
 import { useChatStore } from '@/stores/chat'
-import { ApiError } from '@/api/client'
 import { loadCache, saveCache } from '@/utils/cache'
-import type { TrainingPlan } from '@/api/types'
+import type { Workout } from '@/api/types'
 
 export const useTrainingStore = defineStore('training', () => {
-  const plan        = ref<TrainingPlan | null>(loadCache<TrainingPlan | null>('training') ?? null)
+  // Отсортировано сервером по planned_date desc — первые 7 записей всегда
+  // самые дальние по дате, то есть актуальный сгенерированный план (см.
+  // комментарий в training.py: AI никогда не планирует дальше чем на 7 дней
+  // вперёд, поэтому это не требует привязки к календарной неделе).
+  const all         = ref<Workout[]>(loadCache<Workout[]>('training') ?? [])
   const loading     = ref(false)   // true во время generate
   const loadingPlan = ref(false)   // true во время первоначальной загрузки
 
   async function load() {
     loadingPlan.value = true
     try {
-      plan.value = await trainingApi.activePlan()
-      saveCache('training', plan.value)
-    } catch (e) {
-      // 404 = плана действительно нет — сбрасываем (и кеш). Таймаут/сеть/5xx —
-      // временные, оставляем как есть (кешированный или предыдущий план).
-      if (e instanceof ApiError && e.status === 404) {
-        plan.value = null
-        saveCache('training', null)
-      }
+      all.value = await trainingApi.list()
+      saveCache('training', all.value)
     } finally { loadingPlan.value = false }
   }
 
   async function generate() {
     loading.value = true
-    try { plan.value = await trainingApi.generatePlan() }
+    try { await trainingApi.generatePlan(); await load() }
     finally { loading.value = false }
   }
 
@@ -43,5 +39,5 @@ export const useTrainingStore = defineStore('training', () => {
     await load()
   }
 
-  return { plan, loading, loadingPlan, load, generate, completeWorkout, uncompleteWorkout }
+  return { all, loading, loadingPlan, load, generate, completeWorkout, uncompleteWorkout }
 })

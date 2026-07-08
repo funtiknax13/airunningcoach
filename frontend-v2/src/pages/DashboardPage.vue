@@ -231,9 +231,8 @@ const recentActivities = computed(() => activities.all.slice(0, 4))
 const activeGoals = computed(() => goals.goals.filter(g => !g.is_achieved && !g.is_abandoned).slice(0, 3))
 
 const todayWorkout = computed(() => {
-  if (!training.plan?.workouts) return null
   const today = new Date().toDateString()
-  return training.plan.workouts.find(w => {
+  return training.all.find(w => {
     if (!w.planned_date) return false
     return new Date(w.planned_date).toDateString() === today
   }) ?? null

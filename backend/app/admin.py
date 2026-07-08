@@ -5,7 +5,7 @@ from starlette.requests import Request
 from sqlalchemy import select
 
 from app.database import engine, SessionLocal
-from app.models import User, Activity, Goal, TrainingPlan, Workout, ChatMessage, PersonalRecord, PushSubscription, UserAchievement
+from app.models import User, Activity, Goal, Workout, ChatMessage, PersonalRecord, PushSubscription, UserAchievement
 from app.auth import verify_password, create_access_token, decode_token
 
 
@@ -74,7 +74,7 @@ class UserAdmin(ModelView, model=User):
     form_excluded_columns = [User.password_hash, User.verification_token,
                               User.verification_token_expires,
                               User.activities, User.goals,
-                              User.training_plans, User.chat_messages]
+                              User.workouts, User.chat_messages]
     page_size = 25
 
 
@@ -115,31 +115,17 @@ class GoalAdmin(ModelView, model=Goal):
     page_size = 25
 
 
-class TrainingPlanAdmin(ModelView, model=TrainingPlan):
-    name = "План тренировок"
-    name_plural = "Планы тренировок"
-    icon = "fa-solid fa-calendar-week"
-
-    column_list = [TrainingPlan.id, TrainingPlan.user, TrainingPlan.goal_type,
-                   TrainingPlan.week_start_date, TrainingPlan.week_end_date, TrainingPlan.is_active]
-    column_labels = {
-        "id": "ID", "user": "Пользователь", "goal_type": "Тип цели",
-        "week_start_date": "Начало недели", "week_end_date": "Конец недели",
-        "is_active": "Активен", "created_at": "Создан",
-    }
-    page_size = 25
-
-
 class WorkoutAdmin(ModelView, model=Workout):
     name = "Тренировка"
     name_plural = "Тренировки"
     icon = "fa-solid fa-dumbbell"
 
-    column_list = [Workout.id, Workout.training_plan, Workout.day_of_week,
+    column_list = [Workout.id, Workout.user, Workout.planned_date, Workout.day_of_week,
                    Workout.workout_type, Workout.distance_km,
                    Workout.duration_min, Workout.completed]
     column_labels = {
-        "id": "ID", "training_plan": "План", "day_of_week": "День (0=Пн)",
+        "id": "ID", "user": "Пользователь", "planned_date": "Дата",
+        "day_of_week": "День (0=Пн)",
         "workout_type": "Тип", "description": "Описание",
         "distance_km": "Дистанция (км)", "target_pace_min_km": "Темп (мин/км)",
         "duration_min": "Время (мин)", "completed": "Выполнена",
@@ -229,7 +215,7 @@ def create_admin(app) -> Admin:
         base_url="/admin",
     )
     for view in [UserAdmin, ActivityAdmin, GoalAdmin,
-                 TrainingPlanAdmin, WorkoutAdmin, ChatMessageAdmin,
+                 WorkoutAdmin, ChatMessageAdmin,
                  PersonalRecordAdmin, UserAchievementAdmin, PushSubscriptionAdmin]:
         admin.add_view(view)
     return admin

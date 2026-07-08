@@ -17,7 +17,7 @@ from openai import OpenAI
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
-from app.models import User, Activity, Goal, TrainingPlan, Workout, ChatMessage
+from app.models import User, Activity, Goal, Workout, ChatMessage
 from app.services.workout_verification import STATUS_LABELS
 
 logger = logging.getLogger(__name__)
@@ -206,14 +206,17 @@ def _build_user_context(user: User, db: Session) -> str:
     else:
         lines.append("\n=== СТАТИСТИКА (30 дней) ===\nДанных нет.")
 
-    # Текущий план
-    plan = db.query(TrainingPlan).filter(
-        TrainingPlan.user_id == user.id,
-        TrainingPlan.is_active == True
-    ).first()
-    if plan:
-        workouts = db.query(Workout).filter(Workout.training_plan_id == plan.id).all()
-        lines.append(f"\n=== АКТИВНЫЙ ПЛАН (с {plan.week_start_date.strftime('%d.%m')}) ===")
+    # Текущий план — тренировки календарной недели, в которую попадает сегодня
+    week_start = (datetime.now() - timedelta(days=datetime.now().weekday())).replace(
+        hour=0, minute=0, second=0, microsecond=0
+    )
+    workouts = db.query(Workout).filter(
+        Workout.user_id == user.id,
+        Workout.planned_date >= week_start,
+        Workout.planned_date < week_start + timedelta(days=7),
+    ).all()
+    if workouts:
+        lines.append(f"\n=== АКТИВНЫЙ ПЛАН (с {week_start.strftime('%d.%m')}) ===")
         day_names = ["Пн","Вт","Ср","Чт","Пт","Сб","Вс"]
         status_map = {"completed": "✓", "approximate": "≈", "unconfirmed": "✗", "none": "○"}
         for w in sorted(workouts, key=lambda x: (x.planned_date or datetime.min, x.day_of_week)):
@@ -422,37 +425,37 @@ def analyze_workout_completion(workout, activity, user: User, db: Session) -> st
     return ai_text
 
 
-async def build_and_save_plan(user: User, db: Session) -> None:
-    """Генерирует план через AI и сохраняет в БД (деактивирует старый). Используется из чата."""
-    chat_history = (
-        db.query(ChatMessage)
-        .filter(ChatMessage.user_id == user.id)
-        .order_by(ChatMessage.created_at.desc())
-        .limit(30)
-        .all()[::-1]
-    )
-    workouts_data = await generate_training_plan(user, db, chat_history)
+def replace_upcoming_workouts(user_id: int, db: Session, workouts_data: list[dict], start: datetime) -> None:
+    """Заменяет тренировки на ближайшие 7 дней начиная с `start`.
 
-    db.query(TrainingPlan).filter(
-        TrainingPlan.user_id == user.id, TrainingPlan.is_active == True,
-    ).update({"is_active": False})
+    Тренировки, по которым уже есть подтверждённый результат (completed/
+    approximate), не трогаем — иначе перегенерация плана стирала бы реально
+    пройденные тренировки текущей недели (раньше они просто "прятались" в
+    деактивированном плане, а без плана-контейнера удаление было бы
+    безвозвратным). Не закоммичено — коммитит вызывающий код.
+    """
+    start_date = start.replace(hour=0, minute=0, second=0, microsecond=0)
+    end_date = start_date + timedelta(days=7)
 
-    start = datetime.now()
-    db_plan = TrainingPlan(
-        user_id=user.id,
-        week_start_date=start,
-        week_end_date=start + timedelta(days=7),
-        goal_type="ai_generated",
-        is_active=True,
-    )
-    db.add(db_plan)
-    db.flush()
+    existing = db.query(Workout).filter(
+        Workout.user_id == user_id,
+        Workout.planned_date >= start_date,
+        Workout.planned_date < end_date,
+    ).all()
+    protected_dates = set()
+    for w in existing:
+        if w.completion_status in ("completed", "approximate"):
+            protected_dates.add(w.planned_date.date())
+        else:
+            db.delete(w)
 
     for i, w in enumerate(workouts_data):
         offset = w.get("day_of_week", i)
-        planned = start + timedelta(days=offset)
+        planned = start_date + timedelta(days=offset)
+        if planned.date() in protected_dates:
+            continue
         db.add(Workout(
-            training_plan_id=db_plan.id,
+            user_id=user_id,
             day_of_week=planned.weekday(),
             planned_date=planned,
             workout_type=w.get("workout_type", "easy"),
@@ -462,6 +465,19 @@ async def build_and_save_plan(user: User, db: Session) -> None:
             duration_min=None,
             completion_status="none",
         ))
+
+
+async def build_and_save_plan(user: User, db: Session) -> None:
+    """Генерирует план через AI и сохраняет в БД. Используется из чата."""
+    chat_history = (
+        db.query(ChatMessage)
+        .filter(ChatMessage.user_id == user.id)
+        .order_by(ChatMessage.created_at.desc())
+        .limit(30)
+        .all()[::-1]
+    )
+    workouts_data = await generate_training_plan(user, db, chat_history)
+    replace_upcoming_workouts(user.id, db, workouts_data, datetime.now())
     db.commit()
 
 
