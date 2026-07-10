@@ -306,14 +306,30 @@ async def chat_response(
         return "Извините, AI-тренер временно недоступен. Попробуйте позже."
 
 
+_UNAVAILABLE_MSG = "Извините, AI-тренер временно недоступен. Попробуйте позже."
+
+
+def _save_unavailable_notice(user: User, db: Session, context_type: str) -> str:
+    """Пишет сообщение-заглушку, когда анализ недоступен/упал.
+
+    Клиент показывает бейдж "есть новое сообщение" сразу по факту постановки
+    анализа в фон (см. ai_analysis_pending), ещё до того, как этот код
+    отработает — если тут молча вернуть "", бейдж загорится, а сообщение
+    никогда не появится. Раньше так и было (пользователь сообщил о тренировке
+    "ходьба", по которой пришло уведомление, но не пришло сообщение)."""
+    db.add(ChatMessage(user_id=user.id, role="ai", content=_UNAVAILABLE_MSG, context_type=context_type))
+    db.commit()
+    return _UNAVAILABLE_MSG
+
+
 def analyze_new_activity(activity, user: User, db: Session) -> str:
     """Синхронный автоанализ только что загруженной тренировки. Сохраняет сообщения в ChatMessage."""
     if _STUB_MODE:
-        return ""
+        return _save_unavailable_notice(user, db, "auto_analysis")
 
     client = _make_client()
     if not client:
-        return ""
+        return _save_unavailable_notice(user, db, "auto_analysis")
 
     context = _build_user_context(user, db)
     system = f"{SYSTEM_PROMPT}\nОтвечай на русском языке.\n\n{context}"
@@ -356,7 +372,7 @@ def analyze_new_activity(activity, user: User, db: Session) -> str:
         ai_text = _strip_date_prefix(resp.choices[0].message.content.strip())
     except Exception as e:
         logger.error("DeepSeek analyze_new_activity error: %s", e)
-        return ""
+        return _save_unavailable_notice(user, db, "auto_analysis")
 
     db.add(ChatMessage(user_id=user.id, role="user", content=prompt, context_type="auto_analysis"))
     db.add(ChatMessage(user_id=user.id, role="ai", content=ai_text, context_type="auto_analysis"))
@@ -372,11 +388,11 @@ def analyze_workout_completion(workout, activity, user: User, db: Session) -> st
     без факта тренеру нечего разбирать, а комментировать «ничего не нашли» вслух
     от лица AI-агента не имеет смысла."""
     if _STUB_MODE:
-        return ""
+        return _save_unavailable_notice(user, db, "workout_check")
 
     client = _make_client()
     if not client:
-        return ""
+        return _save_unavailable_notice(user, db, "workout_check")
 
     context = _build_user_context(user, db)
     system = f"{SYSTEM_PROMPT}\nОтвечай на русском языке.\n\n{context}"
@@ -416,7 +432,7 @@ def analyze_workout_completion(workout, activity, user: User, db: Session) -> st
         ai_text = _strip_date_prefix(resp.choices[0].message.content.strip())
     except Exception as e:
         logger.error("DeepSeek analyze_workout_completion error: %s", e)
-        return ""
+        return _save_unavailable_notice(user, db, "workout_check")
 
     db.add(ChatMessage(user_id=user.id, role="user", content=prompt, context_type="workout_check"))
     db.add(ChatMessage(user_id=user.id, role="ai", content=ai_text, context_type="workout_check"))
