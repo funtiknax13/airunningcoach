@@ -132,6 +132,8 @@ export default {
     heroDesc: 'Personalized training plans, run analysis, and AI coach advice. Everything you need to improve — in one app.',
     startFree: 'Start for free',
     tryFree: 'Try free',
+    navTools: 'Tools',
+    navBlog: 'Blog',
     toDashboard: 'Go to app',
     featLabel: 'Features',
     featTitle: 'Everything for your progress',

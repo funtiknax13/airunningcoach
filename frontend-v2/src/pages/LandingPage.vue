@@ -8,12 +8,19 @@
         <span><span>AI</span>RunningCoach</span>
       </div>
       <div class="landing-nav-actions">
-        <button class="theme-btn" @click="themeToggle">
-          <i :class="theme === 'dark' ? 'fas fa-sun' : 'fas fa-moon'"></i>
-        </button>
-        <button class="btn btn-ghost btn-sm" @click="changeLang">{{ nextLang }}</button>
+        <div class="landing-nav-more" :class="{ open: moreOpen }">
+          <a href="/tools/" class="btn btn-ghost btn-sm" @click="moreOpen = false">{{ t('landing.navTools') }}</a>
+          <a href="/blog/" class="btn btn-ghost btn-sm" @click="moreOpen = false">{{ t('landing.navBlog') }}</a>
+          <button class="theme-btn" @click="themeToggle">
+            <i :class="theme === 'dark' ? 'fas fa-sun' : 'fas fa-moon'"></i>
+          </button>
+          <button class="btn btn-ghost btn-sm" @click="changeLang">{{ nextLang }}</button>
+        </div>
         <button class="btn btn-ghost btn-sm" @click="showAuth('login')">{{ t('auth.login.btn') }}</button>
         <button class="btn btn-primary btn-sm" @click="showAuth('register')">{{ t('landing.tryFree') }}</button>
+        <button class="landing-nav-burger" @click="moreOpen = !moreOpen" aria-label="Меню">
+          <i class="fas fa-bars"></i>
+        </button>
       </div>
     </nav>
 
@@ -306,6 +313,8 @@ onMounted(async () => {
 
 const nextLang = computed(() => locale.value === 'ru' ? 'EN' : 'RU')
 function changeLang() { toggleLang() }
+
+const moreOpen = ref(false)
 
 const authVisible    = ref(false)
 const authScreen     = ref<'login'|'register'>('register')

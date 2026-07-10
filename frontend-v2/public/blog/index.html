@@ -99,6 +99,8 @@
     .landing-nav-logo img { width: 32px; height: 32px; }
     .landing-nav-logo-brand{display:flex;flex-direction:column;gap:2px}.landing-nav-logo-text{line-height:1.1}.landing-nav-logo-ai{color:var(--brand)}.landing-nav-ecg{width:90px;height:12px;display:block;opacity:0.65}
     .landing-nav-actions { display: flex; align-items: center; gap: 10px; }
+    .landing-nav-more { display: flex; align-items: center; gap: 10px; }
+    .landing-nav-burger { display: none; align-items: center; justify-content: center; width: 36px; height: 36px; background: none; border: 1px solid var(--border); border-radius: var(--r-md); color: var(--text-2); font-size: 1rem; cursor: pointer; }
     .theme-btn { background: none; border: 1px solid var(--border); border-radius: var(--r); padding: 7px 10px; color: var(--text-2); font-size: 0.9rem; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; }
     .theme-btn:hover { border-color: var(--border-2); color: var(--text); background: var(--surface-2); }
     .btn { display: inline-flex; align-items: center; gap: 6px; padding: 10px 20px; border-radius: var(--r-md); font-size: 0.9rem; font-weight: 700; border: none; font-family: var(--font); cursor: pointer; transition: all 0.2s; white-space: nowrap; text-decoration: none; }
@@ -208,13 +210,14 @@
     /* ── Responsive ── */
     @media (max-width: 768px) {
       .landing-nav { padding: 0 16px; height: 56px; }
+      .landing-nav-burger { display: flex; }
+      .landing-nav-more { display: none; position: absolute; top: calc(100% + 6px); right: 16px; z-index: 60; flex-direction: column; align-items: stretch; gap: 6px; min-width: 170px; padding: 8px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-md); box-shadow: 0 10px 30px rgba(0,0,0,0.18); } .landing-nav-more.open { display: flex; } .landing-nav-more .btn, .landing-nav-more .theme-btn { width: 100%; justify-content: flex-start; }
       .blog-hero { padding: 36px 16px 24px; }
       .blog-grid { padding: 0 16px 48px; }
       .blog-cta { padding: 0 16px 48px; }
       .cta-block { padding: 36px 20px; }
     }
     @media (max-width: 480px) {
-      .landing-nav-actions .btn-ghost { display: none; }
       .landing-nav-actions .btn-primary { padding: 7px 12px; font-size: 0.78rem; }
       .blog-grid { grid-template-columns: 1fr; }
     }
@@ -229,10 +232,17 @@
     <div class="landing-nav-logo-brand"><div class="landing-nav-logo-text"><span class="landing-nav-logo-ai">AI</span>RunningCoach</div><svg class="landing-nav-ecg" viewBox="0 0 110 18" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><polyline points="0,9 14,9 18,9 20,5 22,14 24,2 26,14 28,9 32,9 38,9 40,6 42,9 46,9 60,9 62,7 64,9 68,9 110,9" stroke="#F85C1E" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none" opacity="0.7"/></svg></div>
   </a>
   <div class="landing-nav-actions">
-    <button class="theme-btn" onclick="toggleTheme()" aria-label="Сменить тему">
+    <div class="landing-nav-more" id="nav-more">
+      <a href="/tools/" class="btn btn-ghost btn-sm">Инструменты</a>
+      <a href="/blog/" class="btn btn-ghost btn-sm">Блог</a>
+      <button class="theme-btn" onclick="toggleTheme()" aria-label="Сменить тему">
       <i id="theme-icon" class="fas fa-moon"></i>
     </button>
+    </div>
     <div id="nav-auth"></div>
+    <button class="landing-nav-burger" onclick="document.getElementById('nav-more').classList.toggle('open')" aria-label="Меню">
+      <i class="fas fa-bars"></i>
+    </button>
   </div>
 </nav>
 
