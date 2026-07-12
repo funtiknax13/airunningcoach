@@ -38,8 +38,10 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-    expose:
-      - "8000"
+    # 127.0.0.1-only — даёт нативному nginx (см. nginx/nginx-native.conf)
+    # достучаться до бэкенда без публикации порта наружу.
+    ports:
+      - "127.0.0.1:8000:8000"
 
   nginx:
     image: nginx:alpine
