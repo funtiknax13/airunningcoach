@@ -5,7 +5,7 @@ export default {
     login: { title: 'Welcome back', btn: 'Sign in', forgot: 'Forgot password?', noAccount: 'No account?', regLink: 'Sign up' },
     forgot: { title: 'Reset password', desc: "Enter your email — we'll send a reset link.", btn: 'Send email', back: '← Back to sign in' },
     reset: { title: 'New password', pw: 'New password (min 8 chars)', btn: 'Save password' },
-    reg: { title: 'Create account', name: 'Name', age: 'Age', weight: 'Weight', height: 'Height', btn: 'Sign up', haveAccount: 'Already have an account?', loginLink: 'Sign in' },
+    reg: { title: 'Create account', name: 'Name', age: 'Age', weight: 'Weight', height: 'Height', btn: 'Sign up', haveAccount: 'Already have an account?', loginLink: 'Sign in', consent: 'I accept the <a href="/terms/" target="_blank" rel="noopener">terms of use</a> and <a href="/privacy/" target="_blank" rel="noopener">privacy policy</a>', consentRequired: 'You must accept the terms of use and privacy policy' },
     verify: { title: 'Check your email', resend: 'Resend verification email', back: '← Back to sign in' },
   },
   header: { logout: 'Sign out', profile: 'Profile', dark: 'Dark', light: 'Light' },

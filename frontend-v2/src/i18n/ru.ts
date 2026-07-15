@@ -5,7 +5,7 @@ export default {
     login: { title: 'Добро пожаловать', btn: 'Войти', forgot: 'Забыли пароль?', noAccount: 'Нет аккаунта?', regLink: 'Зарегистрироваться' },
     forgot: { title: 'Сброс пароля', desc: 'Введите email — пришлём ссылку для сброса.', btn: 'Отправить письмо', back: '← Вернуться к входу' },
     reset: { title: 'Новый пароль', pw: 'Новый пароль (мин. 8 символов)', btn: 'Сохранить пароль' },
-    reg: { title: 'Создать аккаунт', name: 'Имя', age: 'Возраст', weight: 'Вес', height: 'Рост', btn: 'Зарегистрироваться', haveAccount: 'Уже есть аккаунт?', loginLink: 'Войти' },
+    reg: { title: 'Создать аккаунт', name: 'Имя', age: 'Возраст', weight: 'Вес', height: 'Рост', btn: 'Зарегистрироваться', haveAccount: 'Уже есть аккаунт?', loginLink: 'Войти', consent: 'Я принимаю <a href="/terms/" target="_blank" rel="noopener">условия использования</a> и <a href="/privacy/" target="_blank" rel="noopener">политику конфиденциальности</a>', consentRequired: 'Нужно принять условия использования и политику конфиденциальности' },
     verify: { title: 'Проверьте почту', resend: 'Отправить письмо повторно', back: '← Вернуться к входу' },
   },
   header: { logout: 'Выйти', profile: 'Профиль', dark: 'Тёмная', light: 'Светлая' },

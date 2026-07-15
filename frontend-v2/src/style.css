@@ -1231,6 +1231,10 @@ input, select, textarea { font-family: var(--font); }
 .auth-form { display: none; }
 .auth-form.active { display: block; }
 .auth-form-title { font-size: 1rem; font-weight: 700; color: var(--text); margin-bottom: 16px; }
+.auth-consent { display: flex; align-items: flex-start; gap: 8px; font-size: 0.8rem; color: var(--text-2); line-height: 1.4; margin: 10px 0 4px; cursor: pointer; }
+.auth-consent input { margin-top: 2px; flex-shrink: 0; accent-color: var(--brand); cursor: pointer; }
+.auth-consent a { color: var(--brand); }
+.auth-consent a:hover { text-decoration: underline; }
 .auth-btn {
   width: 100%;
   padding: 12px;

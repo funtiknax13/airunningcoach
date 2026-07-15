@@ -338,7 +338,7 @@
 
     /* ── Footer ── */
     .landing-footer { border-top: 1px solid var(--border); text-align: center; padding: 20px 32px; color: var(--text-3); font-size: 0.8rem; }
-    .footer-links { display: flex; justify-content: center; gap: 16px; margin-top: 8px; }
+    .footer-links { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px 16px; margin-top: 8px; }
     .footer-links a { color: var(--text-3); font-size: 0.78rem; }
     .footer-links a:hover { color: var(--text-2); }
 
@@ -368,6 +368,10 @@
     .auth-input:focus { border-color: var(--brand); }
     .auth-input-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 10px; }
     .auth-input-row .auth-input { margin-bottom: 0; }
+    .auth-consent { display: flex; align-items: flex-start; gap: 8px; font-size: 0.8rem; color: var(--text-2); line-height: 1.4; margin: 10px 0 4px; cursor: pointer; }
+    .auth-consent input { margin-top: 2px; flex-shrink: 0; accent-color: var(--brand); cursor: pointer; }
+    .auth-consent a { color: var(--brand); }
+    .auth-consent a:hover { text-decoration: underline; }
     .auth-btn { width: 100%; padding: 12px; background: var(--brand); color: white; border: none; border-radius: var(--r-md); font-family: var(--font); font-size: 0.95rem; font-weight: 700; cursor: pointer; transition: all 0.2s; margin-top: 4px; }
     .auth-btn:hover:not(:disabled) { background: var(--brand-hover); transform: translateY(-1px); box-shadow: 0 4px 14px var(--brand-glow); }
     .auth-btn:disabled { opacity: 0.6; cursor: not-allowed; }
@@ -839,10 +843,14 @@
         <input id="reg-weight" type="number" class="auth-input" placeholder="Вес, кг">
         <input id="reg-height" type="number" class="auth-input" placeholder="Рост, см">
       </div>
+      <label class="auth-consent">
+        <input type="checkbox" id="reg-consent">
+        <span>Я принимаю <a href="/terms/" target="_blank" rel="noopener">условия использования</a> и <a href="/privacy/" target="_blank" rel="noopener">политику конфиденциальности</a></span>
+      </label>
       <button id="reg-btn" class="auth-btn" onclick="doRegister()">Зарегистрироваться</button>
       <div class="auth-switch">Уже есть аккаунт? <a onclick="showScreen('login')">Войти</a></div>
       <div class="auth-divider"><span>или</span></div>
-      <button class="auth-btn-google" onclick="loginWithGoogle()">
+      <button class="auth-btn-google" onclick="registerWithGoogle()">
         <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z" fill="#4285F4"/><path d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332C2.438 15.983 5.482 18 9 18z" fill="#34A853"/><path d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z" fill="#FBBC05"/><path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0 5.482 0 2.438 2.017.957 4.958L3.964 6.29C4.672 4.163 6.656 3.58 9 3.58z" fill="#EA4335"/></svg>
         Зарегистрироваться через Google
       </button>
@@ -1000,6 +1008,7 @@ async function doRegister() {
   var weight  = parseFloat(document.getElementById('reg-weight').value) || null;
   var height  = parseFloat(document.getElementById('reg-height').value) || null;
   showMsg('reg-error', '');
+  if (!document.getElementById('reg-consent').checked) { showMsg('reg-error', 'Нужно принять условия использования и политику конфиденциальности'); return; }
   if (pw !== confirm) { showMsg('reg-error', 'Пароли не совпадают'); return; }
   setLoading('reg-btn', true);
   try {
@@ -1061,6 +1070,10 @@ async function doResendFromVerify() {
 }
 
 function loginWithGoogle() { location.href = '/api/auth/google'; }
+function registerWithGoogle() {
+  if (!document.getElementById('reg-consent').checked) { showMsg('reg-error', 'Нужно принять условия использования и политику конфиденциальности'); return; }
+  loginWithGoogle();
+}
 document.addEventListener('keydown', function(e) { if (e.key === 'Escape') closeAuth(); });
 </script>
 </body>

@@ -53,6 +53,10 @@
         <input type="number" v-model.number="reg.weight" class="auth-input" :placeholder="$t('auth.reg.weight')" style="margin:0">
         <input type="number" v-model.number="reg.height" class="auth-input" :placeholder="$t('auth.reg.height')" style="margin:0">
       </div>
+      <label class="auth-consent">
+        <input type="checkbox" v-model="reg.consent">
+        <span v-html="$t('auth.reg.consent')"></span>
+      </label>
       <div v-if="error" class="auth-error">{{ error }}</div>
       <button class="auth-btn" @click="register" :disabled="loading">
         {{ loading ? '...' : $t('auth.reg.btn') }}
@@ -62,7 +66,7 @@
         <span @click="screen='login'">{{ $t('auth.reg.loginLink') }}</span>
       </div>
       <div class="auth-divider"><span>или</span></div>
-      <button class="auth-btn-google" @click="loginWithGoogle">
+      <button class="auth-btn-google" @click="registerWithGoogle">
         <svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
           <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z" fill="#4285F4"/>
           <path d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332C2.438 15.983 5.482 18 9 18z" fill="#34A853"/>
@@ -123,7 +127,7 @@ const props = defineProps<{ initialScreen?: 'login'|'register'; canClose?: boole
 defineEmits(['close'])
 
 const router     = useRouter()
-const { locale } = useI18n()
+const { t, locale } = useI18n()
 const auth       = useAuthStore()
 const activities = useActivitiesStore()
 const goals      = useGoalsStore()
@@ -141,7 +145,7 @@ const verifyText  = ref('')
 const resetToken  = ref('')
 const resetPw     = ref('')
 const resetConfirm = ref('')
-const reg = ref({ name:'', email:'', password:'', confirm:'',
+const reg = ref({ name:'', email:'', password:'', confirm:'', consent: false,
   age: null as number|null, weight: null as number|null, height: null as number|null })
 
 onMounted(() => {
@@ -187,6 +191,7 @@ async function resendVerification() {
 }
 
 async function register() {
+  if (!reg.value.consent) { error.value = t('auth.reg.consentRequired'); return }
   if (reg.value.password !== reg.value.confirm) { error.value = 'Пароли не совпадают'; return }
   loading.value = true; error.value = ''
   try {
@@ -227,5 +232,9 @@ async function resend() {
 
 function loginWithGoogle() {
   window.location.href = '/api/auth/google'
+}
+function registerWithGoogle() {
+  if (!reg.value.consent) { error.value = t('auth.reg.consentRequired'); return }
+  loginWithGoogle()
 }
 </script>
