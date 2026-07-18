@@ -9,6 +9,7 @@ export default {
     verify: { title: 'Check your email', resend: 'Resend verification email', back: '← Back to sign in' },
   },
   header: { logout: 'Sign out', profile: 'Profile', dark: 'Dark', light: 'Light' },
+  notFound: { title: 'Looks like you took a wrong turn', desc: "This page doesn't exist — the link may be broken or outdated.", home: 'Back to home' },
   nav: {
     dashboard: 'Dashboard', activities: 'Activities', training: 'Training',
     goals: 'Goals', coach: 'AI Coach', achievements: 'Achievements',

@@ -9,6 +9,7 @@ export default {
     verify: { title: 'Проверьте почту', resend: 'Отправить письмо повторно', back: '← Вернуться к входу' },
   },
   header: { logout: 'Выйти', profile: 'Профиль', dark: 'Тёмная', light: 'Светлая' },
+  notFound: { title: 'Вы побежали не по тому маршруту', desc: 'Такой страницы не существует — возможно, ссылка устарела или в адресе опечатка.', home: 'На главную' },
   nav: {
     dashboard: 'Главная', activities: 'Тренировки', training: 'План',
     goals: 'Цели', coach: 'AI Тренер', achievements: 'Достижения',

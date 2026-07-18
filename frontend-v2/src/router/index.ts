@@ -15,7 +15,7 @@ const router = createRouter({
     { path: '/payment/success', component: () => import('@/pages/PaymentSuccessPage.vue'), meta: { auth: true } },
     { path: '/onboarding',      component: () => import('@/pages/OnboardingPage.vue'),   meta: { auth: true } },
     { path: '/auth/callback',   component: () => import('@/pages/AuthCallbackPage.vue') },
-    { path: '/:pathMatch(.*)*', redirect: '/' },
+    { path: '/:pathMatch(.*)*', component: () => import('@/pages/NotFoundPage.vue') },
   ],
 })
 
