@@ -14,7 +14,8 @@ from app.services.gpx_parser import parse_gpx
 from app.services.fit_parser import parse_fit
 from app.services.ai_agent import analyze_new_activity
 from app.services.workout_verification import find_matching_workout_for_activity, apply_verdict
-from app.schemas import ActivityWithAnalysis
+from app.services.safe_fetch import fetch_external_workout_file, detect_workout_format
+from app.schemas import ActivityWithAnalysis, ActivityImportUrl
 
 router = APIRouter(prefix="/activities", tags=["activities"])
 
@@ -67,27 +68,24 @@ def create_activity(
     return result
 
 
-@router.post("/import", response_model=ActivityWithAnalysis)
-async def import_activity_file(
-    background_tasks: BackgroundTasks,
-    file: UploadFile = File(...),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    """Импорт пробежки из GPX или FIT файла."""
-    content = await file.read()
-    filename = (file.filename or "").lower()
-
+def _parse_workout_content(content: bytes, fmt: str) -> dict:
     try:
-        if filename.endswith(".gpx"):
-            data = parse_gpx(content)
-        elif filename.endswith(".fit"):
-            data = parse_fit(content)
+        if fmt == "gpx":
+            return parse_gpx(content)
+        elif fmt == "fit":
+            return parse_fit(content)
         else:
             raise HTTPException(status_code=400, detail="Поддерживаются только .gpx и .fit файлы")
     except ValueError as e:
         raise HTTPException(status_code=422, detail=str(e))
 
+
+def _save_imported_activity(
+    data: dict,
+    background_tasks: BackgroundTasks,
+    db: Session,
+    current_user: User,
+) -> ActivityWithAnalysis:
     # Проверка дублирования по времени старта (±1 минута)
     start_time = data["date"]
     from datetime import timedelta
@@ -142,6 +140,49 @@ async def import_activity_file(
     result = ActivityWithAnalysis.model_validate(db_activity)
     result.ai_analysis_pending = pending
     return result
+
+
+@router.post("/import", response_model=ActivityWithAnalysis)
+async def import_activity_file(
+    background_tasks: BackgroundTasks,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Импорт пробежки из GPX или FIT файла."""
+    content = await file.read()
+    filename = (file.filename or "").lower()
+
+    if filename.endswith(".gpx"):
+        fmt = "gpx"
+    elif filename.endswith(".fit"):
+        fmt = "fit"
+    else:
+        raise HTTPException(status_code=400, detail="Поддерживаются только .gpx и .fit файлы")
+
+    data = _parse_workout_content(content, fmt)
+    return _save_imported_activity(data, background_tasks, db, current_user)
+
+
+@router.post("/import-url", response_model=ActivityWithAnalysis)
+async def import_activity_from_url(
+    payload: ActivityImportUrl,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Импорт пробежки по ссылке на экспорт с часов (Suunto, Garmin, Coros и т.п.)."""
+    content, content_type, content_disposition = await fetch_external_workout_file(payload.url)
+
+    fmt = detect_workout_format(content, content_type, content_disposition)
+    if fmt is None:
+        raise HTTPException(
+            status_code=400,
+            detail="Не удалось определить формат файла по ссылке — поддерживаются только .gpx и .fit",
+        )
+
+    data = _parse_workout_content(content, fmt)
+    return _save_imported_activity(data, background_tasks, db, current_user)
 
 
 @router.get("/stats")

@@ -46,6 +46,7 @@ export default {
     distance: 'Distance (km)', timeLabel: 'Time', hr: 'Avg heart rate (bpm)', notes: 'Notes',
     errDateDist: 'Please fill in date and distance', errTime: 'Please enter run duration',
     importBtn: 'Import GPX/FIT', importing: 'Importing...',
+    importUrlBtn: 'Paste link', importUrlPrompt: 'Paste the workout export link from your watch',
     duplicate: 'This run has likely already been uploaded. Edit or delete the existing entry.',
     tabRuns: 'Runs', tabOther: 'Other',
   },

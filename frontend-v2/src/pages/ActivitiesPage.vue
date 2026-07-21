@@ -4,6 +4,9 @@
       <button class="btn btn-secondary btn-sm" @click="triggerFileInput" :disabled="importing">
         <i class="fas fa-file-import"></i> {{ importing ? $t('activities.importing') : $t('activities.importBtn') }}
       </button>
+      <button class="btn btn-secondary btn-sm" @click="importFromUrl" :disabled="importing">
+        <i class="fas fa-link"></i> {{ $t('activities.importUrlBtn') }}
+      </button>
       <button class="btn btn-primary btn-sm" @click="modal?.open()">
         <i class="fas fa-plus"></i> {{ $t('activities.add') }}
       </button>
@@ -121,7 +124,7 @@ const { t, locale } = useI18n()
 const store     = useActivitiesStore()
 const modal     = ref<InstanceType<typeof ActivityModal> | null>(null)
 const showModal = ref(false)
-const { confirm } = useDialog()
+const { confirm, prompt } = useDialog()
 const fileInput   = ref<HTMLInputElement | null>(null)
 const importing   = ref(false)
 const importError = ref('')
@@ -180,6 +183,27 @@ async function onFileSelected(e: Event) {
   } finally {
     importing.value = false
     if (fileInput.value) fileInput.value.value = ''
+  }
+}
+
+async function importFromUrl() {
+  importError.value = ''
+  const url = await prompt(t('activities.importUrlPrompt'), { placeholder: 'https://...' })
+  if (!url) return
+  importing.value = true
+  try {
+    const result = await activitiesApi.importUrl(url.trim())
+    if (result.ai_analysis_pending) useChatStore().setUnread()
+    await store.load()
+  } catch (err: any) {
+    if (err instanceof ApiError && err.status === 409 &&
+        (err.detail as any)?.code === 'duplicate_activity') {
+      importError.value = t('activities.duplicate')
+    } else {
+      importError.value = err.message || t('activities.errDateDist')
+    }
+  } finally {
+    importing.value = false
   }
 }
 

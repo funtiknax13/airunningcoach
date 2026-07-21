@@ -140,6 +140,10 @@ class ActivityWithAnalysis(ActivityResponse):
     ai_analysis_pending: bool = False
 
 
+class ActivityImportUrl(BaseModel):
+    url: str
+
+
 class ActivityUpdate(BaseModel):
     date: Optional[datetime] = None
     distance_km: Optional[float] = None

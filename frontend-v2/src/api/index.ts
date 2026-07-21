@@ -61,6 +61,8 @@ export const activitiesApi = {
     form.append('file', file)
     return api.requestRaw<ActivityWithAnalysis>('/api/activities/import', 'POST', form)
   },
+  importUrl: (url: string): Promise<ActivityWithAnalysis> =>
+    api.request<ActivityWithAnalysis>('/api/activities/import-url', 'POST', { url }),
 }
 
 // ── Goals ─────────────────────────────────────────────────────────────────
