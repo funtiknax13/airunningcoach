@@ -108,7 +108,7 @@ def complete_workout(
     # (реальный вызов DeepSeek не должен держать ответ на клик "отметить").
     pending = activity is not None
     if pending:
-        background_tasks.add_task(analyze_workout_completion, workout, activity, current_user, db)
+        background_tasks.add_task(analyze_workout_completion, workout.id, activity.id, current_user.id)
 
     result = WorkoutWithAnalysis.model_validate(workout)
     result.ai_analysis_pending = pending

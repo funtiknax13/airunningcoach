@@ -268,6 +268,7 @@ export interface BadgeAchievement {
   icon_img: string
   unlocked: boolean
   earned_at?: string | null
+  seen: boolean
 }
 
 export interface AchievementsResponse {

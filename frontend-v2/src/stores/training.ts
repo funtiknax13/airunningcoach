@@ -30,7 +30,7 @@ export const useTrainingStore = defineStore('training', () => {
 
   async function completeWorkout(id: number, notes?: string) {
     const result = await trainingApi.completeWorkout(id, notes)
-    if (result.ai_analysis_pending) useChatStore().setUnread()
+    if (result.ai_analysis_pending) useChatStore().refreshUnread()
     await load()
   }
 

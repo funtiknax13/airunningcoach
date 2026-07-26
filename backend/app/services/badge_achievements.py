@@ -276,7 +276,7 @@ def recompute_badge_achievements(user_id: int, db: Session) -> None:
             newly_earned[d["key"]] = max(dates) if dates else datetime.now()
 
     for key, earned_at in newly_earned.items():
-        db.add(UserAchievement(user_id=user_id, achievement_key=key, earned_at=earned_at))
+        db.add(UserAchievement(user_id=user_id, achievement_key=key, earned_at=earned_at, seen=False))
     db.commit()
 
 
@@ -317,5 +317,5 @@ def recompute_and_fix_dates(user_id: int, db: Session) -> None:
         if key in already_rows:
             already_rows[key].earned_at = earned_at
         else:
-            db.add(UserAchievement(user_id=user_id, achievement_key=key, earned_at=earned_at))
+            db.add(UserAchievement(user_id=user_id, achievement_key=key, earned_at=earned_at, seen=False))
     db.commit()

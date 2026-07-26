@@ -56,6 +56,7 @@
 
       <div class="badge-grid">
         <div v-for="b in badges" :key="b.key" class="badge-card" :class="{ unlocked: b.unlocked }">
+          <span v-if="b.unlocked && !b.seen" class="badge-new">{{ $t('achievements.new') }}</span>
           <button v-if="b.unlocked" class="btn-share btn-share--badge" :title="$t('achievements.shareBtn')" @click="onShareBadge(b)">
             <i class="fas fa-share-nodes"></i>
           </button>
@@ -78,7 +79,10 @@ import SkeletonLoader from '@/components/common/SkeletonLoader.vue'
 import ProfileModal from '@/components/profile/ProfileModal.vue'
 import { achievementsApi } from '@/api'
 import { useShareCard } from '@/composables/useShareCard'
+import { useAchievementsStore } from '@/stores/achievements'
 import type { AchievementRecord, BadgeAchievement } from '@/api/types'
+
+const achievementsStore = useAchievementsStore()
 
 const { share } = useShareCard()
 
@@ -120,6 +124,9 @@ onMounted(async () => {
     genderRequired.value = res.gender_required
     personalRecords.value = res.personal_records
     badges.value = res.badges
+    // Снимок "непросмотрено" уже захвачен в badges выше — подсветка NEW отработает
+    // на этот заход, а markSeen убирает её для следующего визита.
+    achievementsStore.markSeen()
   } finally {
     loading.value = false
   }

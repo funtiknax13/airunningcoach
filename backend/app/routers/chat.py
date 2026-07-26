@@ -102,3 +102,33 @@ def get_chat_history(
         .all()
     )
     return list(reversed(messages))
+
+
+@router.get("/unread-count")
+def get_unread_count(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Сколько фоновых AI-сообщений (авторазбор тренировки/плана) ещё не просмотрено.
+
+    Считается по факту наличия сообщения в БД, а не по клиентскому флагу —
+    иначе если открыть чат раньше, чем фоновый анализ успел записать сообщение,
+    бейдж гаснет, а сообщение так и не показывается (баг, который это чинит)."""
+    count = (
+        db.query(ChatMessage)
+        .filter(ChatMessage.user_id == current_user.id, ChatMessage.role == "ai", ChatMessage.read == False)
+        .count()
+    )
+    return {"count": count}
+
+
+@router.post("/mark-read")
+def mark_chat_read(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    db.query(ChatMessage).filter(
+        ChatMessage.user_id == current_user.id, ChatMessage.role == "ai", ChatMessage.read == False,
+    ).update({"read": True})
+    db.commit()
+    return {"count": 0}

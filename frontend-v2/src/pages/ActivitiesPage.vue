@@ -115,6 +115,7 @@ import SkeletonLoader from '@/components/common/SkeletonLoader.vue'
 import ActivityDetailComponent from '@/components/activities/ActivityDetail.vue'
 import { useActivitiesStore } from '@/stores/activities'
 import { useChatStore } from '@/stores/chat'
+import { useAchievementsStore } from '@/stores/achievements'
 import { useDialog } from '@/composables/useDialog'
 import { activitiesApi } from '@/api'
 import { ApiError } from '@/api/client'
@@ -171,7 +172,8 @@ async function onFileSelected(e: Event) {
   importError.value = ''
   try {
     const result = await activitiesApi.importFile(file)
-    if (result.ai_analysis_pending) useChatStore().setUnread()
+    if (result.ai_analysis_pending) useChatStore().refreshUnread()
+    useAchievementsStore().refreshUnseen()
     await store.load()
   } catch (err: any) {
     if (err instanceof ApiError && err.status === 409 &&
@@ -193,7 +195,8 @@ async function importFromUrl() {
   importing.value = true
   try {
     const result = await activitiesApi.importUrl(url.trim())
-    if (result.ai_analysis_pending) useChatStore().setUnread()
+    if (result.ai_analysis_pending) useChatStore().refreshUnread()
+    useAchievementsStore().refreshUnseen()
     await store.load()
   } catch (err: any) {
     if (err instanceof ApiError && err.status === 409 &&

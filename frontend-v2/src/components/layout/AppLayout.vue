@@ -23,7 +23,8 @@
           :class="{ active: route.path === item.to }">
           <span class="nav-icon-wrap">
             <i :class="item.icon"></i>
-            <span v-if="item.to === '/coach' && chatStore.hasUnread" class="nav-badge"></span>
+            <span v-if="item.to === '/coach' && chatStore.unreadCount > 0" class="nav-badge">{{ chatStore.unreadCount > 9 ? '9+' : chatStore.unreadCount }}</span>
+            <span v-if="item.to === '/achievements' && achievementsStore.unseenCount > 0" class="nav-badge">{{ achievementsStore.unseenCount > 9 ? '9+' : achievementsStore.unseenCount }}</span>
           </span>
           {{ item.label }}
         </RouterLink>
@@ -131,7 +132,8 @@
       :class="{ active: route.path === item.to }">
       <span class="nav-icon-wrap">
         <i :class="item.icon"></i>
-        <span v-if="item.to === '/coach' && chatStore.hasUnread" class="nav-badge"></span>
+        <span v-if="item.to === '/coach' && chatStore.unreadCount > 0" class="nav-badge">{{ chatStore.unreadCount > 9 ? '9+' : chatStore.unreadCount }}</span>
+        <span v-if="item.to === '/achievements' && achievementsStore.unseenCount > 0" class="nav-badge">{{ achievementsStore.unseenCount > 9 ? '9+' : achievementsStore.unseenCount }}</span>
       </span>
       <span>{{ item.label }}</span>
     </RouterLink>
@@ -144,12 +146,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute, RouterLink } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { toggleLang } from '@/i18n'
 import { useAuthStore } from '@/stores/auth'
 import { useChatStore } from '@/stores/chat'
+import { useAchievementsStore } from '@/stores/achievements'
 import { useTheme } from '@/composables/useTheme'
 import ProfileModal       from '@/components/profile/ProfileModal.vue'
 import SupportModal       from '@/components/support/SupportModal.vue'
@@ -160,8 +163,23 @@ const { t, locale } = useI18n()
 const route     = useRoute()
 const auth      = useAuthStore()
 const chatStore = useChatStore()
+const achievementsStore = useAchievementsStore()
 const supportModal = ref<InstanceType<typeof SupportModal> | null>(null)
 const showSupport  = ref(false)
+
+// Бейджи в навигации — реальные непрочитанные/непросмотренные с сервера,
+// не оптимистичный флаг. Фоновый AI-разбор тренировки может занять до
+// минуты — polling подхватывает его, как только сообщение реально появится.
+let notifPoll: ReturnType<typeof setInterval> | null = null
+onMounted(() => {
+  chatStore.refreshUnread()
+  achievementsStore.refreshUnseen()
+  notifPoll = setInterval(() => {
+    chatStore.refreshUnread()
+    achievementsStore.refreshUnseen()
+  }, 10_000)
+})
+onUnmounted(() => { if (notifPoll) clearInterval(notifPoll) })
 
 const isPremium = computed(() => {
   if (!auth.user?.is_premium) return false

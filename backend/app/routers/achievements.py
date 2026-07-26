@@ -89,6 +89,7 @@ def list_achievements(
             "icon_img": f"/images/badges/{d['key']}.png",
             "unlocked": ua is not None,
             "earned_at": ua.earned_at.isoformat() if ua else None,
+            "seen": ua.seen if ua else True,
         })
 
     return {
@@ -96,3 +97,28 @@ def list_achievements(
         "personal_records": personal_records,
         "badges": badges,
     }
+
+
+@router.get("/unseen-count")
+def get_unseen_achievements_count(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    count = (
+        db.query(UserAchievement)
+        .filter(UserAchievement.user_id == current_user.id, UserAchievement.seen == False)
+        .count()
+    )
+    return {"count": count}
+
+
+@router.post("/mark-seen")
+def mark_achievements_seen(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    db.query(UserAchievement).filter(
+        UserAchievement.user_id == current_user.id, UserAchievement.seen == False,
+    ).update({"seen": True})
+    db.commit()
+    return {"count": 0}

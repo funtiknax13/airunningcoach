@@ -6,17 +6,22 @@ import { loadCache, saveCache } from '@/utils/cache'
 import type { ChatMessage } from '@/api/types'
 
 export const useChatStore = defineStore('chat', () => {
-  const messages  = ref<ChatMessage[]>(loadCache<ChatMessage[]>('chat') ?? [])
-  const typing    = ref(false)
-  const hasUnread = ref(localStorage.getItem('ai_unread') === '1')
+  const messages    = ref<ChatMessage[]>(loadCache<ChatMessage[]>('chat') ?? [])
+  const typing      = ref(false)
+  const unreadCount = ref(0)
 
-  function setUnread() {
-    localStorage.setItem('ai_unread', '1')
-    hasUnread.value = true
+  // Бейдж отражает реальное состояние на сервере, а не оптимистичный клиентский
+  // флаг: если открыть чат раньше, чем фоновый AI-разбор дописал сообщение,
+  // count просто останется 0 вместо того, чтобы погаснуть по факту открытия
+  // страницы и никогда больше не показать пришедшее позже сообщение.
+  async function refreshUnread() {
+    try { unreadCount.value = (await chatApi.unreadCount()).count }
+    catch { /* тихо — это фоновый polling, не должен шуметь ошибками */ }
   }
-  function clearUnread() {
-    localStorage.removeItem('ai_unread')
-    hasUnread.value = false
+
+  async function clearUnread() {
+    unreadCount.value = 0
+    try { await chatApi.markRead() } catch { /* при следующем refresh досчитается заново */ }
   }
 
   async function load() {
@@ -50,5 +55,5 @@ export const useChatStore = defineStore('chat', () => {
     }
   }
 
-  return { messages, typing, hasUnread, setUnread, clearUnread, load, send }
+  return { messages, typing, unreadCount, refreshUnread, clearUnread, load, send }
 })

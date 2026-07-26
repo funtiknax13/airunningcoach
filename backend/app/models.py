@@ -185,6 +185,7 @@ class UserAchievement(Base):
     achievement_key = Column(String(40), nullable=False)
     earned_at       = Column(DateTime(timezone=True), server_default=func.now())
     activity_id     = Column(Integer, ForeignKey("activities.id", ondelete="SET NULL"), nullable=True)
+    seen            = Column(Boolean, nullable=False, default=True, server_default='true')  # False для только что разблокированных — снимается при заходе на страницу достижений
 
     user = relationship("User")
     activity = relationship("Activity")
@@ -232,6 +233,7 @@ class ChatMessage(Base):
     role = Column(String(20), nullable=False)  # user, ai, system
     content = Column(Text, nullable=False)
     context_type = Column(String(50))  # training, nutrition, injury, general
+    read = Column(Boolean, nullable=False, default=True, server_default='true')  # False только для фоновых AI-сообщений (auto_analysis/workout_check)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     user = relationship("User", back_populates="chat_messages")

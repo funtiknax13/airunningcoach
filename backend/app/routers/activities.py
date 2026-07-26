@@ -85,7 +85,7 @@ def create_activity(
     act_date = _local_date(db_activity.date, current_user) if hasattr(db_activity.date, 'date') else db_activity.date
     pending = (_local_today(current_user) - act_date).days <= 1
     if pending:
-        background_tasks.add_task(analyze_new_activity, db_activity, current_user, db)
+        background_tasks.add_task(analyze_new_activity, db_activity.id, current_user.id)
 
     result = ActivityWithAnalysis.model_validate(db_activity)
     result.ai_analysis_pending = pending
@@ -159,7 +159,7 @@ def _save_imported_activity(
     act_date = _local_date(db_activity.date, current_user) if hasattr(db_activity.date, 'date') else db_activity.date
     pending = (_local_today(current_user) - act_date).days <= 1
     if pending:
-        background_tasks.add_task(analyze_new_activity, db_activity, current_user, db)
+        background_tasks.add_task(analyze_new_activity, db_activity.id, current_user.id)
 
     result = ActivityWithAnalysis.model_validate(db_activity)
     result.ai_analysis_pending = pending

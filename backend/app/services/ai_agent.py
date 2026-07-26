@@ -18,6 +18,7 @@ from openai import OpenAI
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
+from app.database import SessionLocal
 from app.models import User, Activity, Goal, Workout, ChatMessage
 from app.services.workout_verification import STATUS_LABELS
 
@@ -327,128 +328,156 @@ def _save_unavailable_notice(user: User, db: Session, context_type: str) -> str:
     отработает — если тут молча вернуть "", бейдж загорится, а сообщение
     никогда не появится. Раньше так и было (пользователь сообщил о тренировке
     "ходьба", по которой пришло уведомление, но не пришло сообщение)."""
-    db.add(ChatMessage(user_id=user.id, role="ai", content=_UNAVAILABLE_MSG, context_type=context_type))
+    db.add(ChatMessage(user_id=user.id, role="ai", content=_UNAVAILABLE_MSG, context_type=context_type, read=False))
     db.commit()
     return _UNAVAILABLE_MSG
 
 
-def analyze_new_activity(activity, user: User, db: Session) -> str:
-    """Синхронный автоанализ только что загруженной тренировки. Сохраняет сообщения в ChatMessage."""
-    if _STUB_MODE:
-        return _save_unavailable_notice(user, db, "auto_analysis")
+def analyze_new_activity(activity_id: int, user_id: int) -> str:
+    """Синхронный автоанализ только что загруженной тренировки. Сохраняет сообщения в ChatMessage.
 
-    client = _make_client()
-    if not client:
-        return _save_unavailable_notice(user, db, "auto_analysis")
-
-    context = _build_user_context(user, db)
-    system = f"{SYSTEM_PROMPT}\nОтвечай на русском языке.\n\n{context}"
-
-    type_map = {
-        "run": "Пробежка", "ride": "Велотренировка", "walk": "Ходьба",
-        "hike": "Хайкинг", "swim": "Плавание", "strength": "Силовая тренировка",
-        "workout": "Тренировка", "other": "Активность",
-    }
-    type_name = type_map.get(activity.activity_type or "run", "Тренировка")
-    pace_str = f"{_fmt_pace(activity.pace_min_per_km)}/км" if activity.pace_min_per_km else "—"
-    hr_str = f"\n- ЧСС: {activity.avg_heart_rate} уд/мин" if activity.avg_heart_rate else ""
-    elev_str = f"\n- Набор высоты: {activity.elevation_gain:.0f} м" if activity.elevation_gain else ""
-
-    prompt = (
-        f"Я только что загрузил(а) тренировку:\n\n"
-        f"**{type_name}** {activity.date.strftime('%d.%m.%Y')}:\n"
-        f"- Дистанция: {activity.distance_km} км\n"
-        f"- Время: {_fmt_time(activity.duration_min)}\n"
-        f"- Темп: {pace_str}{hr_str}{elev_str}\n\n"
-        f"Разбери эту тренировку: как прошла, что хорошо, что можно улучшить, "
-        f"как она вписывается в мою подготовку."
-    )
-
-    # Освобождаем соединение на время (синхронного, блокирующего) вызова DeepSeek —
-    # этот код и так уже выполняется в фоновом потоке (BackgroundTasks), но сама
-    # сессия БД всё равно держала бы слот пула все эти секунды без close().
-    db.close()
-
+    Открывает СВОЮ собственную сессию БД, а не переиспользует сессию исходного HTTP-запроса:
+    это background task, который Starlette выполняет в отдельном потоке из пула (run_in_threadpool),
+    а SQLAlchemy Session не потокобезопасна. Из-за этого сообщение — даже запасное
+    "AI недоступен" — иногда не сохранялось вообще: реальные логи показали месяц загруженных
+    тренировок без единого сообщения от тренера."""
+    db = SessionLocal()
     try:
-        resp = client.chat.completions.create(
-            model="deepseek-chat",
-            messages=[
-                {"role": "system", "content": system},
-                {"role": "user", "content": prompt},
-            ],
-            max_tokens=600,
-            temperature=0.7,
+        activity = db.query(Activity).filter(Activity.id == activity_id).first()
+        user = db.query(User).filter(User.id == user_id).first()
+        if not activity or not user:
+            return ""
+
+        if _STUB_MODE:
+            return _save_unavailable_notice(user, db, "auto_analysis")
+
+        client = _make_client()
+        if not client:
+            return _save_unavailable_notice(user, db, "auto_analysis")
+
+        context = _build_user_context(user, db)
+        system = f"{SYSTEM_PROMPT}\nОтвечай на русском языке.\n\n{context}"
+
+        type_map = {
+            "run": "Пробежка", "ride": "Велотренировка", "walk": "Ходьба",
+            "hike": "Хайкинг", "swim": "Плавание", "strength": "Силовая тренировка",
+            "workout": "Тренировка", "other": "Активность",
+        }
+        type_name = type_map.get(activity.activity_type or "run", "Тренировка")
+        pace_str = f"{_fmt_pace(activity.pace_min_per_km)}/км" if activity.pace_min_per_km else "—"
+        hr_str = f"\n- ЧСС: {activity.avg_heart_rate} уд/мин" if activity.avg_heart_rate else ""
+        elev_str = f"\n- Набор высоты: {activity.elevation_gain:.0f} м" if activity.elevation_gain else ""
+
+        prompt = (
+            f"Я только что загрузил(а) тренировку:\n\n"
+            f"**{type_name}** {activity.date.strftime('%d.%m.%Y')}:\n"
+            f"- Дистанция: {activity.distance_km} км\n"
+            f"- Время: {_fmt_time(activity.duration_min)}\n"
+            f"- Темп: {pace_str}{hr_str}{elev_str}\n\n"
+            f"Разбери эту тренировку: как прошла, что хорошо, что можно улучшить, "
+            f"как она вписывается в мою подготовку."
         )
-        ai_text = _strip_date_prefix(resp.choices[0].message.content.strip())
-    except Exception as e:
-        logger.error("DeepSeek analyze_new_activity error: %s", e)
-        return _save_unavailable_notice(user, db, "auto_analysis")
 
-    db.add(ChatMessage(user_id=user.id, role="user", content=prompt, context_type="auto_analysis"))
-    db.add(ChatMessage(user_id=user.id, role="ai", content=ai_text, context_type="auto_analysis"))
-    db.commit()
+        # Освобождаем соединение на время (синхронного, блокирующего) вызова DeepSeek —
+        # сессия своя и используется только этим потоком от начала до конца, поэтому
+        # close() + неявное переоткрытие ниже безопасны (в отличие от версии, где сессия
+        # приходила из другого потока).
+        db.close()
 
-    return ai_text
+        try:
+            resp = client.chat.completions.create(
+                model="deepseek-chat",
+                messages=[
+                    {"role": "system", "content": system},
+                    {"role": "user", "content": prompt},
+                ],
+                max_tokens=600,
+                temperature=0.7,
+            )
+            ai_text = _strip_date_prefix(resp.choices[0].message.content.strip())
+        except Exception as e:
+            logger.error("DeepSeek analyze_new_activity error: %s", e)
+            return _save_unavailable_notice(user, db, "auto_analysis")
+
+        db.add(ChatMessage(user_id=user.id, role="user", content=prompt, context_type="auto_analysis"))
+        db.add(ChatMessage(user_id=user.id, role="ai", content=ai_text, context_type="auto_analysis", read=False))
+        db.commit()
+
+        return ai_text
+    finally:
+        db.close()
 
 
-def analyze_workout_completion(workout, activity, user: User, db: Session) -> str:
+def analyze_workout_completion(workout_id: int, activity_id: int, user_id: int) -> str:
     """Комментирует отметку тренировки из плана как выполненной — план vs факт.
 
     Вызывается только когда есть подтверждающая Activity (activity is not None) —
     без факта тренеру нечего разбирать, а комментировать «ничего не нашли» вслух
-    от лица AI-агента не имеет смысла."""
-    if _STUB_MODE:
-        return _save_unavailable_notice(user, db, "workout_check")
+    от лица AI-агента не имеет смысла.
 
-    client = _make_client()
-    if not client:
-        return _save_unavailable_notice(user, db, "workout_check")
-
-    context = _build_user_context(user, db)
-    system = f"{SYSTEM_PROMPT}\nОтвечай на русском языке.\n\n{context}"
-
-    plan_parts = [f"план — {workout.workout_type}, {workout.description}"]
-    if workout.distance_km:
-        plan_parts.append(f"{workout.distance_km} км")
-    if workout.target_pace_min_km:
-        plan_parts.append(f"целевой темп {_fmt_pace(workout.target_pace_min_km)}/км")
-
-    pace_str = f"{_fmt_pace(activity.pace_min_per_km)}/км" if activity.pace_min_per_km else "—"
-    fact = f"факт — {activity.distance_km} км, {_fmt_time(activity.duration_min)}, темп {pace_str}"
-
-    status_label = STATUS_LABELS.get(workout.completion_status, workout.completion_status)
-
-    prompt = (
-        f"Я отметил(а) тренировку из плана как выполненную:\n\n"
-        f"{', '.join(plan_parts)}\n{fact}\n"
-        f"Статус по итогам сверки с планом: {status_label}\n\n"
-        f"Прокомментируй, как прошла эта тренировка относительно плана — коротко, по делу, без критики."
-    )
-
-    # См. комментарий в analyze_new_activity — отдаём соединение в пул на время
-    # блокирующего вызова DeepSeek.
-    db.close()
-
+    Своя сессия БД — см. комментарий в analyze_new_activity про потокобезопасность."""
+    db = SessionLocal()
     try:
-        resp = client.chat.completions.create(
-            model="deepseek-chat",
-            messages=[
-                {"role": "system", "content": system},
-                {"role": "user", "content": prompt},
-            ],
-            max_tokens=600,
-            temperature=0.7,
+        workout = db.query(Workout).filter(Workout.id == workout_id).first()
+        activity = db.query(Activity).filter(Activity.id == activity_id).first()
+        user = db.query(User).filter(User.id == user_id).first()
+        if not workout or not activity or not user:
+            return ""
+
+        if _STUB_MODE:
+            return _save_unavailable_notice(user, db, "workout_check")
+
+        client = _make_client()
+        if not client:
+            return _save_unavailable_notice(user, db, "workout_check")
+
+        context = _build_user_context(user, db)
+        system = f"{SYSTEM_PROMPT}\nОтвечай на русском языке.\n\n{context}"
+
+        plan_parts = [f"план — {workout.workout_type}, {workout.description}"]
+        if workout.distance_km:
+            plan_parts.append(f"{workout.distance_km} км")
+        if workout.target_pace_min_km:
+            plan_parts.append(f"целевой темп {_fmt_pace(workout.target_pace_min_km)}/км")
+
+        pace_str = f"{_fmt_pace(activity.pace_min_per_km)}/км" if activity.pace_min_per_km else "—"
+        fact = f"факт — {activity.distance_km} км, {_fmt_time(activity.duration_min)}, темп {pace_str}"
+
+        status_label = STATUS_LABELS.get(workout.completion_status, workout.completion_status)
+
+        prompt = (
+            f"Я отметил(а) тренировку из плана как выполненную:\n\n"
+            f"{', '.join(plan_parts)}\n{fact}\n"
+            f"Статус по итогам сверки с планом: {status_label}\n\n"
+            f"Прокомментируй, как прошла эта тренировка относительно плана — коротко, по делу, без критики."
         )
-        ai_text = _strip_date_prefix(resp.choices[0].message.content.strip())
-    except Exception as e:
-        logger.error("DeepSeek analyze_workout_completion error: %s", e)
-        return _save_unavailable_notice(user, db, "workout_check")
 
-    db.add(ChatMessage(user_id=user.id, role="user", content=prompt, context_type="workout_check"))
-    db.add(ChatMessage(user_id=user.id, role="ai", content=ai_text, context_type="workout_check"))
-    db.commit()
+        # См. комментарий в analyze_new_activity — отдаём соединение в пул на время
+        # блокирующего вызова DeepSeek.
+        db.close()
 
-    return ai_text
+        try:
+            resp = client.chat.completions.create(
+                model="deepseek-chat",
+                messages=[
+                    {"role": "system", "content": system},
+                    {"role": "user", "content": prompt},
+                ],
+                max_tokens=600,
+                temperature=0.7,
+            )
+            ai_text = _strip_date_prefix(resp.choices[0].message.content.strip())
+        except Exception as e:
+            logger.error("DeepSeek analyze_workout_completion error: %s", e)
+            return _save_unavailable_notice(user, db, "workout_check")
+
+        db.add(ChatMessage(user_id=user.id, role="user", content=prompt, context_type="workout_check"))
+        db.add(ChatMessage(user_id=user.id, role="ai", content=ai_text, context_type="workout_check", read=False))
+        db.commit()
+
+        return ai_text
+    finally:
+        db.close()
 
 
 def replace_upcoming_workouts(user_id: int, db: Session, workouts_data: list[dict], start: datetime) -> None:
@@ -688,9 +717,17 @@ def _stub_plan(user: User, db: Session) -> list[dict]:
 
 
 def _stub_insights(user: User, db: Session) -> list[str]:
-    since = datetime.now() - timedelta(days=30)
+    tz = None
+    if user.timezone:
+        try:
+            tz = ZoneInfo(user.timezone)
+        except Exception:
+            tz = None
+    since = datetime.now(tz) - timedelta(days=30)
+    # Только бег — иначе ходьба/велотренировки/силовая считаются "пробежками",
+    # а их темп/дистанция смешиваются с беговыми в тех же инсайтах.
     activities = db.query(Activity).filter(
-        Activity.user_id == user.id, Activity.date >= since
+        Activity.user_id == user.id, Activity.activity_type == "run", Activity.date >= since
     ).all()
 
     insights = []

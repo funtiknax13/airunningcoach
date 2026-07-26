@@ -93,6 +93,8 @@ export const chatApi = {
   send:    (message: string, lang = 'ru') =>
     api.request<ChatMessage>('/api/chat/message', 'POST',
       { message, context_type: 'general', lang }),
+  unreadCount: () => api.request<{ count: number }>('/api/chat/unread-count'),
+  markRead:    () => api.request<{ count: number }>('/api/chat/mark-read', 'POST'),
 }
 
 // ── Insights ──────────────────────────────────────────────────────────────
@@ -119,4 +121,6 @@ export const pushApi = {
 // ── Ачивки / разряды ЕВСК ────────────────────────────────────────────────────
 export const achievementsApi = {
   list: () => api.request<AchievementsResponse>('/api/achievements'),
+  unseenCount: () => api.request<{ count: number }>('/api/achievements/unseen-count'),
+  markSeen:    () => api.request<{ count: number }>('/api/achievements/mark-seen', 'POST'),
 }

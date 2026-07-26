@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { activitiesApi } from '@/api'
 import { useChatStore } from '@/stores/chat'
+import { useAchievementsStore } from '@/stores/achievements'
 import { loadCache, saveCache } from '@/utils/cache'
 import type { Activity, ActivityCreate, ActivityUpdate } from '@/api/types'
 
@@ -30,7 +31,8 @@ export const useActivitiesStore = defineStore('activities', () => {
 
   async function create(data: ActivityCreate) {
     const result = await activitiesApi.create(data)
-    if (result.ai_analysis_pending) useChatStore().setUnread()
+    if (result.ai_analysis_pending) useChatStore().refreshUnread()
+    useAchievementsStore().refreshUnseen()
     await load()
   }
 

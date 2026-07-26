@@ -20,6 +20,7 @@ export default {
     subtitle: 'Личные рекорды и разряды ЕВСК по вашим пробежкам',
     recordsTitle: 'Личные рекорды',
     badgesTitle: 'Достижения',
+    new: 'Новое',
     badgesSubtitle: 'Разовые вехи — за тренировки, дистанции и объём бега',
     genderRequired: 'Укажи пол в профиле, чтобы увидеть свой разряд',
     genderRequiredCta: 'Открыть профиль',
