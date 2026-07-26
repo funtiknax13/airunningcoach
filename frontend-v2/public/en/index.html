@@ -1002,7 +1002,7 @@ async function doRegister() {
   if (pw !== confirm) { showMsg('reg-error', 'Passwords do not match'); return; }
   setLoading('reg-btn', true);
   try {
-    await apiPost('/api/auth/register', { email: email, password: pw, confirm_password: confirm, name: name, age: age, weight: weight, height: height, lang: 'en' });
+    await apiPost('/api/auth/register', { email: email, password: pw, confirm_password: confirm, name: name, age: age, weight: weight, height: height, lang: 'en', timezone: Intl.DateTimeFormat().resolvedOptions().timeZone });
     _lastEmail = email;
     showMsg('verify-desc', 'Confirmation email sent to ' + email);
     showScreen('verify');

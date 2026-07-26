@@ -14,10 +14,23 @@ export const useAuthStore = defineStore('auth', () => {
     try {
       user.value = await authApi.me()
       loggedIn.value = true
+      syncTimezone()
     } catch (e) {
       // Разлогиниваем ТОЛЬКО при реальном 401 (токен невалиден).
       // Таймаут / 5xx / сетевой сбой — временные: сохраняем сессию, токен не трогаем.
       if (e instanceof ApiError && e.status === 401) logout()
+    }
+  }
+
+  // Тихо подтягиваем часовой пояс браузера — ловит и пользователей, заведённых
+  // до появления этого поля (у них timezone = null), и переезды/смену системной зоны.
+  function syncTimezone() {
+    if (!user.value) return
+    const detected = Intl.DateTimeFormat().resolvedOptions().timeZone
+    if (detected && detected !== user.value.timezone) {
+      authApi.updateProfile({ timezone: detected })
+        .then(u => { user.value = u })
+        .catch(() => {})
     }
   }
 

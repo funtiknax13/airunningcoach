@@ -11,6 +11,7 @@ import json
 import logging
 import re
 from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 from typing import Optional
 
 from openai import OpenAI
@@ -83,7 +84,10 @@ async def _acreate(client: OpenAI, **kwargs):
 
 def _build_user_context(user: User, db: Session) -> str:
     """Собирает контекст пользователя в текстовый блок для системного промпта."""
-    today = datetime.now().date()
+    try:
+        today = datetime.now(ZoneInfo(user.timezone)).date() if user.timezone else datetime.now().date()
+    except Exception:
+        today = datetime.now().date()
     lines = [
         f"=== СЕГОДНЯ: {today.strftime('%d.%m.%Y')} ({['Пн','Вт','Ср','Чт','Пт','Сб','Вс'][today.weekday()]}) ===",
         f"\n=== ПРОФИЛЬ ===",
@@ -152,7 +156,13 @@ def _build_user_context(user: User, db: Session) -> str:
     if recent:
         lines.append("\n=== ИСТОРИЯ ТРЕНИРОВОК ===")
         for a in recent:
-            act_date = a.date.date() if hasattr(a.date, 'date') else a.date
+            act_dt = a.date
+            if user.timezone and act_dt.tzinfo is not None:
+                try:
+                    act_dt = act_dt.astimezone(ZoneInfo(user.timezone))
+                except Exception:
+                    pass
+            act_date = act_dt.date() if hasattr(act_dt, 'date') else act_dt
             days_ago = (today - act_date).days
             ago_str  = "сегодня" if days_ago == 0 else f"{days_ago} дн. назад"
             pace_str = f"{_fmt_pace(a.pace_min_per_km)}/км" if a.pace_min_per_km else "—"
@@ -162,7 +172,7 @@ def _build_user_context(user: User, db: Session) -> str:
             cad      = f", {a.avg_cadence}шаг/мин" if a.avg_cadence else ""
             type_label = _type_labels.get(a.activity_type or "run", a.activity_type or "бег")
             line = (
-                f"• {a.date.strftime('%d.%m')} ({ago_str}) [{type_label}]: "
+                f"• {act_dt.strftime('%d.%m')} ({ago_str}) [{type_label}]: "
                 f"{a.distance_km} км, {_fmt_time(a.duration_min)}, темп {pace_str}{hr_str}{max_hr}{elev}{cad}"
             )
             lines.append(line)

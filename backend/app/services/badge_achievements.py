@@ -9,10 +9,11 @@ earned_at всегда ставится по дате пробежки/собы�
 """
 from collections import defaultdict
 from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 
 from sqlalchemy.orm import Session
 
-from app.models import Activity, Goal, UserAchievement, Workout
+from app.models import Activity, Goal, User, UserAchievement, Workout
 from app.services.achievement_defs import ACHIEVEMENT_DEFS
 
 
@@ -25,7 +26,21 @@ def _to_dt(value) -> datetime | None:
     return datetime.combine(value, datetime.min.time())
 
 
-def _week_start(value):
+def _to_local(dt: datetime | None, tz_name: str | None) -> datetime | None:
+    """Переводит aware UTC-datetime (Activity.date) в локальное время бегуна —
+    важно для бейджей/недель, завязанных на час или календарный день. Наивные
+    datetime (Workout.planned_date/Goal.target_date — уже просто календарная
+    дата без момента времени) возвращает как есть."""
+    if dt is None or not tz_name or dt.tzinfo is None:
+        return dt
+    try:
+        return dt.astimezone(ZoneInfo(tz_name))
+    except Exception:
+        return dt
+
+
+def _week_start(value, tz_name: str | None = None):
+    value = _to_local(value, tz_name) if isinstance(value, datetime) else value
     d = value.date() if hasattr(value, "date") else value
     return d - timedelta(days=d.weekday())
 
@@ -73,20 +88,21 @@ def _first_crossing_date(activities: list[Activity], value_fn, threshold: float)
     return None
 
 
-def _monthly_crossing_date(activities: list[Activity], threshold: float) -> datetime | None:
+def _monthly_crossing_date(activities: list[Activity], threshold: float, tz_name: str | None = None) -> datetime | None:
     """Дата активности, на которой сумма км за ЕЁ календарный месяц впервые достигла threshold."""
     running: dict[tuple, float] = defaultdict(float)
     for a in activities:
         if not a.date or not a.distance_km:
             continue
-        key = (a.date.year, a.date.month)
+        local = _to_local(a.date, tz_name)
+        key = (local.year, local.month)
         running[key] += a.distance_km
         if running[key] >= threshold:
             return a.date
     return None
 
 
-def _collect_run_stats(user_id: int, db: Session) -> dict:
+def _collect_run_stats(user_id: int, db: Session, tz_name: str | None = None) -> dict:
     activities = (
         db.query(Activity)
         .filter(Activity.user_id == user_id, Activity.activity_type == "run")
@@ -97,7 +113,7 @@ def _collect_run_stats(user_id: int, db: Session) -> dict:
     weekly_counts: dict = defaultdict(int)  # week_start (date, monday) -> кол-во пробежек
     for a in activities:
         if a.date:
-            weekly_counts[_week_start(a.date)] += 1
+            weekly_counts[_week_start(a.date, tz_name)] += 1
 
     return {"activities": activities, "weekly_counts": weekly_counts}
 
@@ -145,7 +161,7 @@ def _collect_plan_stats(user_id: int, db: Session) -> dict:
     }
 
 
-def _evaluate(d: dict, stats: dict, plan_stats: dict) -> datetime | None:
+def _evaluate(d: dict, stats: dict, plan_stats: dict, tz_name: str | None = None) -> datetime | None:
     """Возвращает дату, когда достижение было заслужено, либо None, если ещё не заслужено."""
     t = d["type"]
     activities = stats["activities"]
@@ -165,7 +181,7 @@ def _evaluate(d: dict, stats: dict, plan_stats: dict) -> datetime | None:
         return _first_crossing_date(activities, lambda a: a.distance_km, d["value"])
 
     if t == "monthly_volume":
-        return _monthly_crossing_date(activities, d["value"])
+        return _monthly_crossing_date(activities, d["value"], tz_name)
 
     if t == "elevation":
         return _first_match_date(activities, lambda a: (a.elevation_gain or 0) >= d["value"])
@@ -197,9 +213,9 @@ def _evaluate(d: dict, stats: dict, plan_stats: dict) -> datetime | None:
 
     if t == "time_of_day":
         if "before_hour" in d:
-            return _first_match_date(activities, lambda a: a.date.hour < d["before_hour"])
+            return _first_match_date(activities, lambda a: _to_local(a.date, tz_name).hour < d["before_hour"])
         if "after_hour" in d:
-            return _first_match_date(activities, lambda a: a.date.hour >= d["after_hour"])
+            return _first_match_date(activities, lambda a: _to_local(a.date, tz_name).hour >= d["after_hour"])
         return None
 
     if t == "plan_adherence":
@@ -237,14 +253,15 @@ def recompute_badge_achievements(user_id: int, db: Session) -> None:
     if not remaining:
         return
 
-    stats = _collect_run_stats(user_id, db)
+    tz_name = db.query(User.timezone).filter(User.id == user_id).scalar()
+    stats = _collect_run_stats(user_id, db, tz_name)
     plan_stats = _collect_plan_stats(user_id, db)
 
     newly_earned: dict[str, datetime] = {}
     for d in remaining:
         if d["type"] == "meta":
             continue  # мета-достижение оценивается последним, после всех остальных
-        earned_at = _evaluate(d, stats, plan_stats)
+        earned_at = _evaluate(d, stats, plan_stats, tz_name)
         if earned_at is not None:
             newly_earned[d["key"]] = earned_at
 
@@ -274,14 +291,15 @@ def recompute_and_fix_dates(user_id: int, db: Session) -> None:
         for ua in db.query(UserAchievement).filter(UserAchievement.user_id == user_id).all()
     }
 
-    stats = _collect_run_stats(user_id, db)
+    tz_name = db.query(User.timezone).filter(User.id == user_id).scalar()
+    stats = _collect_run_stats(user_id, db, tz_name)
     plan_stats = _collect_plan_stats(user_id, db)
 
     computed: dict[str, datetime] = {}
     for d in ACHIEVEMENT_DEFS:
         if d["type"] == "meta":
             continue
-        earned_at = _evaluate(d, stats, plan_stats)
+        earned_at = _evaluate(d, stats, plan_stats, tz_name)
         if earned_at is not None:
             computed[d["key"]] = earned_at
 

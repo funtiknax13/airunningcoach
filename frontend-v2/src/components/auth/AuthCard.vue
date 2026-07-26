@@ -198,7 +198,7 @@ async function register() {
     await authApi.register({ email: reg.value.email, password: reg.value.password,
       confirm_password: reg.value.confirm, name: reg.value.name,
       age: reg.value.age, weight: reg.value.weight, height: reg.value.height,
-      lang: locale.value })
+      lang: locale.value, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone })
     verifyText.value = `Письмо отправлено на ${reg.value.email}`
     screen.value = 'verify'
   } catch (e: any) { error.value = e.message }

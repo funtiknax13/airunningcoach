@@ -8,6 +8,7 @@ export interface UserCreate {
   weight?: number | null
   height?: number | null
   lang?: string
+  timezone?: string
 }
 
 export interface UserLogin {
@@ -35,6 +36,7 @@ export interface UserResponse {
   running_goal: string | null
   weekly_km: number | null
   training_days: number | null
+  timezone: string | null
   onboarding_completed: boolean
   created_at: string
 }
@@ -63,6 +65,7 @@ export interface UserUpdate {
   running_goal?: string | null
   weekly_km?: number | null
   training_days?: number | null
+  timezone?: string | null
   onboarding_completed?: boolean
 }
 

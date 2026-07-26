@@ -30,6 +30,7 @@ class User(Base):
     running_goal = Column(String(20), nullable=True)        # 5k | 10k | half_marathon | marathon | fitness
     weekly_km = Column(Float, nullable=True)                # текущий объём км/нед
     training_days = Column(Integer, nullable=True)          # дней в неделю
+    timezone = Column(String(50), nullable=True)             # IANA-имя, напр. Asia/Yekaterinburg — для локального времени в бейджах/статистике
     onboarding_completed = Column(Boolean, default=False, nullable=False, server_default='true')
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
@@ -50,7 +51,7 @@ class Activity(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    date = Column(DateTime, nullable=False)
+    date = Column(DateTime(timezone=True), nullable=False)
     distance_km = Column(Float, nullable=False)  # дистанция в км
     duration_min = Column(Float, nullable=False)  # время в минутах
     pace_min_per_km = Column(Float)  # темп (мин/км) - вычисляемое поле

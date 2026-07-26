@@ -43,6 +43,7 @@ async def register(user_data: UserCreate, db: Session = Depends(get_db)):
         password_hash=get_password_hash(user_data.password),
         name=user_data.name, age=user_data.age,
         weight=user_data.weight, height=user_data.height,
+        timezone=user_data.timezone,
         is_verified=False,
         verification_token=token, verification_token_expires=expires,
         is_premium=True, premium_until=trial_until,

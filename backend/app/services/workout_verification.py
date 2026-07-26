@@ -5,6 +5,7 @@
 и план на 30 км должны прощать разное абсолютное отклонение.
 """
 from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 
 from sqlalchemy.orm import Session
 
@@ -45,9 +46,21 @@ def verdict_for(activity: Activity | None, workout: Workout) -> str:
     return "unconfirmed"
 
 
-def find_matching_workout_for_activity(activity: Activity, user_id: int, db: Session) -> Workout | None:
-    """Активность → тренировка пользователя на ту же дату (тип rest не считается)."""
-    act_date = activity.date.date() if hasattr(activity.date, 'date') else activity.date
+def find_matching_workout_for_activity(
+    activity: Activity, user_id: int, db: Session, tz_name: str | None = None,
+) -> Workout | None:
+    """Активность → тренировка пользователя на ту же дату (тип rest не считается).
+
+    planned_date — календарная дата по местному времени бегуна, а activity.date —
+    момент в UTC, поэтому сначала переводим его в локальный день, иначе пробежка
+    поздним вечером/ранним утром может попасть не на тот день плана."""
+    act_dt = activity.date
+    if tz_name and act_dt.tzinfo is not None:
+        try:
+            act_dt = act_dt.astimezone(ZoneInfo(tz_name))
+        except Exception:
+            pass
+    act_date = act_dt.date() if hasattr(act_dt, 'date') else act_dt
     day_start = datetime.combine(act_date, datetime.min.time())
     day_end = day_start + timedelta(days=1)
 
@@ -67,7 +80,7 @@ def find_matching_workout_for_activity(activity: Activity, user_id: int, db: Ses
             .filter(
                 Workout.user_id == user_id,
                 Workout.planned_date.is_(None),
-                Workout.day_of_week == activity.date.weekday(),
+                Workout.day_of_week == act_dt.weekday(),
             )
             .first()
         )

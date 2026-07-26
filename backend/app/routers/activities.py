@@ -3,6 +3,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, UploadFi
 from sqlalchemy.orm import Session
 from typing import List
 from datetime import datetime, date
+from zoneinfo import ZoneInfo
 
 from app.database import get_db
 from app.models import User, Activity
@@ -20,11 +21,34 @@ from app.schemas import ActivityWithAnalysis, ActivityImportUrl
 router = APIRouter(prefix="/activities", tags=["activities"])
 
 
-def _match_workout(activity: Activity, user_id: int, db: Session) -> None:
+def _match_workout(activity: Activity, user: User, db: Session) -> None:
     """Сопоставляет пробежку с тренировкой активного плана и обновляет completion_status."""
-    workout = find_matching_workout_for_activity(activity, user_id, db)
+    workout = find_matching_workout_for_activity(activity, user.id, db, user.timezone)
     if workout:
         apply_verdict(workout, activity)
+
+
+def _user_tz(user: User) -> ZoneInfo | None:
+    if not user.timezone:
+        return None
+    try:
+        return ZoneInfo(user.timezone)
+    except Exception:
+        return None
+
+
+def _local_today(user: User) -> date:
+    """«Сегодня» бегуна по его часовому поясу, а не по времени сервера (UTC)."""
+    tz = _user_tz(user)
+    return datetime.now(tz).date() if tz else date.today()
+
+
+def _local_date(dt: datetime, user: User) -> date:
+    """Календарная дата момента dt в часовом поясе пользователя."""
+    tz = _user_tz(user)
+    if not tz or dt.tzinfo is None:
+        return dt.date()
+    return dt.astimezone(tz).date()
 
 
 @router.post("", response_model=ActivityWithAnalysis)
@@ -49,7 +73,7 @@ def create_activity(
     )
     db.add(db_activity)
     db.flush()
-    _match_workout(db_activity, current_user.id, db)
+    _match_workout(db_activity, current_user, db)
     db.commit()
     db.refresh(db_activity)
 
@@ -58,8 +82,8 @@ def create_activity(
 
     # Автоанализ для сегодняшних/вчерашних тренировок — уходит в фон (реальный
     # сетевой вызов DeepSeek, может занять несколько секунд), не держим ответ клиенту.
-    act_date = db_activity.date.date() if hasattr(db_activity.date, 'date') else db_activity.date
-    pending = (date.today() - act_date).days <= 1
+    act_date = _local_date(db_activity.date, current_user) if hasattr(db_activity.date, 'date') else db_activity.date
+    pending = (_local_today(current_user) - act_date).days <= 1
     if pending:
         background_tasks.add_task(analyze_new_activity, db_activity, current_user, db)
 
@@ -124,7 +148,7 @@ def _save_imported_activity(
     )
     db.add(db_activity)
     db.flush()
-    _match_workout(db_activity, current_user.id, db)
+    _match_workout(db_activity, current_user, db)
     db.commit()
     db.refresh(db_activity)
 
@@ -132,8 +156,8 @@ def _save_imported_activity(
     recompute_achievements(current_user.id, db)
 
     # Автоанализ для сегодняшних/вчерашних тренировок — в фон (см. create_activity)
-    act_date = db_activity.date.date() if hasattr(db_activity.date, 'date') else db_activity.date
-    pending = (date.today() - act_date).days <= 1
+    act_date = _local_date(db_activity.date, current_user) if hasattr(db_activity.date, 'date') else db_activity.date
+    pending = (_local_today(current_user) - act_date).days <= 1
     if pending:
         background_tasks.add_task(analyze_new_activity, db_activity, current_user, db)
 
@@ -191,13 +215,17 @@ def get_monthly_stats(
     current_user: User = Depends(get_current_user),
 ):
     """Быстрая статистика за текущий месяц — чистый SQL, без LLM."""
-    today = date.today()
+    tz = _user_tz(current_user)
+    today = _local_today(current_user)
     month_start = today.replace(day=1)
+
+    def _boundary(d: date) -> datetime:
+        return datetime.combine(d, datetime.min.time(), tzinfo=tz) if tz else datetime.combine(d, datetime.min.time())
 
     activities = db.query(Activity).filter(
         Activity.user_id == current_user.id,
         Activity.activity_type == "run",
-        Activity.date >= datetime.combine(month_start, datetime.min.time()),
+        Activity.date >= _boundary(month_start),
     ).all()
 
     total_distance = sum(a.distance_km  for a in activities)
@@ -213,8 +241,8 @@ def get_monthly_stats(
     prev_activities = db.query(Activity).filter(
         Activity.user_id == current_user.id,
         Activity.activity_type == "run",
-        Activity.date >= datetime.combine(prev_start, datetime.min.time()),
-        Activity.date < datetime.combine(month_start, datetime.min.time()),
+        Activity.date >= _boundary(prev_start),
+        Activity.date < _boundary(month_start),
     ).all()
     prev_distance = sum(a.distance_km for a in prev_activities)
 
@@ -311,7 +339,7 @@ def update_activity(
         if activity.distance_km and activity.duration_min:
             activity.pace_min_per_km = activity.duration_min / activity.distance_km
 
-    _match_workout(activity, current_user.id, db)
+    _match_workout(activity, current_user, db)
     db.commit()
     db.refresh(activity)
 

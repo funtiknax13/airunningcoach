@@ -14,6 +14,7 @@ class UserCreate(BaseModel):
     weight: Optional[float] = Field(None, gt=0, le=500)
     height: Optional[float] = Field(None, gt=0, le=300)
     lang: Optional[str] = "ru"  # язык интерфейса: "ru" | "en"
+    timezone: Optional[str] = None  # IANA-имя из браузера, напр. Asia/Yekaterinburg
 
     @model_validator(mode="after")
     def passwords_match(self) -> "UserCreate":
@@ -51,6 +52,7 @@ class UserResponse(BaseModel):
     running_goal: Optional[str]
     weekly_km: Optional[float]
     training_days: Optional[int]
+    timezone: Optional[str]
     onboarding_completed: bool
     created_at: datetime
 
@@ -62,6 +64,7 @@ class UserUpdate(BaseModel):
     name: Optional[str] = Field(None, min_length=1, max_length=100)
     age: Optional[int] = Field(None, ge=10, le=120)
     weight: Optional[float] = Field(None, gt=0, le=500)
+    timezone: Optional[str] = None
     height: Optional[float] = Field(None, gt=0, le=300)
     gender: Optional[str] = None
     fitness_level: Optional[str] = None

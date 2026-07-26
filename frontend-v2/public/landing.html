@@ -1012,7 +1012,7 @@ async function doRegister() {
   if (pw !== confirm) { showMsg('reg-error', 'Пароли не совпадают'); return; }
   setLoading('reg-btn', true);
   try {
-    await apiPost('/api/auth/register', { email: email, password: pw, confirm_password: confirm, name: name, age: age, weight: weight, height: height, lang: 'ru' });
+    await apiPost('/api/auth/register', { email: email, password: pw, confirm_password: confirm, name: name, age: age, weight: weight, height: height, lang: 'ru', timezone: Intl.DateTimeFormat().resolvedOptions().timeZone });
     _lastEmail = email;
     showMsg('verify-desc', 'Письмо с подтверждением отправлено на ' + email);
     showScreen('verify');
