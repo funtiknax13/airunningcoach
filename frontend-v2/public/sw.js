@@ -24,8 +24,12 @@ self.addEventListener('fetch', e => {
   e.respondWith(
     caches.match(e.request).then(cached => {
       const network = fetch(e.request).then(res => {
+        // clone() нужно вызвать СРАЗУ, пока тело ответа никто не начал читать —
+        // если отложить его до открытия кеша (асинхронно), res может успеть
+        // уйти дальше и начать читаться раньше, чем сюда дойдёт очередь.
         if (res.ok && e.request.method === 'GET') {
-          caches.open(CACHE).then(c => c.put(e.request, res.clone()))
+          const resClone = res.clone()
+          caches.open(CACHE).then(c => c.put(e.request, resClone))
         }
         return res
       })
