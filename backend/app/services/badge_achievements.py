@@ -8,7 +8,7 @@ earned_at всегда ставится по дате пробежки/собы�
 когда они были фактически заслужены, а не сегодняшнюю.
 """
 from collections import defaultdict
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
 from sqlalchemy.orm import Session
@@ -18,12 +18,18 @@ from app.services.achievement_defs import ACHIEVEMENT_DEFS
 
 
 def _to_dt(value) -> datetime | None:
-    """Приводит date/datetime к datetime (полночь для чистой date)."""
+    """Приводит date/datetime к AWARE datetime (UTC, полночь для чистой date).
+
+    earned_at по разным типам достижений собирается из разных источников —
+    Activity.date (aware, timestamptz), Workout.planned_date/недели по set-у
+    plain date (naive) — а мета-достижения потом делают max() по значениям
+    вперемешку. Без единого aware-представления это падает с
+    "can't compare offset-naive and offset-aware datetimes" (было в проде)."""
     if value is None:
         return None
     if isinstance(value, datetime):
-        return value
-    return datetime.combine(value, datetime.min.time())
+        return value if value.tzinfo else value.replace(tzinfo=timezone.utc)
+    return datetime.combine(value, datetime.min.time(), tzinfo=timezone.utc)
 
 
 def _to_local(dt: datetime | None, tz_name: str | None) -> datetime | None:
@@ -142,7 +148,11 @@ def _collect_plan_stats(user_id: int, db: Session) -> dict:
         for w in ws:
             if w.completion_status in ("completed", "approximate"):
                 w_date = w.activity.date if w.activity and w.activity.date else w.planned_date
-                variety_events.append((w_date, w.workout_type))
+                # activity.date — aware (timestamptz), planned_date — наивная календарная
+                # дата; в одном списке сравнивать/сортировать напрямую нельзя (TypeError:
+                # can't compare offset-naive and offset-aware datetimes). Для variety-ачивки
+                # важен только день, не момент времени, поэтому приводим к date().
+                variety_events.append((w_date.date(), w.workout_type))
 
     variety_events.sort(key=lambda x: x[0])
 
@@ -273,7 +283,7 @@ def recompute_badge_achievements(user_id: int, db: Session) -> None:
         if required <= unlocked_after:
             dates = [earned_at_by_key.get(k) or newly_earned.get(k) for k in required]
             dates = [dt for dt in dates if dt is not None]
-            newly_earned[d["key"]] = max(dates) if dates else datetime.now()
+            newly_earned[d["key"]] = max(dates) if dates else datetime.now(timezone.utc)
 
     for key, earned_at in newly_earned.items():
         db.add(UserAchievement(user_id=user_id, achievement_key=key, earned_at=earned_at, seen=False))
@@ -311,7 +321,7 @@ def recompute_and_fix_dates(user_id: int, db: Session) -> None:
         if required <= unlocked_after:
             dates = [computed.get(k) or (already_rows[k].earned_at if k in already_rows else None) for k in required]
             dates = [dt for dt in dates if dt is not None]
-            computed[d["key"]] = max(dates) if dates else datetime.now()
+            computed[d["key"]] = max(dates) if dates else datetime.now(timezone.utc)
 
     for key, earned_at in computed.items():
         if key in already_rows:

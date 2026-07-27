@@ -1,4 +1,5 @@
 # app/routers/activities.py
+import logging
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, UploadFile, File
 from sqlalchemy.orm import Session
 from typing import List
@@ -18,7 +19,22 @@ from app.services.workout_verification import find_matching_workout_for_activity
 from app.services.safe_fetch import fetch_external_workout_file, detect_workout_format
 from app.schemas import ActivityWithAnalysis, ActivityImportUrl
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter(prefix="/activities", tags=["activities"])
+
+
+def _safe_recompute_achievements(user_id: int, db: Session) -> None:
+    """recompute_achievements — геймификация поверх основной функциональности:
+    её сбой не должен превращать успешно сохранённую тренировку в 500-ошибку
+    для клиента (было в проде — activity сохранялась, а ответ падал). Ачивки
+    пересчитываются по всей истории при каждом вызове, так что один пропуск
+    не теряет данные — доберёт на следующей успешной загрузке."""
+    try:
+        recompute_achievements(user_id, db)
+    except Exception:
+        logger.exception("recompute_achievements failed for user_id=%s", user_id)
+        db.rollback()
 
 
 def _match_workout(activity: Activity, user: User, db: Session) -> None:
@@ -78,7 +94,7 @@ def create_activity(
     db.refresh(db_activity)
 
     invalidate_insights_cache(current_user.id, db)
-    recompute_achievements(current_user.id, db)
+    _safe_recompute_achievements(current_user.id, db)
 
     # Автоанализ для сегодняшних/вчерашних тренировок — уходит в фон (реальный
     # сетевой вызов DeepSeek, может занять несколько секунд), не держим ответ клиенту.
@@ -153,7 +169,7 @@ def _save_imported_activity(
     db.refresh(db_activity)
 
     invalidate_insights_cache(current_user.id, db)
-    recompute_achievements(current_user.id, db)
+    _safe_recompute_achievements(current_user.id, db)
 
     # Автоанализ для сегодняшних/вчерашних тренировок — в фон (см. create_activity)
     act_date = _local_date(db_activity.date, current_user) if hasattr(db_activity.date, 'date') else db_activity.date
@@ -344,7 +360,7 @@ def update_activity(
     db.refresh(activity)
 
     invalidate_insights_cache(current_user.id, db)
-    recompute_achievements(current_user.id, db)
+    _safe_recompute_achievements(current_user.id, db)
 
     return activity
 
@@ -364,6 +380,6 @@ def delete_activity(
     db.commit()
 
     invalidate_insights_cache(current_user.id, db)
-    recompute_achievements(current_user.id, db)
+    _safe_recompute_achievements(current_user.id, db)
 
     return {"message": "Activity deleted"}

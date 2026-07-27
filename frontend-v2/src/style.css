@@ -1958,6 +1958,14 @@ input, select, textarea { font-family: var(--font); }
   .activity-stat-val    { font-size: 0.82rem; }
   .activity-stat-lbl    { font-size: 0.65rem; }
 
+  /* Workout row (план тренировок) — .workout-action (бейдж статуса + кнопка)
+     не сжимается (flex-shrink:0), и на узком экране выдавливал .workout-body
+     почти до нулевой ширины — из-за этого описание переносилось по одному
+     слову на строку. flex-wrap уводит action на свою строку целиком вместо
+     того, чтобы его сжимать (тот же приём, что и для .activity-row выше). */
+  .workout-row          { flex-wrap: wrap; gap: 8px 14px; }
+  .workout-action       { padding-left: 60px; }
+
   /* Activities toolbar — на всю ширину */
   .activities-toolbar .btn { flex: 1; justify-content: center; }
 
