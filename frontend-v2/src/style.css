@@ -1952,9 +1952,13 @@ input, select, textarea { font-family: var(--font); }
   .cta-block     { padding: 32px 16px; }
   .cta-block h2  { font-size: 1.4rem; }
 
-  /* Activity row — stats переносятся на вторую строку, меньше gap */
+  /* Activity row — stats переносятся на вторую строку целиком. Без
+     flex-basis:100% перенос срабатывал только когда колонок статистики было
+     достаточно много (напр. с набором высоты) — при 4 колонках вместо 5 та
+     же строка "case" ещё влезала рядом с info, и текст (заметка) обрезался
+     до "П…" (та же механика, что чинили в .workout-action). */
   .activity-row         { flex-wrap: wrap; gap: 6px; }
-  .activity-row-stats   { gap: 10px; flex-wrap: wrap; }
+  .activity-row-stats   { gap: 10px; flex-wrap: wrap; flex-basis: 100%; }
   .activity-stat-val    { font-size: 0.82rem; }
   .activity-stat-lbl    { font-size: 0.65rem; }
 
