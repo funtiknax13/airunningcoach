@@ -324,6 +324,16 @@ input, select, textarea { font-family: var(--font); }
   line-height: 16px;
   text-align: center;
 }
+/* В нижней мобильной навигации иконка заметно мельче (см. .bottom-nav-item i),
+   и бейдж того же размера, что в сайдбаре, почти целиком её перекрывал —
+   уменьшаем и придвигаем ближе к углу. */
+.bottom-nav-item .nav-badge {
+  top: -6px; right: -11px;
+  min-width: 13px; height: 13px;
+  padding: 0 3px;
+  font-size: 0.56rem;
+  line-height: 13px;
+}
 
 .sidebar-footer {
   padding: 12px 8px 16px;
