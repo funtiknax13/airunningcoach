@@ -47,8 +47,9 @@ SYSTEM_PROMPT = """\
 - Давай **один конкретный совет** за раз, не расписывай всё сразу
 - Markdown — только когда реально помогает (список шагов, сравнение), не для красоты
 - Если пробежек нет — задавай уточняющие вопросы (1-2 за раз), не составляй план вслепую
-- Если пользователь просит составить или пересобрать план — скажи \
-  что план уже формируется и появится во вкладке «Тренировки» через несколько секунд
+- Про пересборку плана — смотри блок «ПЛАН ТОЛЬКО ЧТО ПЕРЕСОБРАН» / «ПЛАН НЕ ПЕРЕСОБИРАЛСЯ» \
+  в конце контекста ниже и следуй ему буквально. Никогда не утверждай, что обновила план, \
+  если это не подтверждено этим блоком — ты не можешь изменить план просто фактом ответа.
 - При болях — рекомендуй врача. Никогда не ставь диагнозов.
 - Отвечай на языке пользователя (указан ниже).
 
@@ -217,20 +218,23 @@ def _build_user_context(user: User, db: Session) -> str:
     else:
         lines.append("\n=== СТАТИСТИКА (30 дней) ===\nДанных нет.")
 
-    # Текущий план — тренировки календарной недели, в которую попадает сегодня
-    week_start = (datetime.now() - timedelta(days=datetime.now().weekday())).replace(
-        hour=0, minute=0, second=0, microsecond=0
-    )
+    # Текущий план — от "сегодня минус 7 дней" и без верхней границы, а НЕ строгая
+    # календарная неделя пн-вс. replace_upcoming_workouts() пишет план скользящим
+    # окном "7 дней от момента пересборки" (может начаться в среду, четверг —
+    # где угодно), а не с понедельника. Если тут фильтровать по календарной
+    # неделе, часть реально активного плана (например, следующие пн-вт, если
+    # план пересобрали в среду) молча выпадала из контекста модели — она "не
+    # видела" актуальный план и путала бегуна с устаревшими данными.
+    plan_window_start = datetime.combine(today - timedelta(days=7), datetime.min.time())
     workouts = db.query(Workout).filter(
         Workout.user_id == user.id,
-        Workout.planned_date >= week_start,
-        Workout.planned_date < week_start + timedelta(days=7),
-    ).all()
+        Workout.planned_date >= plan_window_start,
+    ).order_by(Workout.planned_date).all()
     if workouts:
-        lines.append(f"\n=== АКТИВНЫЙ ПЛАН (с {week_start.strftime('%d.%m')}) ===")
+        lines.append("\n=== ПЛАН (последние 7 дней + все запланированные вперёд) ===")
         day_names = ["Пн","Вт","Ср","Чт","Пт","Сб","Вс"]
         status_map = {"completed": "✓", "approximate": "≈", "unconfirmed": "✗", "none": "○"}
-        for w in sorted(workouts, key=lambda x: (x.planned_date or datetime.min, x.day_of_week)):
+        for w in workouts:
             st   = status_map.get(w.completion_status or "none", "○")
             dist = f"{w.distance_km} км" if w.distance_km else ""
             date_prefix = w.planned_date.strftime('%d.%m') if w.planned_date else day_names[w.day_of_week]
@@ -281,15 +285,32 @@ async def chat_response(
     db: Session,
     history: list[ChatMessage],
     lang: str = "ru",
+    plan_just_regenerated: bool = False,
 ) -> str:
-    """Генерирует ответ тренера на сообщение пользователя."""
+    """Генерирует ответ тренера на сообщение пользователя.
+
+    plan_just_regenerated: True, если ДО этого вызова план уже реально пересобран
+    и сохранён (см. chat.py — проверка и пересборка происходят раньше, чем этот
+    ответ генерируется). Без этого модель по своей собственной оценке "пользователь
+    просит план" утверждала "план обновлён", даже когда код это не подтверждал
+    (отдельная, гораздо более грубая проверка по ключевым словам) — реального
+    обновления не происходило, а пользователь читал ложное подтверждение."""
     if _STUB_MODE:
         return _stub_chat(user_message, user)
 
     client = _make_client()
     lang_instruction = "Respond in English." if lang == "en" else "Отвечай на русском языке."
     context = _build_user_context(user, db)
-    system  = f"{SYSTEM_PROMPT}\n{lang_instruction}\n\n{context}"
+    plan_status = (
+        "\n\n=== ПЛАН ТОЛЬКО ЧТО ПЕРЕСОБРАН ===\nПлан уже пересчитан и сохранён прямо перед этим ответом — "
+        "можешь уверенно сказать, что он обновлён и появится во вкладке «Тренировки»."
+        if plan_just_regenerated else
+        "\n\n=== ПЛАН НЕ ПЕРЕСОБИРАЛСЯ В ЭТОМ СООБЩЕНИИ ===\nЕсли похоже, что пользователь просит "
+        "изменить план — НЕ утверждай, что уже изменила его: это не так. Прямо скажи, что для "
+        "пересборки нужна явная фраза («обнови план», «пересобери план», «составь план» и т.п.) "
+        "или кнопка «Создать план» на вкладке «Тренировки»."
+    )
+    system  = f"{SYSTEM_PROMPT}\n{lang_instruction}\n\n{context}{plan_status}"
     messages = [{"role": "system", "content": system}]
     messages += _build_history(history)
     messages.append({"role": "user", "content": user_message})
@@ -532,7 +553,13 @@ async def build_and_save_plan(user: User, db: Session) -> None:
         .all()[::-1]
     )
     workouts_data = await generate_training_plan(user, db, chat_history)
-    replace_upcoming_workouts(user.id, db, workouts_data, datetime.now())
+    # Локальный "сегодня" бегуна, снятый до naive перед сравнением с planned_date
+    # (наивная колонка) — см. комментарий в routers/training.py у второго вызова.
+    try:
+        now_local = datetime.now(ZoneInfo(user.timezone)) if user.timezone else datetime.now()
+    except Exception:
+        now_local = datetime.now()
+    replace_upcoming_workouts(user.id, db, workouts_data, now_local.replace(tzinfo=None))
     db.commit()
 
 

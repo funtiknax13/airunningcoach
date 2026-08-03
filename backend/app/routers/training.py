@@ -2,6 +2,7 @@
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from sqlalchemy.orm import Session
 from datetime import datetime
+from zoneinfo import ZoneInfo
 from typing import List
 
 from app.database import get_db
@@ -61,8 +62,17 @@ async def generate_plan_ai(
     # не создаём/не флашим ничего в БД, чтобы не откатить незакоммиченные строки.
     workouts_data = await generate_training_plan(current_user, db, chat_history)
 
-    # Заменяем тренировки на ближайшие 7 дней — уже после ответа AI
-    start = datetime.now()
+    # Заменяем тренировки на ближайшие 7 дней — уже после ответа AI.
+    # "Сегодня" — по локальному времени бегуна, не по серверу (UTC): иначе
+    # граница дня могла сдвинуться на сутки и план пересобрался бы не от той даты.
+    # planned_date — наивная колонка (календарная дата), поэтому tzinfo снимаем
+    # уже ПОСЛЕ вычисления правильного локального момента, а не сравниваем aware
+    # datetime с naive-колонкой напрямую.
+    try:
+        now_local = datetime.now(ZoneInfo(current_user.timezone)) if current_user.timezone else datetime.now()
+    except Exception:
+        now_local = datetime.now()
+    start = now_local.replace(tzinfo=None)
     replace_upcoming_workouts(current_user.id, db, workouts_data, start)
     db.commit()
 

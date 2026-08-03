@@ -11,19 +11,33 @@ from app.services.ai_agent import chat_response, build_and_save_plan
 from app.services.insights_cache import invalidate_insights_cache
 from app.services.rate_limit import check_and_record
 
-_PLAN_TRIGGERS = [
-    # RU
-    "составь план", "составьте план", "сделай план", "сгенерируй план",
-    "создай план", "пересобери план", "обнови план", "перегенерируй план",
-    "сделай новый план", "создай новый план", "составить план", "пересоздай план",
-    # EN
+_PLAN_TRIGGERS_EN = [
     "create plan", "generate plan", "make plan", "build plan",
     "new plan", "rebuild plan", "create a plan", "generate a plan", "make a plan",
+    "update plan", "update the plan", "change plan", "change the plan", "adjust plan",
 ]
+
+# Стемы охватывают разные формы одного глагола (обнови/обновить/обновим/обновляй —
+# всё содержит "обнов"). Раньше проверялись только точные фразы вроде "обнови план" —
+# реальные пользователи просят иначе ("убери ходьбу из плана", "поменяй план",
+# "можешь изменить план"), и такие просьбы не запускали настоящую пересборку, хотя
+# модель (по своему собственному, более гибкому пониманию текста) всё равно уверяла,
+# что план обновлён — см. docstring chat_response().
+_PLAN_VERB_STEMS = [
+    "обнов", "пересобер", "пересобир", "пересоздан", "пересоздай", "перегенерир",
+    "созда", "состав", "сформир", "сгенерир", "поменя", "измен",
+    "скорректир", "подправ", "перепиш", "перестро", "убр", "убер", "убир", "верн", "замен",
+    "пересмотр", "добав",
+]
+_PLAN_ANCHOR_NOUNS = ["план", "трениров"]
 
 def _is_plan_request(text: str) -> bool:
     lowered = text.lower()
-    return any(t in lowered for t in _PLAN_TRIGGERS)
+    if any(t in lowered for t in _PLAN_TRIGGERS_EN):
+        return True
+    has_anchor = any(n in lowered for n in _PLAN_ANCHOR_NOUNS)
+    has_verb = any(v in lowered for v in _PLAN_VERB_STEMS)
+    return has_anchor and has_verb
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 
@@ -58,10 +72,9 @@ async def chat_with_ai(
         .all()[::-1]
     )
 
-    # Получаем ответ агента
-    ai_text = await chat_response(request.message, current_user, db, history, lang=request.lang or "ru")
-
-    # Если пользователь просит составить/пересобрать план — делаем это в фоне
+    # Если пользователь просит составить/пересобрать план — делаем это ДО генерации
+    # ответа, чтобы сам ответ мог опираться на то, что реально произошло, а не
+    # утверждать "план обновлён" вслепую (см. docstring chat_response).
     plan_requested = _is_plan_request(request.message)
     if plan_requested:
         try:
@@ -69,6 +82,12 @@ async def chat_with_ai(
             await build_and_save_plan(current_user, db)
         except Exception:
             plan_requested = False  # rate limit hit или ошибка — не меняем context_type
+
+    # Получаем ответ агента
+    ai_text = await chat_response(
+        request.message, current_user, db, history,
+        lang=request.lang or "ru", plan_just_regenerated=plan_requested,
+    )
 
     # Сохраняем ответ AI
     context = "plan_generated" if plan_requested else request.context_type
