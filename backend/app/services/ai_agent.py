@@ -510,6 +510,13 @@ def replace_upcoming_workouts(user_id: int, db: Session, workouts_data: list[dic
     деактивированном плане, а без плана-контейнера удаление было бы
     безвозвратным). Не закоммичено — коммитит вызывающий код.
     """
+    # Защита от разрушительного "пустого" плана: если генерация вернула пусто —
+    # НЕ трогаем существующие тренировки, иначе удалим текущий план (в т.ч.
+    # сегодняшний отдых) и не добавим ничего. Пустой план не должен ничего стирать.
+    if not workouts_data:
+        logger.warning("replace_upcoming_workouts: пустой план — пропускаю, оставляю текущие тренировки")
+        return
+
     start_date = start.replace(hour=0, minute=0, second=0, microsecond=0)
     end_date = start_date + timedelta(days=7)
 
@@ -563,6 +570,30 @@ async def build_and_save_plan(user: User, db: Session) -> None:
     db.commit()
 
 
+def _extract_plan_list(parsed) -> list[dict]:
+    """Достаёт список дней плана из ответа DeepSeek, устойчиво к форме обёртки.
+
+    response_format=json_object запрещает массив на верхнем уровне, поэтому модель
+    оборачивает план по-разному:
+      • {"plan": [ {...}, ... ]}          — массив в значении (любой ключ)
+      • {"day_0": {...}, "day_1": {...}}  — дни как ключи объекта
+      • {"day_of_week": 0, ...}           — один плоский объект-день (мусорный ответ)
+    Первые две формы — валидны, возвращаем список. Одиночный плоский объект считаем
+    негодным (нужна неделя, а не один день) — вернём [], вызывающий код уйдёт в stub.
+    """
+    if isinstance(parsed, list):
+        return parsed
+    if isinstance(parsed, dict):
+        for v in parsed.values():
+            if isinstance(v, list):
+                return v
+        day_objs = [v for v in parsed.values()
+                    if isinstance(v, dict) and ("workout_type" in v or "day_of_week" in v)]
+        if len(day_objs) >= 2:
+            return day_objs
+    return []
+
+
 async def generate_training_plan(user: User, db: Session, chat_history: list[ChatMessage] | None = None) -> list[dict]:
     """
     Просит AI сгенерировать недельный план тренировок.
@@ -595,8 +626,9 @@ async def generate_training_plan(user: User, db: Session, chat_history: list[Cha
 
 Сегодня: {today_str}. Составь персональный план тренировок на ближайшие 7 дней \
 (начиная с сегодняшнего дня) для этого спортсмена.
-Верни ТОЛЬКО валидный JSON-массив из 7 объектов — по одному на каждый день, \
-начиная с day_of_week=0 (сегодня), 1 (завтра), ..., 6 (через 6 дней).
+Верни ТОЛЬКО валидный JSON-объект строго вида {{"plan": [ ... 7 объектов ... ]}} — \
+по одному объекту на каждый день, начиная с day_of_week=0 (сегодня), 1 (завтра), ..., \
+6 (через 6 дней). Не раскладывай дни отдельными ключами объекта — только массив в "plan".
 
 Формат каждого объекта:
 {{
@@ -629,11 +661,14 @@ async def generate_training_plan(user: User, db: Session, chat_history: list[Cha
             response_format={"type": "json_object"},
         )
         raw = resp.choices[0].message.content.strip()
-        # DeepSeek может обернуть массив в объект
         parsed = json.loads(raw)
-        plan = parsed if isinstance(parsed, list) else next(
-            (v for v in parsed.values() if isinstance(v, list)), []
-        )
+        plan = _extract_plan_list(parsed)
+        # Пустой план недопустим: раньше он молча уходил дальше и приводил к
+        # удалению текущего плана без замены. Если распарсить дни не удалось —
+        # это негодный ответ модели, отдаём непустой stub, а не пустоту.
+        if not plan:
+            logger.error("DeepSeek plan: не удалось извлечь дни из ответа, откат на stub. raw=%.400s", raw)
+            return _stub_plan(user, db)
         return plan[:7]
     except Exception as e:
         logger.error("DeepSeek plan error: %s", e)
