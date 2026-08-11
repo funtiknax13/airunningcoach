@@ -159,6 +159,7 @@ export default {
       replyPlaceholder: 'Reply to the user…',
       sendReply: 'Reply',
       closedNote: 'This request is closed.',
+      sqlAdmin: 'SQL admin',
     },
   },
   common: { loading: 'Loading…' },

@@ -4,6 +4,9 @@
       <button v-if="selected" class="btn btn-secondary btn-sm" @click="closeThread">
         <i class="fas fa-arrow-left"></i> {{ t('admin.support.backList') }}
       </button>
+      <a v-else href="/sqladmin/" class="btn btn-secondary btn-sm">
+        <i class="fas fa-database"></i> {{ t('admin.support.sqlAdmin') }}
+      </a>
     </template>
 
     <!-- ── Список тикетов ── -->

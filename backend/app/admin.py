@@ -5,7 +5,10 @@ from starlette.requests import Request
 from sqlalchemy import select
 
 from app.database import engine, SessionLocal
-from app.models import User, Activity, Goal, Workout, ChatMessage, PersonalRecord, PushSubscription, UserAchievement
+from app.models import (
+    User, Activity, Goal, Workout, ChatMessage, PersonalRecord,
+    PushSubscription, UserAchievement, SupportTicket, SupportMessage,
+)
 from app.auth import verify_password, create_access_token, decode_token
 
 
@@ -202,6 +205,41 @@ class PushSubscriptionAdmin(ModelView, model=PushSubscription):
     page_size = 25
 
 
+class SupportTicketAdmin(ModelView, model=SupportTicket):
+    name = "Тикет поддержки"
+    name_plural = "Поддержка — тикеты"
+    icon = "fa-solid fa-life-ring"
+
+    column_list = [SupportTicket.id, SupportTicket.status, SupportTicket.created_by,
+                   SupportTicket.created_at, SupportTicket.updated_at]
+    column_sortable_list = [SupportTicket.id, SupportTicket.status, SupportTicket.created_at]
+    column_labels = {
+        "id": "ID", "status": "Статус", "created_by": "Пользователь",
+        "created_by_user_id": "ID пользователя", "created_at": "Создан",
+        "updated_at": "Обновлён", "messages": "Сообщения",
+    }
+    page_size = 25
+
+
+class SupportMessageAdmin(ModelView, model=SupportMessage):
+    name = "Сообщение поддержки"
+    name_plural = "Поддержка — сообщения"
+    icon = "fa-solid fa-comment-dots"
+
+    column_list = [SupportMessage.id, SupportMessage.ticket_id, SupportMessage.is_staff,
+                   SupportMessage.sender, SupportMessage.body, SupportMessage.read_at,
+                   SupportMessage.created_at]
+    column_searchable_list = [SupportMessage.body]
+    column_sortable_list = [SupportMessage.id, SupportMessage.created_at]
+    column_labels = {
+        "id": "ID", "ticket_id": "Тикет", "is_staff": "От поддержки",
+        "sender": "Отправитель", "body": "Текст", "read_at": "Прочитано",
+        "created_at": "Время",
+    }
+    can_create = False  # сообщения создаются только через API поддержки
+    page_size = 50
+
+
 # ── Фабрика ───────────────────────────────────────────────────────────────────
 
 def create_admin(app) -> Admin:
@@ -212,10 +250,13 @@ def create_admin(app) -> Admin:
         engine,
         authentication_backend=authentication_backend,
         title="AIRunningCoach — Админ",
-        base_url="/admin",
+        # /admin отдан SPA-странице Admin Tools; SQL-админку двигаем на /sqladmin
+        # (вход в неё — кнопкой со страницы Admin Tools).
+        base_url="/sqladmin",
     )
     for view in [UserAdmin, ActivityAdmin, GoalAdmin,
                  WorkoutAdmin, ChatMessageAdmin,
-                 PersonalRecordAdmin, UserAchievementAdmin, PushSubscriptionAdmin]:
+                 PersonalRecordAdmin, UserAchievementAdmin, PushSubscriptionAdmin,
+                 SupportTicketAdmin, SupportMessageAdmin]:
         admin.add_view(view)
     return admin

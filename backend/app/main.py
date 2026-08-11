@@ -121,7 +121,7 @@ FRONTEND_DIR = _v2_dist if _v2_dist.exists() else _v1_dir
 # Пути, которые обрабатывает API (с обязательным / после префикса или точное совпадение)
 # SPA-маршруты типа /training, /goals и т.д. НЕ начинаются с этих паттернов
 API_PREFIXES = (
-    "/api/", "/admin/", "/health", "/docs", "/openapi.json",
+    "/api/", "/sqladmin/", "/health", "/docs", "/openapi.json",
 )
 
 if FRONTEND_DIR.exists():

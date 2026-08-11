@@ -63,7 +63,7 @@
           </span>
           <span>{{ t('support.title') }}</span>
         </RouterLink>
-        <RouterLink v-if="isAdmin" to="/admin-tools" class="nav-item" :class="{ active: route.path === '/admin-tools' }">
+        <RouterLink v-if="isAdmin" to="/admin" class="nav-item" :class="{ active: route.path === '/admin' }">
           <span class="nav-icon-wrap">
             <i class="fas fa-headset"></i>
             <span v-if="supportStore.staffUnread > 0" class="nav-badge">{{ supportStore.staffUnread > 9 ? '9+' : supportStore.staffUnread }}</span>
@@ -123,7 +123,7 @@
               <i class="fas fa-life-ring"></i> {{ t('support.title') }}
               <span v-if="supportStore.unreadCount > 0" class="nav-badge">{{ supportStore.unreadCount > 9 ? '9+' : supportStore.unreadCount }}</span>
             </RouterLink>
-            <RouterLink v-if="isAdmin" to="/admin-tools" class="mobile-menu-item" @click="menuOpen = false">
+            <RouterLink v-if="isAdmin" to="/admin" class="mobile-menu-item" @click="menuOpen = false">
               <i class="fas fa-headset"></i> {{ t('nav.adminTools') }}
               <span v-if="supportStore.staffUnread > 0" class="nav-badge">{{ supportStore.staffUnread > 9 ? '9+' : supportStore.staffUnread }}</span>
             </RouterLink>

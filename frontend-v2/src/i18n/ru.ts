@@ -159,6 +159,7 @@ export default {
       replyPlaceholder: 'Ответ пользователю…',
       sendReply: 'Ответить',
       closedNote: 'Обращение закрыто.',
+      sqlAdmin: 'SQL-админка',
     },
   },
   common: { loading: 'Загрузка…' },
