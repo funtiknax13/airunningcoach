@@ -1,34 +1,41 @@
 # app/routers/training.py
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from datetime import datetime
 from zoneinfo import ZoneInfo
 from typing import List
 
 from app.database import get_db
-from app.models import User, Workout, ChatMessage
+from app.models import User, Workout, ChatMessage, PlanJob
 from app.schemas import WorkoutResponse, WorkoutWithAnalysis
 from app.dependencies import get_current_user
-from app.services.ai_agent import generate_training_plan, analyze_workout_completion, replace_upcoming_workouts
-from app.services.rate_limit import check_and_record
+from app.services.ai_agent import (
+    generate_training_plan, analyze_workout_completion, replace_upcoming_workouts, run_plan_job,
+)
+from app.services.rate_limit import check_and_record, _is_premium_active
 from app.services.workout_verification import find_matching_activity_for_workout, apply_verdict
 
 router = APIRouter(prefix="/training", tags=["training"])
+
+# Горизонты плана в неделях. Неделя доступна всем, месяц — только премиум.
+# 3 месяца намеренно убраны: план по дням на 12 недель — ложная точность, дальние
+# недели всё равно перезаписываются при следующей генерации (см. обсуждение).
+WEEKS_ALLOWED = {1, 4}
+PREMIUM_ONLY_WEEKS = {4}
 
 
 @router.get("/workouts", response_model=List[WorkoutResponse])
 def get_workouts(
     skip: int = 0,
-    limit: int = 100,
+    limit: int = 1000,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Тренировки пользователя, самые дальние по дате — первыми.
+    """Все тренировки пользователя (план + история), самые дальние по дате — первыми.
 
-    AI никогда не генерирует тренировки дальше чем на 7 дней вперёд, поэтому
-    первые 7 записей всегда и есть актуальный план — независимо от того, на
-    какой день недели пришлась генерация. Дальше — история постранично, как
-    в /activities."""
+    Отдаём широким окном (до 1000): фронтенд-календарь строит из них месячную
+    сетку и навигацию по прошлым месяцам целиком на клиенте, без дозапросов на
+    каждый месяц. План теперь может быть на неделю/месяц/3 месяца вперёд."""
     return (
         db.query(Workout)
         .filter(Workout.user_id == current_user.id)
@@ -38,17 +45,40 @@ def get_workouts(
     )
 
 
-@router.post("/plans/generate", response_model=List[WorkoutResponse])
+@router.post("/plans/generate")
 async def generate_plan_ai(
+    background_tasks: BackgroundTasks,
+    weeks: int = Query(1, description="Горизонт плана: 1 (неделя), 4 (месяц)"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """AI генерирует план на основе целей и истории пробежек."""
-    # Проверяем rate limit (check_and_record коммитит сам — важно сделать это
-    # до await ниже, а не оставлять как pending flush, см. generate_training_plan)
+    """AI генерирует план на основе целей и истории пробежек.
+
+    weeks: 1 — неделя (всем, синхронно), 4 — месяц (только Premium, в фоне кусками —
+    см. run_plan_job; ответ {"status":"running"}, готовность опрашивается через
+    GET /plans/status)."""
+    if weeks not in WEEKS_ALLOWED:
+        raise HTTPException(status_code=400, detail="weeks должен быть 1 или 4")
+    # Месяц — только премиум. Проверяем ДО списания лимита.
+    if weeks in PREMIUM_ONLY_WEEKS and not _is_premium_active(current_user, db):
+        raise HTTPException(status_code=403, detail="План на месяц доступен в Premium")
+    days = weeks * 7
+
+    # Проверяем rate limit (check_and_record коммитит сам — до любого await ниже).
     check_and_record(current_user, "plan", db)
 
-    # Берём историю чата чтобы учесть предпочтения пользователя
+    # ── Месяц: в фоне кусками ─────────────────────────────────────────────────
+    # 28 дней в один вызов — ~40-60с, на грани таймаута 45с. Собираем в фоне по
+    # 2-недельным кускам (каждый быстрый). Возвращаем сразу, фронт ждёт по статусу.
+    if weeks in PREMIUM_ONLY_WEEKS:
+        job = PlanJob(user_id=current_user.id, weeks=weeks, status="running")
+        db.add(job)
+        db.commit()
+        db.refresh(job)
+        background_tasks.add_task(run_plan_job, current_user.id, weeks, job.id)
+        return {"status": "running", "weeks": weeks}
+
+    # ── Неделя: синхронно (быстро) ────────────────────────────────────────────
     chat_history = (
         db.query(ChatMessage)
         .filter(ChatMessage.user_id == current_user.id)
@@ -56,33 +86,38 @@ async def generate_plan_ai(
         .limit(30)
         .all()[::-1]
     )
+    workouts_data = await generate_training_plan(current_user, db, chat_history, days=days)
 
-    # Получаем тренировки от агента. generate_training_plan() освобождает
-    # соединение в пул на время ожидания DeepSeek — до этого момента нарочно
-    # не создаём/не флашим ничего в БД, чтобы не откатить незакоммиченные строки.
-    workouts_data = await generate_training_plan(current_user, db, chat_history)
-
-    # Заменяем тренировки на ближайшие 7 дней — уже после ответа AI.
-    # "Сегодня" — по локальному времени бегуна, не по серверу (UTC): иначе
-    # граница дня могла сдвинуться на сутки и план пересобрался бы не от той даты.
-    # planned_date — наивная колонка (календарная дата), поэтому tzinfo снимаем
-    # уже ПОСЛЕ вычисления правильного локального момента, а не сравниваем aware
-    # datetime с naive-колонкой напрямую.
+    # "Сегодня" — по локальному времени бегуна, не по серверу (UTC): иначе граница
+    # дня могла сдвинуться на сутки. planned_date — наивная колонка, поэтому tzinfo
+    # снимаем ПОСЛЕ вычисления правильного локального момента.
     try:
         now_local = datetime.now(ZoneInfo(current_user.timezone)) if current_user.timezone else datetime.now()
     except Exception:
         now_local = datetime.now()
     start = now_local.replace(tzinfo=None)
-    replace_upcoming_workouts(current_user.id, db, workouts_data, start)
+    replace_upcoming_workouts(current_user.id, db, workouts_data, start, horizon_days=days)
     db.commit()
+    return {"status": "done", "weeks": weeks}
 
-    return (
-        db.query(Workout)
-        .filter(Workout.user_id == current_user.id)
-        .order_by(Workout.planned_date.desc())
-        .limit(7)
-        .all()
+
+@router.get("/plans/status")
+def plan_status(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Статус последней фоновой генерации плана (для индикатора «готовится»).
+
+    idle — задач не было; running — план собирается; done/failed — итог последней."""
+    job = (
+        db.query(PlanJob)
+        .filter(PlanJob.user_id == current_user.id)
+        .order_by(PlanJob.id.desc())
+        .first()
     )
+    if not job:
+        return {"status": "idle"}
+    return {"status": job.status, "weeks": job.weeks}
 
 
 @router.put("/workouts/{workout_id}/complete", response_model=WorkoutWithAnalysis)

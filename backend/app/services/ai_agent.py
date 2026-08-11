@@ -19,7 +19,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.database import SessionLocal
-from app.models import User, Activity, Goal, Workout, ChatMessage
+from app.models import User, Activity, Goal, Workout, ChatMessage, PlanJob
 from app.services.workout_verification import STATUS_LABELS
 
 logger = logging.getLogger(__name__)
@@ -501,14 +501,19 @@ def analyze_workout_completion(workout_id: int, activity_id: int, user_id: int) 
         db.close()
 
 
-def replace_upcoming_workouts(user_id: int, db: Session, workouts_data: list[dict], start: datetime) -> None:
-    """Заменяет тренировки на ближайшие 7 дней начиная с `start`.
+def replace_upcoming_workouts(
+    user_id: int, db: Session, workouts_data: list[dict], start: datetime,
+    horizon_days: int = 7,
+) -> None:
+    """Заменяет тренировки в окне [start, start+horizon_days) на новые.
 
-    Тренировки, по которым уже есть подтверждённый результат (completed/
-    approximate), не трогаем — иначе перегенерация плана стирала бы реально
-    пройденные тренировки текущей недели (раньше они просто "прятались" в
-    деактивированном плане, а без плана-контейнера удаление было бы
-    безвозвратным). Не закоммичено — коммитит вызывающий код.
+    horizon_days задаёт горизонт плана (7 — неделя, 28 — месяц, 84 — 3 месяца).
+    Элементы workouts_data идут по порядку: элемент i = день (start + i дней) —
+    дату берём по индексу, а не по полю day_of_week (для длинных планов модель
+    не должна вести сквозной счётчик дней, только выдавать дни по порядку).
+
+    Тренировки с подтверждённым результатом (completed/approximate) не трогаем —
+    иначе перегенерация стирала бы реально пройденные дни. Не коммитит.
     """
     # Защита от разрушительного "пустого" плана: если генерация вернула пусто —
     # НЕ трогаем существующие тренировки, иначе удалим текущий план (в т.ч.
@@ -518,7 +523,7 @@ def replace_upcoming_workouts(user_id: int, db: Session, workouts_data: list[dic
         return
 
     start_date = start.replace(hour=0, minute=0, second=0, microsecond=0)
-    end_date = start_date + timedelta(days=7)
+    end_date = start_date + timedelta(days=horizon_days)
 
     existing = db.query(Workout).filter(
         Workout.user_id == user_id,
@@ -532,9 +537,8 @@ def replace_upcoming_workouts(user_id: int, db: Session, workouts_data: list[dic
         else:
             db.delete(w)
 
-    for i, w in enumerate(workouts_data):
-        offset = w.get("day_of_week", i)
-        planned = start_date + timedelta(days=offset)
+    for i, w in enumerate(workouts_data[:horizon_days]):
+        planned = start_date + timedelta(days=i)
         if planned.date() in protected_dates:
             continue
         db.add(Workout(
@@ -594,53 +598,201 @@ def _extract_plan_list(parsed) -> list[dict]:
     return []
 
 
-async def generate_training_plan(user: User, db: Session, chat_history: list[ChatMessage] | None = None) -> list[dict]:
+def _plan_chat_prefs(chat_history: list[ChatMessage] | None) -> str:
+    """Вытаскивает из истории чата предпочтения по расписанию (дни/частота), чтобы
+    учесть их при составлении плана. Возвращает готовый блок или пустую строку."""
+    if not chat_history:
+        return ""
+    relevant = [m for m in chat_history[-30:]
+                if any(w in m.content.lower() for w in
+                       ["день", "дни", "понедельник","вторник","среда","четверг","пятница","суббота",
+                        "воскресенье","пн","вт","ср","чт","пт","сб","вс","раз в","раза в",
+                        "monday","tuesday","wednesday","thursday","friday","saturday","sunday",
+                        "times a week","days a week","prefer","хочу","могу","свободен"])]
+    if not relevant:
+        return ""
+    body = "\n".join(
+        f"{'Спортсмен' if m.role == 'user' else 'Тренер'}: {m.content}"
+        for m in relevant[-10:]
+    )
+    return "\n=== ПРЕДПОЧТЕНИЯ ИЗ ЧАТА (учти при составлении плана) ===\n" + body
+
+
+async def _gen_plan_chunk(
+    context: str, chat_context: str, total_weeks: int,
+    week_from: int, week_to: int, start_index: int, n: int,
+    prev_tail: list[dict], stub_week: list[dict],
+) -> list[dict]:
+    """Один быстрый вызов DeepSeek на кусок плана (n дней недель week_from..week_to).
+
+    Периодизация задаётся по ВСЕМУ блоку (total_weeks), а непрерывность — через
+    хвост предыдущего куска. Пустой/сбойный ответ → тайлим недельный стаб (кусок
+    никогда не пустой, чтобы не порвать сборку). Без обращения к БД (context уже
+    собран заранее) — безопасно вызывать из фоновой задачи."""
+    def _stub(): return [dict(stub_week[(start_index + i) % 7]) for i in range(n)]
+    if _STUB_MODE:
+        return _stub()
+    client = _make_client()
+    prev_txt = ""
+    if prev_tail:
+        prev_txt = ("Предыдущие дни (продолжай логично отсюда, не обрывай прогрессию): "
+                    + "; ".join(f"{w.get('workout_type')} {w.get('distance_km') or ''}".strip()
+                                for w in prev_tail))
+    prompt = f"""{context}{chat_context}
+
+Ты составляешь ДЛИННЫЙ план на {total_weeks} недель с периодизацией по всему блоку: \
+чередуй развивающие недели с разгрузочными (каждая 3-4-я неделя легче на ~20-30%), \
+наращивай недельный объём не быстрее ~10% и откатывай в разгрузочные недели, 1 длинная \
+пробежка в неделю с плавным ростом, правило 80/20, подводка (taper) перед целевым стартом.
+Сейчас верни ТОЛЬКО дни для недель {week_from}–{week_to} этого блока — ровно {n} объектов \
+ПО ПОРЯДКУ (элемент 0 = первый день этого куска, ..., {n - 1} = последний). {prev_txt}
+
+Формат объекта: {{"workout_type": "easy", "description": "коротко 3-8 слов", "distance_km": 8.0, "target_pace_min_km": 5.5}}
+workout_type: easy | tempo | interval | long | recovery | rest. distance_km/target_pace_min_km = null для rest.
+Верни строго {{"plan": [ ... {n} объектов ... ]}}. Только JSON, без пояснений."""
+    try:
+        resp = await _acreate(
+            client, model="deepseek-chat",
+            messages=[{"role": "system", "content": SYSTEM_PROMPT},
+                      {"role": "user", "content": prompt}],
+            max_tokens=min(4000, max(600, n * 75)),
+            temperature=0.3,
+            response_format={"type": "json_object"},
+        )
+        plan = _extract_plan_list(json.loads(resp.choices[0].message.content.strip()))
+    except Exception as e:
+        logger.error("DeepSeek plan chunk error (weeks %s-%s): %s", week_from, week_to, e)
+        plan = []
+    if not plan:
+        return _stub()
+    # добиваем длину куска стабом, если модель вернула меньше n
+    for i in range(len(plan), n):
+        plan.append(dict(stub_week[(start_index + i) % 7]))
+    return plan[:n]
+
+
+async def generate_plan_chunked(context: str, chat_context: str, stub_week: list[dict], days: int) -> list[dict]:
+    """Собирает длинный план из 2-недельных кусков (каждый — быстрый вызов в пределах
+    таймаута). Возвращает ровно `days` дней по порядку. Без БД — только awaits."""
+    CHUNK = 14
+    total_weeks = (days + 6) // 7
+    out: list[dict] = []
+    while len(out) < days:
+        n = min(CHUNK, days - len(out))
+        week_from = len(out) // 7 + 1
+        week_to = (len(out) + n - 1) // 7 + 1
+        chunk = await _gen_plan_chunk(
+            context, chat_context, total_weeks, week_from, week_to,
+            len(out), n, out[-3:], stub_week,
+        )
+        out.extend(chunk[:n])
+    return out[:days]
+
+
+async def run_plan_job(user_id: int, weeks: int, job_id: int) -> None:
+    """Фоновая генерация длинного плана. Открывает свою сессию БД (это background
+    task в отдельном потоке/лупе — сессию запроса переиспользовать нельзя).
+
+    Соединение с БД НЕ держим во время долгих awaits к DeepSeek: сперва собираем
+    контекст и закрываем сессию, потом генерируем, потом открываем свежую сессию
+    для записи. План сохраняется атомарно в самом конце (одним replace), чтобы
+    пользователь не увидел полусобранный план."""
+    days = weeks * 7
+    db = SessionLocal()
+    try:
+        user = db.get(User, user_id)
+        if not user:
+            return
+        context = _build_user_context(user, db)
+        chat_history = (
+            db.query(ChatMessage).filter(ChatMessage.user_id == user_id)
+            .order_by(ChatMessage.created_at.desc()).limit(30).all()[::-1]
+        )
+        chat_context = _plan_chat_prefs(chat_history)
+        stub_week = _stub_plan(user, db, 7)
+        try:
+            now_local = datetime.now(ZoneInfo(user.timezone)) if user.timezone else datetime.now()
+        except Exception:
+            now_local = datetime.now()
+        start = now_local.replace(tzinfo=None)
+    finally:
+        db.close()   # отпускаем соединение на время генерации
+
+    try:
+        workouts_data = await generate_plan_chunked(context, chat_context, stub_week, days)
+        db = SessionLocal()
+        try:
+            replace_upcoming_workouts(user_id, db, workouts_data, start, horizon_days=days)
+            job = db.get(PlanJob, job_id)
+            if job:
+                job.status = "done"
+            db.commit()
+        finally:
+            db.close()
+    except Exception as e:
+        logger.exception("run_plan_job failed (user %s, weeks %s): %s", user_id, weeks, e)
+        db = SessionLocal()
+        try:
+            job = db.get(PlanJob, job_id)
+            if job:
+                job.status = "failed"
+                job.error = str(e)[:500]
+                db.commit()
+        finally:
+            db.close()
+
+
+async def generate_training_plan(
+    user: User, db: Session, chat_history: list[ChatMessage] | None = None,
+    days: int = 7,
+) -> list[dict]:
     """
-    Просит AI сгенерировать недельный план тренировок.
-    Возвращает список словарей [{day_of_week, workout_type, description, distance_km, target_pace_min_km}].
+    Просит AI сгенерировать план тренировок на `days` дней (7 — неделя, 28 —
+    месяц, 84 — 3 месяца). Для длинных горизонтов промпт требует периодизацию.
+    Возвращает список словарей [{workout_type, description, distance_km, target_pace_min_km}]
+    ПО ПОРЯДКУ дней (элемент i = i-й день от сегодня).
     """
     if _STUB_MODE:
-        return _stub_plan(user, db)
+        return _stub_plan(user, db, days)
 
     client  = _make_client()
     context = _build_user_context(user, db)
-
-    # Извлекаем предпочтения из последних 30 сообщений чата
-    chat_context = ""
-    if chat_history:
-        relevant = [m for m in chat_history[-30:]
-                    if any(w in m.content.lower() for w in
-                           ["день", "дни", "понедельник","вторник","среда","четверг","пятница","суббота",
-                            "воскресенье","пн","вт","ср","чт","пт","сб","вс","раз в","раза в",
-                            "monday","tuesday","wednesday","thursday","friday","saturday","sunday",
-                            "times a week","days a week","prefer","хочу","могу","свободен"])]
-        if relevant:
-            chat_context = "\n=== ПРЕДПОЧТЕНИЯ ИЗ ЧАТА (учти при составлении плана) ===\n"
-            chat_context += "\n".join(
-                f"{'Спортсмен' if m.role == 'user' else 'Тренер'}: {m.content}"
-                for m in relevant[-10:]
-            )
+    chat_context = _plan_chat_prefs(chat_history)
 
     today_str = datetime.now().strftime('%d.%m.%Y')
+    weeks = max(1, round(days / 7))
+    if days <= 7:
+        horizon_line = "на ближайшие 7 дней (начиная с сегодняшнего дня)"
+        periodization = "Расставь отдых и длинную пробежку разумно в течение недели."
+        desc_rule = "описание тренировки на русском, 1-2 предложения"
+    else:
+        horizon_line = f"на ближайшие {days} дней (~{weeks} недель), начиная с сегодняшнего дня"
+        periodization = (
+            "Это ДЛИННЫЙ план — обязательно сделай периодизацию: чередуй развивающие "
+            "недели с разгрузочными (каждая 3-4-я неделя легче на ~20-30%), наращивай "
+            "недельный объём не быстрее ~10% и откатывай его в разгрузочные недели, "
+            "1 длинная пробежка в неделю с плавным ростом, соблюдай правило 80/20. "
+            "Если у спортсмена задана дата целевого старта — подведи объём к пику за "
+            "2-3 недели до неё и сделай подводку (taper) перед стартом."
+        )
+        desc_rule = "описание КОРОТКО, 3-8 слов (план длинный — без воды)"
+
     prompt = f"""{context}{chat_context}
 
-Сегодня: {today_str}. Составь персональный план тренировок на ближайшие 7 дней \
-(начиная с сегодняшнего дня) для этого спортсмена.
-Верни ТОЛЬКО валидный JSON-объект строго вида {{"plan": [ ... 7 объектов ... ]}} — \
-по одному объекту на каждый день, начиная с day_of_week=0 (сегодня), 1 (завтра), ..., \
-6 (через 6 дней). Не раскладывай дни отдельными ключами объекта — только массив в "plan".
+Сегодня: {today_str}. Составь персональный план тренировок {horizon_line} для этого спортсмена.
+Верни ТОЛЬКО валидный JSON-объект строго вида {{"plan": [ ... {days} объектов ... ]}} — \
+ровно {days} объектов ПО ПОРЯДКУ: элемент 0 = сегодня, 1 = завтра, ..., {days - 1} = через {days - 1} дней. \
+Не раскладывай дни отдельными ключами объекта — только массив в "plan".
 
 Формат каждого объекта:
 {{
-  "day_of_week": 0,          // 0=сегодня, 1=завтра, ..., 6=через 6 дней
   "workout_type": "easy",    // easy | tempo | interval | long | recovery | rest
-  "description": "...",      // описание тренировки на русском, 1-2 предложения
-  "distance_km": 8.0,        // целевая дистанция (null для rest/recovery без бега)
+  "description": "...",      // {desc_rule}
+  "distance_km": 8.0,        // целевая дистанция (null для rest)
   "target_pace_min_km": 5.5  // целевой темп мин/км (null для rest)
 }}
 
-Учитывай цели спортсмена, его текущий уровень и принцип 80/20. \
-Расставь отдых и длинную пробежку разумно в течение недели.
+Учитывай цели спортсмена, его текущий уровень и принцип 80/20. {periodization}
 Только JSON, без пояснений."""
 
     # См. комментарий в chat_response — освобождаем соединение на время ожидания
@@ -656,7 +808,8 @@ async def generate_training_plan(user: User, db: Session, chat_history: list[Cha
                 {"role": "system", "content": SYSTEM_PROMPT},
                 {"role": "user",   "content": prompt},
             ],
-            max_tokens=1200,
+            # ~70-75 токенов на день; потолок 8000 (лимит вывода модели).
+            max_tokens=min(8000, max(1200, days * 75)),
             temperature=0.3,
             response_format={"type": "json_object"},
         )
@@ -668,11 +821,11 @@ async def generate_training_plan(user: User, db: Session, chat_history: list[Cha
         # это негодный ответ модели, отдаём непустой stub, а не пустоту.
         if not plan:
             logger.error("DeepSeek plan: не удалось извлечь дни из ответа, откат на stub. raw=%.400s", raw)
-            return _stub_plan(user, db)
-        return plan[:7]
+            return _stub_plan(user, db, days)
+        return plan[:days]
     except Exception as e:
         logger.error("DeepSeek plan error: %s", e)
-        return _stub_plan(user, db)
+        return _stub_plan(user, db, days)
 
 
 async def generate_insights(user: User, db: Session) -> list[str]:
@@ -742,7 +895,7 @@ def _stub_chat(message: str, user: User) -> str:
             "_(Полный AI доступен после подключения DeepSeek API)_")
 
 
-def _stub_plan(user: User, db: Session) -> list[dict]:
+def _stub_plan(user: User, db: Session, days: int = 7) -> list[dict]:
     goals = db.query(Goal).filter(Goal.user_id == user.id, Goal.is_active == True).all()
     goal_type = goals[0].goal_type if goals else "half_marathon"
 
@@ -775,7 +928,10 @@ def _stub_plan(user: User, db: Session) -> list[dict]:
             {"day_of_week":6,"workout_type":"rest",    "description":"Отдых",                                  "distance_km":None,"target_pace_min_km":None},
         ],
     }
-    return plans.get(goal_type, plans["default"])
+    week = plans.get(goal_type, plans["default"])
+    # Размножаем недельный шаблон на весь горизонт (стаб без периодизации —
+    # это заглушка на случай отсутствия/сбоя ключа DeepSeek).
+    return [dict(week[i % 7]) for i in range(days)]
 
 
 def _stub_insights(user: User, db: Session) -> list[str]:

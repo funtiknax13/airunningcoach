@@ -6,13 +6,19 @@ import { loadCache, saveCache } from '@/utils/cache'
 import type { Workout } from '@/api/types'
 
 export const useTrainingStore = defineStore('training', () => {
-  // Отсортировано сервером по planned_date desc — первые 7 записей всегда
-  // самые дальние по дате, то есть актуальный сгенерированный план (см.
-  // комментарий в training.py: AI никогда не планирует дальше чем на 7 дней
-  // вперёд, поэтому это не требует привязки к календарной неделе).
+  // Все тренировки пользователя (план + история). Календарь строит из них
+  // месячную сетку и навигацию по прошлым месяцам на клиенте. План может быть
+  // на неделю/месяц/3 месяца вперёд (см. training.py).
   const all         = ref<Workout[]>(loadCache<Workout[]>('training') ?? [])
-  const loading     = ref(false)   // true во время generate
+  const loading     = ref(false)   // true во время запроса generate
   const loadingPlan = ref(false)   // true во время первоначальной загрузки
+  const generating  = ref(false)   // true пока длинный план собирается в фоне
+
+  let pollTimer: ReturnType<typeof setInterval> | null = null
+  let pollCount = 0
+  const POLL_MAX = 96   // ~8 минут: с запасом на 3-месячный план; страховка от «зависшей» задачи
+  function stopPoll() { if (pollTimer) { clearInterval(pollTimer); pollTimer = null } pollCount = 0 }
+  function ensurePoll() { if (!pollTimer) { pollCount = 0; pollTimer = setInterval(refreshStatus, 5000) } }
 
   async function load() {
     loadingPlan.value = true
@@ -22,10 +28,29 @@ export const useTrainingStore = defineStore('training', () => {
     } finally { loadingPlan.value = false }
   }
 
-  async function generate() {
+  // Опрос статуса фоновой генерации. running → показываем «готовится» и поллим;
+  // как только done/failed — подтягиваем свежий план и гасим индикатор. Пережидает
+  // и уход со страницы, и перезагрузку (статус живёт на сервере).
+  async function refreshStatus() {
+    try {
+      const s = await trainingApi.planStatus()
+      if (s.status === 'running' && pollCount++ < POLL_MAX) { generating.value = true; ensurePoll() }
+      else {
+        stopPoll()
+        if (generating.value) { generating.value = false; await load() }
+      }
+    } catch { /* тихо — фоновый поллинг */ }
+  }
+
+  // weeks: 1 (неделя, синхронно) | 4 (месяц) | 12 (3 месяца, в фоне). Месяц/3мес —
+  // только Premium (бэкенд отдаст 403 — ловится в UI).
+  async function generate(weeks = 1) {
     loading.value = true
-    try { await trainingApi.generatePlan(); await load() }
-    finally { loading.value = false }
+    try {
+      const res = await trainingApi.generatePlan(weeks)
+      if (res.status === 'running') { generating.value = true; ensurePoll() }
+      else { await load() }
+    } finally { loading.value = false }
   }
 
   async function completeWorkout(id: number, notes?: string) {
@@ -39,5 +64,5 @@ export const useTrainingStore = defineStore('training', () => {
     await load()
   }
 
-  return { all, loading, loadingPlan, load, generate, completeWorkout, uncompleteWorkout }
+  return { all, loading, loadingPlan, generating, load, generate, refreshStatus, completeWorkout, uncompleteWorkout }
 })

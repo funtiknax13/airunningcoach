@@ -289,3 +289,25 @@ class SupportMessage(Base):
     def __str__(self):
         who = "staff" if self.is_staff else "user"
         return f"Msg #{self.id} ({who})"
+
+
+class PlanJob(Base):
+    """Фоновая генерация длинного плана (месяц/3 месяца) кусками.
+
+    Длинный план не влезает в один вызов DeepSeek (таймаут 45с / потолок токенов),
+    поэтому собирается в фоне по 2-недельным чанкам. Строка хранит статус, по
+    которому фронт показывает «план готовится» и опрашивает готовность."""
+    __tablename__ = "plan_jobs"
+
+    id         = Column(Integer, primary_key=True, index=True)
+    user_id    = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    status     = Column(String(20), nullable=False, server_default="running")  # running | done | failed
+    weeks      = Column(Integer, nullable=False)
+    error      = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    user = relationship("User")
+
+    def __str__(self):
+        return f"PlanJob #{self.id} {self.weeks}w [{self.status}]"

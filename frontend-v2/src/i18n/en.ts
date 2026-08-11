@@ -100,6 +100,17 @@ export default {
     },
     workout: { notes: 'Mark workout as completed', notesPlaceholder: 'Notes (optional)', doneAlert: 'Workout marked as done!' },
     type: { easy: 'Easy', tempo: 'Tempo', interval: 'Intervals', long: 'Long run', recovery: 'Recovery', rest: 'Rest' },
+    horizon: {
+      week: 'Week', month: 'Month',
+      premiumUpsell: 'The month plan is available on Premium. Subscribe?',
+      getPremium: 'Get Premium',
+      preparing: 'Preparing plan…',
+      preparingNote: 'Your long plan is being built in the background — this can take a couple of minutes. You can keep using the app; it will appear automatically.',
+    },
+    calendar: {
+      today: 'Today', prev: 'Previous month', next: 'Next month',
+      noWorkout: 'No workout planned for this day.',
+    },
   },
   ai: { title: 'AI Insights', empty: 'Add runs to get AI insights' },
   chat: {
