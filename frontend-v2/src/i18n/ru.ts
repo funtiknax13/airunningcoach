@@ -91,8 +91,9 @@ export default {
   plan: {
     title: 'План тренировок', generate: 'Создать план', generating: 'Генерирую...',
     empty: 'Нет активного плана.',
+    discipline: { run: 'Бег', walk: 'Ходьба' },
     status: {
-      done: 'Выполнено', approx: '≈ Близко', mark: 'Отметить',
+      done: 'Выполнено', approx: '≈ Близко', mark: 'Отметить', missed: 'Пропущено',
       unconfirmed: 'Не подтверждена', retry: 'Проверить снова', restDay: 'День отдыха',
       undoBtn: 'Снять отметку', undoTitle: 'Снять отметку о выполнении',
       undoConfirm: 'Снять отметку о выполнении этой тренировки?',

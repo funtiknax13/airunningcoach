@@ -91,8 +91,9 @@ export default {
   plan: {
     title: 'Training plan', generate: 'Generate plan', generating: 'Generating...',
     empty: 'No active plan.',
+    discipline: { run: 'Run', walk: 'Walk' },
     status: {
-      done: 'Done', approx: '≈ Close', mark: 'Mark done',
+      done: 'Done', approx: '≈ Close', mark: 'Mark done', missed: 'Missed',
       unconfirmed: 'Unconfirmed', retry: 'Check again', restDay: 'Rest day',
       undoBtn: 'Undo', undoTitle: 'Undo completion',
       undoConfirm: 'Remove the completion mark for this workout?',

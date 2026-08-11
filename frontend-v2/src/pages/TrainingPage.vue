@@ -43,30 +43,33 @@
         <button v-for="cell in cells" :key="cell.key" class="cal-cell"
           :class="[
             cell.workout ? typeClass(cell.workout.workout_type) : '',
+            cell.workout ? `s-${statusOf(cell)}` : '',
             {
               'is-out': !cell.inMonth,
               'is-today': cell.isToday,
-              'is-past': cell.isPast,
               'is-selected': cell.key === selectedKey,
               'has-workout': !!cell.workout,
-              'is-done': cell.workout && isDone(cell.workout),
             },
           ]"
           @click="selectDay(cell)">
           <span class="cal-num">{{ cell.date.getDate() }}</span>
           <template v-if="cell.workout">
-            <span class="cal-dot"></span>
-            <span class="cal-chip">
-              {{ t(`plan.type.${cell.workout.workout_type}`) }}<template v-if="cell.workout.distance_km"> · {{ cell.workout.distance_km }}</template>
-            </span>
-            <i v-if="isDone(cell.workout)" class="fas fa-check cal-check"></i>
+            <i class="cal-ico fas" :class="disciplineIcon(cell.workout)"></i>
+            <span class="cal-label">{{ dayLabel(cell.workout)
+              }}<template v-if="cell.workout.distance_km"> · {{ cell.workout.distance_km }}</template></span>
+            <i v-if="statusOf(cell) === 'done'" class="cal-mark fas fa-check"></i>
+            <i v-else-if="statusOf(cell) === 'missed'" class="cal-mark cal-mark--miss fas fa-xmark"></i>
           </template>
         </button>
       </div>
 
       <div class="cal-legend">
-        <span v-for="lg in legend" :key="lg.type" class="lg-item">
-          <span class="lg-dot" :class="typeClass(lg.type)"></span>{{ lg.label }}
+        <span v-for="s in statusLegend" :key="s.cls" class="lg-item">
+          <span class="lg-sw" :class="s.cls"></span>{{ s.label }}
+        </span>
+        <span class="lg-sep"></span>
+        <span v-for="d in discLegend" :key="d.icon" class="lg-item">
+          <i class="fas lg-ico" :class="d.icon"></i>{{ d.label }}
         </span>
       </div>
     </div>
@@ -85,9 +88,15 @@
       </div>
 
       <template v-if="selectedWorkout">
-        <span class="workout-type-badge" :class="`badge-type-${selectedWorkout.workout_type}`">
-          {{ t(`plan.type.${selectedWorkout.workout_type}`) }}
-        </span>
+        <div class="dd-badges">
+          <span class="dd-discipline" :class="`t-${selectedWorkout.workout_type}`">
+            <i class="fas" :class="disciplineIcon(selectedWorkout)"></i> {{ dayLabel(selectedWorkout) }}
+          </span>
+          <span class="workout-type-badge" :class="`badge-type-${selectedWorkout.workout_type}`">
+            {{ t(`plan.type.${selectedWorkout.workout_type}`) }}
+          </span>
+          <span v-if="selectedStatus === 'missed'" class="badge badge-missed">{{ t('plan.status.missed') }}</span>
+        </div>
         <p class="dd-desc">{{ selectedWorkout.description }}</p>
         <div class="dd-chips">
           <span v-if="selectedWorkout.distance_km" class="workout-chip">📏 {{ selectedWorkout.distance_km }} km</span>
@@ -273,12 +282,50 @@ const selectedDate = computed(() => {
 const selectedWorkout = computed(() => selectedKey.value ? byDate.value.get(selectedKey.value) ?? null : null)
 function selectDay(cell: Cell) { selectedKey.value = cell.key }
 
-// ── Форматирование ────────────────────────────────────────────────────────
-const legend = computed(() => (['easy','tempo','interval','long','rest'] as WorkoutType[])
-  .map(type => ({ type, label: t(`plan.type.${type}`) })))
+// ── Дисциплина / тип / статус ─────────────────────────────────────────────
 function typeClass(type: WorkoutType) { return `t-${type}` }
 function isRest(type: WorkoutType) { return !RUNNING.includes(type) }
 function isDone(w: Workout) { return w.completion_status === 'completed' || w.completion_status === 'approximate' }
+// Ходьба определяется по описанию (модель пишет «ходьба» для восстановительных/
+// коленных дней) — отдельного поля дисциплины в плане нет.
+function isWalk(w: Workout) { return /ходьб|walk/i.test(w.description || '') }
+function disciplineIcon(w: Workout) {
+  if (w.workout_type === 'rest') return 'fa-bed'
+  return isWalk(w) ? 'fa-person-walking' : 'fa-person-running'
+}
+function dayLabel(w: Workout) {
+  if (w.workout_type === 'rest') return t('plan.type.rest')
+  if (isWalk(w)) return t('plan.discipline.walk')
+  return t(`plan.type.${w.workout_type}`)
+}
+// Статус для цветовой схемы ячейки: выполнено / пропущено / не подтверждено /
+// отдых / предстоит. Пропущено = прошедший беговой день, который не отмечен.
+function statusFor(w: Workout, isPast: boolean): string {
+  if (isDone(w)) return 'done'
+  if (w.completion_status === 'unconfirmed') return 'unconfirmed'
+  if (isRest(w.workout_type)) return 'rest'
+  if (isPast) return 'missed'
+  return 'upcoming'
+}
+function statusOf(cell: Cell) { return cell.workout ? statusFor(cell.workout, cell.isPast) : '' }
+
+const statusLegend = computed(() => [
+  { cls: 's-done',        label: t('plan.status.done') },
+  { cls: 's-missed',      label: t('plan.status.missed') },
+  { cls: 's-unconfirmed', label: t('plan.status.unconfirmed') },
+])
+const discLegend = computed(() => [
+  { icon: 'fa-person-running', label: t('plan.discipline.run') },
+  { icon: 'fa-person-walking', label: t('plan.discipline.walk') },
+  { icon: 'fa-bed',            label: t('plan.type.rest') },
+])
+const selectedStatus = computed(() => {
+  const w = selectedWorkout.value; const d = selectedDate.value
+  if (!w || !d) return ''
+  const past = new Date(d.getFullYear(), d.getMonth(), d.getDate()) < today
+  return statusFor(w, past)
+})
+
 function isFuture(w: Workout) {
   if (!w.planned_date) return false
   const d = new Date(w.planned_date); d.setHours(0, 0, 0, 0)
@@ -360,25 +407,35 @@ async function uncomplete(id: number) {
 }
 .cal-cell:hover { border-color: var(--border-2); }
 .cal-cell:active { transform: scale(0.98); }
-.cal-cell.is-out { opacity: 0.38; }
-.cal-cell.is-past:not(.is-today) { opacity: 0.66; }
+.cal-cell.is-out { opacity: 0.4; }
 .cal-cell.is-today { border-color: var(--brand); box-shadow: 0 0 0 1px var(--brand) inset; }
 .cal-cell.is-selected { box-shadow: 0 0 0 2px var(--brand); border-color: var(--brand); }
 .cal-num { font-size: 0.82rem; font-weight: 700; color: var(--text-2); }
 .cal-cell.is-today .cal-num { color: var(--brand); }
 
-/* Цвет тренировки в ячейке — по типу (--dot задаётся классом t-*) */
-.cal-cell.has-workout { background: var(--dotbg, var(--surface-2)); border-color: color-mix(in srgb, var(--dot, var(--border-2)) 30%, var(--border)); }
-.cal-dot { display: none; }
-.cal-chip {
-  font-size: 0.72rem; font-weight: 600; line-height: 1.15; color: var(--dot, var(--text-2));
+/* Что за тренировка: иконка дисциплины (бег/ходьба/отдых) + подпись типа.
+   Иконка окрашена по типу (--dot из t-*). */
+.cal-ico { font-size: 0.92rem; color: var(--dot, var(--text-3)); }
+.cal-label {
+  font-size: 0.72rem; font-weight: 600; line-height: 1.15; color: var(--text-2);
   overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
 }
-.cal-check { position: absolute; top: 6px; right: 6px; font-size: 0.72rem; color: var(--green); }
-.cal-cell.is-done { background: var(--green-dim); border-color: color-mix(in srgb, var(--green) 30%, var(--border)); }
-.cal-cell.is-done .cal-chip { color: var(--text-3); text-decoration: line-through; }
+.cal-mark { position: absolute; top: 6px; right: 6px; font-size: 0.74rem; color: var(--green); }
+.cal-mark--miss { color: var(--red); }
 
-/* Палитра типов */
+/* Цветовая схема ячейки — по СТАТУСУ (выполнено/пропущено/не подтверждено/отдых/
+   предстоит). Тип показывает иконка+подпись, а не фон. Без зачёркивания. */
+.cal-cell.s-upcoming    { background: var(--surface); }
+.cal-cell.s-rest        { background: var(--surface-2); }
+.cal-cell.s-rest .cal-ico, .cal-cell.s-rest .cal-label { color: var(--text-3); }
+.cal-cell.s-done        { background: var(--green-dim);  border-color: color-mix(in srgb, var(--green) 35%, var(--border)); }
+.cal-cell.s-missed      { background: var(--red-dim);    border-color: color-mix(in srgb, var(--red) 35%, var(--border)); }
+.cal-cell.s-unconfirmed { background: var(--yellow-dim); border-color: color-mix(in srgb, var(--yellow) 35%, var(--border)); }
+.cal-cell.s-done .cal-ico        { color: var(--green); }
+.cal-cell.s-missed .cal-ico      { color: var(--red); }
+.cal-cell.s-unconfirmed .cal-ico { color: var(--yellow); }
+
+/* Палитра типов (задаёт --dot для иконки/легенды) */
 .t-easy     { --dot: var(--green);  --dotbg: var(--green-dim); }
 .t-tempo    { --dot: var(--yellow); --dotbg: var(--yellow-dim); }
 .t-interval { --dot: var(--red);    --dotbg: var(--red-dim); }
@@ -386,10 +443,15 @@ async function uncomplete(id: number) {
 .t-recovery { --dot: var(--text-3); --dotbg: var(--surface-3); }
 .t-rest     { --dot: var(--text-3); --dotbg: var(--surface-3); }
 
-/* Легенда */
-.cal-legend { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border); }
+/* Легенда: цвета = статусы, иконки = дисциплина */
+.cal-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border); }
 .lg-item { display: inline-flex; align-items: center; gap: 6px; font-size: 0.75rem; color: var(--text-3); }
-.lg-dot { width: 10px; height: 10px; border-radius: 3px; background: var(--dot); }
+.lg-sw { width: 12px; height: 12px; border-radius: 4px; }
+.lg-sw.s-done { background: var(--green-dim); border: 1px solid var(--green); }
+.lg-sw.s-missed { background: var(--red-dim); border: 1px solid var(--red); }
+.lg-sw.s-unconfirmed { background: var(--yellow-dim); border: 1px solid var(--yellow); }
+.lg-ico { color: var(--text-2); width: 14px; text-align: center; }
+.lg-sep { width: 1px; height: 14px; background: var(--border); }
 
 /* ── Детали дня ── */
 .day-detail { margin-bottom: 16px; }
@@ -401,21 +463,23 @@ async function uncomplete(id: number) {
 .dd-close { margin-left: auto; width: 32px; height: 32px; border: none; background: var(--surface-3);
   border-radius: 8px; color: var(--text-2); cursor: pointer; }
 .dd-close:hover { background: var(--border); }
+.dd-badges { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.dd-discipline { display: inline-flex; align-items: center; gap: 6px; font-weight: 700; font-size: 0.92rem; color: var(--dot, var(--text)); }
+.badge-missed { background: var(--red-dim); color: var(--red); }
 .dd-desc { margin: 10px 0; line-height: 1.5; }
 .dd-chips { display: flex; flex-wrap: wrap; gap: 8px; }
 .dd-action { display: flex; align-items: center; gap: 10px; margin-top: 14px; }
 .dd-empty { color: var(--text-3); margin: 8px 0; }
 
-/* ── Мобилка: компактные ячейки, чип-текст прячем, показываем точку ── */
+/* ── Мобилка: компактные ячейки. Подпись прячем, оставляем иконку дисциплины
+   (бег/ходьба/отдых) + цвет-статус — оба читаются с одного взгляда. ── */
 @media (max-width: 560px) {
   .cal-grid { gap: 4px; }
-  .cal-cell { min-height: 46px; padding: 4px; border-radius: 8px; align-items: center; gap: 3px; }
-  .cal-num { font-size: 0.78rem; }
-  .cal-chip { display: none; }
-  .cal-cell.has-workout .cal-dot { display: block; width: 7px; height: 7px; border-radius: 50%; background: var(--dot); }
-  .cal-cell.is-done .cal-dot { background: var(--green); }
-  .cal-check { display: none; }
-  .cal-cell.is-done { background: var(--green-dim); }
+  .cal-cell { min-height: 48px; padding: 4px; border-radius: 8px; align-items: center; gap: 2px; }
+  .cal-num { font-size: 0.76rem; }
+  .cal-label { display: none; }
+  .cal-ico { font-size: 0.82rem; }
+  .cal-mark { display: none; }
   .cal-title { min-width: 0; font-size: 0.95rem; }
   .plan-gen { margin-left: 0; width: 100%; }
   .horizon-seg { width: 100%; justify-content: space-between; }
