@@ -4,7 +4,7 @@
       <div class="auth-card">
         <div class="auth-logo">
           <div class="logo-icon"><i class="fas fa-robot"></i></div>
-          <h2>AI PaceMaker</h2>
+          <h2>AIRunningCoach</h2>
           <p>{{ $t('auth.tagline') }}</p>
         </div>
 

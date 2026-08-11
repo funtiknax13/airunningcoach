@@ -9,6 +9,9 @@ import type {
   MonthlyStats,
   RateLimitStatus,
   AchievementsResponse,
+  SupportTicketSummary,
+  SupportTicketDetail,
+  AdminSupportList,
 } from './types'
 
 // ── Auth ──────────────────────────────────────────────────────────────────
@@ -102,10 +105,27 @@ export const insightsApi = {
   dashboard: () => api.request<DashboardInsights>('/api/ai-insights/dashboard'),
 }
 
-// ── Support ───────────────────────────────────────────────────────────────
+// ── Support (сторона пользователя) ──────────────────────────────────────────
 export const supportApi = {
-  contact: (subject: string, message: string, lang = 'ru') =>
-    api.request<{ message: string }>('/api/support/contact', 'POST', { subject, message, lang }),
+  myTickets:   () => api.request<SupportTicketSummary[]>('/api/support/tickets'),
+  createTicket: (body: string) =>
+    api.request<SupportTicketSummary>('/api/support/tickets', 'POST', { body }),
+  ticket:      (id: number) => api.request<SupportTicketDetail>(`/api/support/tickets/${id}`),
+  reply:       (id: number, body: string) =>
+    api.request<SupportTicketDetail>(`/api/support/tickets/${id}/messages`, 'POST', { body }),
+  unreadCount: () => api.request<{ count: number }>('/api/support/tickets/unread-count'),
+}
+
+// ── Support (сторона сотрудника / Admin Tools) ──────────────────────────────
+export const adminSupportApi = {
+  list:        (status: 'all' | 'open' | 'closed' = 'all', page = 1) =>
+    api.request<AdminSupportList>(`/api/admin/support?status=${status}&page=${page}`),
+  ticket:      (id: number) => api.request<SupportTicketDetail>(`/api/admin/support/${id}`),
+  reply:       (id: number, body: string) =>
+    api.request<SupportTicketDetail>(`/api/admin/support/${id}/reply`, 'POST', { body }),
+  toggleStatus: (id: number) =>
+    api.request<SupportTicketDetail>(`/api/admin/support/${id}/status`, 'POST'),
+  badgeCounts: () => api.request<{ tickets: number }>('/api/admin/support/badge-counts'),
 }
 
 // ── Push-уведомления ────────────────────────────────────────────────────────

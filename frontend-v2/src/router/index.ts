@@ -11,6 +11,9 @@ const router = createRouter({
     { path: '/goals',       component: () => import('@/pages/GoalsPage.vue'),       meta: { auth: true } },
     { path: '/achievements', component: () => import('@/pages/AchievementsPage.vue'), meta: { auth: true } },
     { path: '/coach',       component: () => import('@/pages/CoachPage.vue'),       meta: { auth: true } },
+    { path: '/support',     component: () => import('@/pages/SupportPage.vue'),     meta: { auth: true } },
+    { path: '/support/tickets/:id', component: () => import('@/pages/SupportTicketPage.vue'), meta: { auth: true } },
+    { path: '/admin-tools', component: () => import('@/pages/AdminToolsPage.vue'),  meta: { auth: true, admin: true } },
     { path: '/subscription',  component: () => import('@/pages/SubscriptionPage.vue'), meta: { auth: true } },
     { path: '/payment/success', component: () => import('@/pages/PaymentSuccessPage.vue'), meta: { auth: true } },
     { path: '/onboarding',      component: () => import('@/pages/OnboardingPage.vue'),   meta: { auth: true } },
@@ -28,6 +31,8 @@ router.beforeEach(async (to) => {
   if (to.path === '/' && auth.loggedIn) return '/dashboard'
   if (!to.meta.auth) return true
   if (!auth.loggedIn) return '/'
+  // Admin Tools — только для админов; остальных отправляем на дашборд
+  if (to.meta.admin && !auth.user?.is_admin) return '/dashboard'
   // Новые пользователи без онбординга → на онбординг (кроме самой страницы онбординга)
   if (auth.user && !auth.user.onboarding_completed && to.path !== '/onboarding') {
     return '/onboarding'

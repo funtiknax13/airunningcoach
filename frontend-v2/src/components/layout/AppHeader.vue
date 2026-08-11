@@ -1,7 +1,7 @@
 <template>
   <header class="app-header">
     <div class="logo">
-      <img src="/logo.png" alt="AI PaceMaker" class="logo-wordmark">
+      <img src="/logo.png" alt="AIRunningCoach" class="logo-wordmark">
     </div>
     <div class="user-info">
       <button class="profile-btn" @click="profileModal?.open()">

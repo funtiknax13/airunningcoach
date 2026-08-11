@@ -241,3 +241,51 @@ class ChatMessage(Base):
     def __str__(self):
         preview = (self.content or '')[:40]
         return f"[{self.role}] {preview}"
+
+
+class SupportTicket(Base):
+    """Тред одного обращения в поддержку. Статус open|closed.
+
+    Инбокс общий для всех админов: «прочитано» помечается на сообщениях один раз
+    для всей команды (см. SupportMessage.read_at), а не персонально по агенту."""
+    __tablename__ = "support_tickets"
+
+    id                 = Column(Integer, primary_key=True, index=True)
+    status             = Column(String(20), nullable=False, server_default="open")  # open | closed
+    # nullable + SET NULL: если аккаунт удалят, тред остаётся историей, а не пропадает
+    created_by_user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    created_at         = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at         = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    created_by = relationship("User")
+    messages   = relationship(
+        "SupportMessage", back_populates="ticket",
+        cascade="all, delete-orphan", order_by="SupportMessage.id",
+    )
+
+    def __str__(self):
+        return f"Ticket #{self.id} [{self.status}]"
+
+
+class SupportMessage(Base):
+    """Реплика в треде. is_staff различает автора (пользователь / сотрудник).
+
+    read_at — момент, когда сообщение увидела ПРОТИВОПОЛОЖНАЯ сторона (ответ staff
+    читает пользователь; сообщение пользователя читает staff). Общий для команды."""
+    __tablename__ = "support_messages"
+    __table_args__ = (Index("ix_support_messages_ticket_id", "ticket_id"),)
+
+    id             = Column(Integer, primary_key=True, index=True)
+    ticket_id      = Column(Integer, ForeignKey("support_tickets.id", ondelete="CASCADE"), nullable=False)
+    sender_user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    is_staff       = Column(Boolean, nullable=False, server_default="false")
+    body           = Column(Text, nullable=False)
+    read_at        = Column(DateTime(timezone=True), nullable=True)
+    created_at     = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    ticket = relationship("SupportTicket", back_populates="messages")
+    sender = relationship("User", foreign_keys=[sender_user_id])
+
+    def __str__(self):
+        who = "staff" if self.is_staff else "user"
+        return f"Msg #{self.id} ({who})"

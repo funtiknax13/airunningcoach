@@ -30,6 +30,7 @@ export interface UserResponse {
   height: number | null
   gender: string | null
   is_verified: boolean
+  is_admin: boolean
   is_premium: boolean
   premium_until: string | null
   fitness_level: string | null
@@ -275,4 +276,49 @@ export interface AchievementsResponse {
   gender_required: boolean
   personal_records: AchievementRecord[]
   badges: BadgeAchievement[]
+}
+
+// ── Support tickets ─────────────────────────────────────────────────────────
+export type TicketStatus = 'open' | 'closed'
+
+export interface SupportTicketSummary {
+  id: number
+  status: TicketStatus
+  created_at: string
+  preview: string
+  has_unread: boolean
+}
+
+export interface SupportMsg {
+  id: number
+  is_staff: boolean
+  body: string
+  created_at: string
+}
+
+export interface SupportTicketDetail {
+  id: number
+  status: TicketStatus
+  created_at: string
+  messages: SupportMsg[]
+}
+
+export interface AdminSupportRow {
+  id: number
+  status: TicketStatus
+  created_at: string
+  user_name: string | null
+  user_email: string | null
+  preview: string
+  last_at: string | null
+  unread: boolean
+  awaiting_reply: boolean
+  can_reply: boolean
+}
+
+export interface AdminSupportList {
+  tickets: AdminSupportRow[]
+  total: number
+  page: number
+  page_size: number
 }

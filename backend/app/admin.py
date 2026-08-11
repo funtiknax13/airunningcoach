@@ -211,7 +211,7 @@ def create_admin(app) -> Admin:
         app,
         engine,
         authentication_backend=authentication_backend,
-        title="AI PaceMaker — Админ",
+        title="AIRunningCoach — Админ",
         base_url="/admin",
     )
     for view in [UserAdmin, ActivityAdmin, GoalAdmin,

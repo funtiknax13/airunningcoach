@@ -56,10 +56,20 @@
           <i class="fas fa-calculator"></i>
           <span>Инструменты</span>
         </a>
-        <button class="nav-item" @click="supportModal?.open()">
-          <i class="fas fa-life-ring"></i>
+        <RouterLink to="/support" class="nav-item" :class="{ active: route.path.startsWith('/support') }">
+          <span class="nav-icon-wrap">
+            <i class="fas fa-life-ring"></i>
+            <span v-if="supportStore.unreadCount > 0" class="nav-badge">{{ supportStore.unreadCount > 9 ? '9+' : supportStore.unreadCount }}</span>
+          </span>
           <span>{{ t('support.title') }}</span>
-        </button>
+        </RouterLink>
+        <RouterLink v-if="isAdmin" to="/admin-tools" class="nav-item" :class="{ active: route.path === '/admin-tools' }">
+          <span class="nav-icon-wrap">
+            <i class="fas fa-headset"></i>
+            <span v-if="supportStore.staffUnread > 0" class="nav-badge">{{ supportStore.staffUnread > 9 ? '9+' : supportStore.staffUnread }}</span>
+          </span>
+          <span>{{ t('nav.adminTools') }}</span>
+        </RouterLink>
         <button class="nav-item logout" @click="logout()">
           <i class="fas fa-sign-out-alt"></i>
           <span>{{ t('header.logout') }}</span>
@@ -109,9 +119,14 @@
             <a href="/tools/" class="mobile-menu-item" target="_blank" rel="noopener" @click="menuOpen = false">
               <i class="fas fa-calculator"></i> Инструменты
             </a>
-            <button class="mobile-menu-item" @click="supportModal?.open(); menuOpen = false">
+            <RouterLink to="/support" class="mobile-menu-item" @click="menuOpen = false">
               <i class="fas fa-life-ring"></i> {{ t('support.title') }}
-            </button>
+              <span v-if="supportStore.unreadCount > 0" class="nav-badge">{{ supportStore.unreadCount > 9 ? '9+' : supportStore.unreadCount }}</span>
+            </RouterLink>
+            <RouterLink v-if="isAdmin" to="/admin-tools" class="mobile-menu-item" @click="menuOpen = false">
+              <i class="fas fa-headset"></i> {{ t('nav.adminTools') }}
+              <span v-if="supportStore.staffUnread > 0" class="nav-badge">{{ supportStore.staffUnread > 9 ? '9+' : supportStore.staffUnread }}</span>
+            </RouterLink>
             <button class="mobile-menu-item logout" @click="logout(); menuOpen = false">
               <i class="fas fa-sign-out-alt"></i> {{ t('header.logout') }}
             </button>
@@ -140,7 +155,6 @@
   </nav>
 
   <ProfileModal ref="profileModal" v-model="showProfile" />
-  <SupportModal ref="supportModal" v-model="showSupport" />
   <AppDialog />
   <TrialExpiredBanner />
 </template>
@@ -153,9 +167,9 @@ import { toggleLang } from '@/i18n'
 import { useAuthStore } from '@/stores/auth'
 import { useChatStore } from '@/stores/chat'
 import { useAchievementsStore } from '@/stores/achievements'
+import { useSupportStore } from '@/stores/support'
 import { useTheme } from '@/composables/useTheme'
 import ProfileModal       from '@/components/profile/ProfileModal.vue'
-import SupportModal       from '@/components/support/SupportModal.vue'
 import AppDialog          from '@/components/common/AppDialog.vue'
 import TrialExpiredBanner from '@/components/common/TrialExpiredBanner.vue'
 
@@ -164,20 +178,22 @@ const route     = useRoute()
 const auth      = useAuthStore()
 const chatStore = useChatStore()
 const achievementsStore = useAchievementsStore()
-const supportModal = ref<InstanceType<typeof SupportModal> | null>(null)
-const showSupport  = ref(false)
+const supportStore = useSupportStore()
+const isAdmin = computed(() => auth.user?.is_admin === true)
 
 // Бейджи в навигации — реальные непрочитанные/непросмотренные с сервера,
 // не оптимистичный флаг. Фоновый AI-разбор тренировки может занять до
 // минуты — polling подхватывает его, как только сообщение реально появится.
 let notifPoll: ReturnType<typeof setInterval> | null = null
-onMounted(() => {
+function refreshBadges() {
   chatStore.refreshUnread()
   achievementsStore.refreshUnseen()
-  notifPoll = setInterval(() => {
-    chatStore.refreshUnread()
-    achievementsStore.refreshUnseen()
-  }, 10_000)
+  supportStore.refreshUnread()
+  if (isAdmin.value) supportStore.refreshStaffUnread()
+}
+onMounted(() => {
+  refreshBadges()
+  notifPoll = setInterval(refreshBadges, 10_000)
 })
 onUnmounted(() => { if (notifPoll) clearInterval(notifPoll) })
 

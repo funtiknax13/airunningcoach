@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     # Gmail SMTP
     GMAIL_USER: str = ""
     GMAIL_APP_PASSWORD: str = ""
-    EMAIL_FROM_NAME: str = "AI PaceMaker"
+    EMAIL_FROM_NAME: str = "AIRunningCoach"
 
     # App base URL for verification links
     APP_BASE_URL: str = "http://localhost:8000"

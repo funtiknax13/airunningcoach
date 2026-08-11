@@ -46,6 +46,7 @@ class UserResponse(BaseModel):
     height: Optional[float]
     gender: Optional[str]
     is_verified: bool
+    is_admin: bool
     is_premium: bool
     premium_until: Optional[datetime]
     fitness_level: Optional[str]
@@ -242,11 +243,63 @@ class AIChatRequest(BaseModel):
     lang: Optional[str] = "ru"
 
 
-# Support contact form
-class SupportContactRequest(BaseModel):
-    subject: str = Field(..., min_length=1, max_length=150)
-    message: str = Field(..., min_length=10, max_length=3000)
-    lang: Optional[str] = "ru"
+# ── Support tickets ───────────────────────────────────────────────────────────
+class SupportMessageOut(BaseModel):
+    id: int
+    is_staff: bool
+    body: str
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class SupportTicketSummary(BaseModel):
+    id: int
+    status: str                # open | closed
+    created_at: datetime
+    preview: str
+    has_unread: bool           # есть непрочитанный ответ поддержки
+
+
+class SupportTicketDetail(BaseModel):
+    id: int
+    status: str
+    created_at: datetime
+    messages: List[SupportMessageOut]
+
+
+class SupportCreateRequest(BaseModel):
+    body: str = Field(..., min_length=1, max_length=5000)
+
+
+class SupportReplyRequest(BaseModel):
+    body: str = Field(..., min_length=1, max_length=5000)
+
+
+# сторона сотрудника (admin tools)
+class AdminSupportRow(BaseModel):
+    id: int
+    status: str
+    created_at: datetime
+    user_name: Optional[str]
+    user_email: Optional[str]
+    preview: str
+    last_at: Optional[datetime]      # время последнего сообщения
+    unread: bool                     # есть непрочитанное от пользователя
+    awaiting_reply: bool             # последнее слово за пользователем (staff прочитал, но не ответил)
+    can_reply: bool                  # есть реальный аккаунт-получатель
+
+
+class AdminSupportList(BaseModel):
+    tickets: List[AdminSupportRow]
+    total: int
+    page: int
+    page_size: int
+
+
+class SupportBadgeCounts(BaseModel):
+    tickets: int                     # тредов с непрочитанным от пользователей
 
 
 # Web Push
