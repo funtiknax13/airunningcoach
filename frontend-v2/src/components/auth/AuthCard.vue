@@ -18,7 +18,7 @@
       <button v-if="showResend" class="auth-btn-resend" @click="resendVerification" :disabled="loading">
         {{ loading ? '...' : '📧 Отправить письмо повторно' }}
       </button>
-      <altcha-widget class="altcha" challengeurl="/api/auth/altcha/challenge"
+      <altcha-widget class="altcha" challenge="/api/auth/altcha/challenge"
                      :strings="altchaStrings" @statechange="onLoginAltcha"></altcha-widget>
       <button class="auth-btn" @click="login" :disabled="loading">
         {{ loading ? '...' : $t('auth.login.btn') }}
@@ -60,7 +60,7 @@
         <span v-html="$t('auth.reg.consent')"></span>
       </label>
       <div v-if="error" class="auth-error">{{ error }}</div>
-      <altcha-widget class="altcha" challengeurl="/api/auth/altcha/challenge"
+      <altcha-widget class="altcha" challenge="/api/auth/altcha/challenge"
                      :strings="altchaStrings" @statechange="onRegAltcha"></altcha-widget>
       <button class="auth-btn" @click="register" :disabled="loading">
         {{ loading ? '...' : $t('auth.reg.btn') }}

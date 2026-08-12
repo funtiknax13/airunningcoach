@@ -822,7 +822,7 @@
       <input id="login-email" type="email" class="auth-input" placeholder="Email" onkeyup="if(event.key==='Enter')doLogin()">
       <input id="login-password" type="password" class="auth-input" placeholder="Пароль" onkeyup="if(event.key==='Enter')doLogin()">
       <button id="login-resend-btn" class="auth-btn-link" style="display:none" onclick="doResendVerification()">📧 Отправить письмо повторно</button>
-      <altcha-widget id="login-altcha" challengeurl="/api/auth/altcha/challenge"
+      <altcha-widget id="login-altcha" challenge="/api/auth/altcha/challenge"
         strings='{"label":"Я не робот","verifying":"Проверяем…","verified":"Проверено","error":"Не удалось проверить, попробуйте ещё раз"}'
         style="display:block;margin:6px 0 12px;--altcha-border-radius:10px;--altcha-color-base:var(--surface);--altcha-color-border:var(--border);--altcha-color-text:var(--text);--altcha-color-border-focus:var(--brand);--altcha-max-width:100%"></altcha-widget>
       <button id="login-btn" class="auth-btn" onclick="doLogin()">Войти</button>
@@ -852,7 +852,7 @@
         <input type="checkbox" id="reg-consent">
         <span>Я принимаю <a href="/terms/" target="_blank" rel="noopener">условия использования</a> и <a href="/privacy/" target="_blank" rel="noopener">политику конфиденциальности</a></span>
       </label>
-      <altcha-widget id="reg-altcha" challengeurl="/api/auth/altcha/challenge"
+      <altcha-widget id="reg-altcha" challenge="/api/auth/altcha/challenge"
         strings='{"label":"Я не робот","verifying":"Проверяем…","verified":"Проверено","error":"Не удалось проверить, попробуйте ещё раз"}'
         style="display:block;margin:6px 0 12px;--altcha-border-radius:10px;--altcha-color-base:var(--surface);--altcha-color-border:var(--border);--altcha-color-text:var(--text);--altcha-color-border-focus:var(--brand);--altcha-max-width:100%"></altcha-widget>
       <button id="reg-btn" class="auth-btn" onclick="doRegister()">Зарегистрироваться</button>
