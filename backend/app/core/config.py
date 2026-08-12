@@ -24,8 +24,15 @@ class Settings(BaseSettings):
     VAPID_PRIVATE_KEY: str = ""
     VAPID_CLAIMS_EMAIL: str = "mailto:running.coach.mail@gmail.com"
 
-    # DeepSeek AI
+    # AI-провайдеры: Groq — основной, DeepSeek — на подхвате (failover при 429/сбое).
+    # Оба OpenAI-совместимые. Провайдер «включён», если задан его ключ.
+    GROQ_API_KEY: str = ""
+    GROQ_MODEL: str = "llama-3.3-70b-versatile"
+    GROQ_BASE_URL: str = "https://api.groq.com/openai/v1"
+
     DEEPSEEK_API_KEY: str = ""
+    DEEPSEEK_MODEL: str = "deepseek-chat"
+    DEEPSEEK_BASE_URL: str = "https://api.deepseek.com"
 
     # Google OAuth
     GOOGLE_CLIENT_ID: str = ""

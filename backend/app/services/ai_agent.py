@@ -10,6 +10,7 @@ import asyncio
 import json
 import logging
 import re
+import time
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 from typing import Optional
@@ -24,8 +25,7 @@ from app.services.workout_verification import STATUS_LABELS
 
 logger = logging.getLogger(__name__)
 
-# ── Константа: заглушка когда ключа нет ──────────────────────────────────────
-_STUB_MODE = not settings.DEEPSEEK_API_KEY or settings.DEEPSEEK_API_KEY == "your-deepseek-api-key-here"
+# Провайдеры AI и режим-заглушка определены ниже (см. _providers / _chat / _STUB_MODE).
 
 SYSTEM_PROMPT = """\
 Ты — персональный тренер по бегу. Даёшь конкретные советы, анализируешь тренировки, \
@@ -64,24 +64,112 @@ SYSTEM_PROMPT = """\
 """
 
 
-def _make_client() -> Optional[OpenAI]:
-    if _STUB_MODE:
-        return None
-    return OpenAI(
-        api_key=settings.DEEPSEEK_API_KEY,
-        base_url="https://api.deepseek.com",
-        timeout=45.0,     # дефолт OpenAI = 600 сек; зависший запрос не должен морозить воркер
-        max_retries=1,
-    )
+# ── Провайдеры AI: Groq (основной) → DeepSeek (на подхвате) ──────────────────
+# Оба OpenAI-совместимые (отличаются base_url / ключом / моделью). При 429 или
+# сбое провайдера прозрачно уходим к следующему; упавший ставим на кулдаун, чтобы
+# не дёргать его на каждом запросе (особенно когда у Groq кончились токены за сутки).
+
+def _providers() -> list[dict]:
+    """Список включённых провайдеров по приоритету. Включён = задан ключ."""
+    out: list[dict] = []
+    if settings.GROQ_API_KEY:
+        out.append({"name": "groq", "base_url": settings.GROQ_BASE_URL,
+                    "api_key": settings.GROQ_API_KEY, "model": settings.GROQ_MODEL})
+    dk = settings.DEEPSEEK_API_KEY
+    if dk and dk != "your-deepseek-api-key-here":
+        out.append({"name": "deepseek", "base_url": settings.DEEPSEEK_BASE_URL,
+                    "api_key": dk, "model": settings.DEEPSEEK_MODEL})
+    return out
+
+
+# Заглушка (стаб), когда не настроен НИ ОДИН провайдер.
+_STUB_MODE = len(_providers()) == 0
+
+_clients: dict[str, OpenAI] = {}
+
+
+def _client_for(p: dict) -> OpenAI:
+    c = _clients.get(p["name"])
+    if c is None:
+        c = OpenAI(
+            api_key=p["api_key"], base_url=p["base_url"],
+            timeout=45.0,     # дефолт OpenAI = 600 сек; зависший запрос не должен морозить воркер
+            max_retries=1,
+        )
+        _clients[p["name"]] = c
+    return c
+
+
+# Кулдаун упавшего провайдера — в памяти, свой на каждый воркер.
+_COOLDOWN_RATE = 900   # 429/лимит — надолго (у Groq дневной лимит токенов)
+_COOLDOWN_ERR = 60     # прочие сбои — коротко
+_cooldown_until: dict[str, float] = {}
+
+
+def _in_cooldown(name: str) -> bool:
+    return time.time() < _cooldown_until.get(name, 0.0)
+
+
+def _is_rate_limit(e: Exception) -> bool:
+    return getattr(e, "status_code", None) == 429 or "RateLimit" in type(e).__name__ or " 429" in f" {e}"
+
+
+def _set_cooldown(name: str, e: Exception) -> None:
+    _cooldown_until[name] = time.time() + (_COOLDOWN_RATE if _is_rate_limit(e) else _COOLDOWN_ERR)
 
 
 async def _acreate(client: OpenAI, **kwargs):
-    """Блокирующий вызов DeepSeek в отдельном потоке — не морозит asyncio event loop.
+    """Блокирующий вызов провайдера в отдельном потоке — не морозит asyncio event loop.
 
     Sync-клиент OpenAI делает обычный сетевой запрос, который в `async def`-эндпоинте
     блокировал бы весь event loop (а значит и все остальные запросы при --workers 1).
     """
     return await asyncio.to_thread(client.chat.completions.create, **kwargs)
+
+
+def _ordered_providers() -> list[dict]:
+    """Провайдеры по приоритету; в кулдауне — в самый конец (пробуем как крайний
+    вариант, а не пропускаем совсем, чтобы не остаться без ответа)."""
+    ps = _providers()
+    return [p for p in ps if not _in_cooldown(p["name"])] + [p for p in ps if _in_cooldown(p["name"])]
+
+
+def _chat_kwargs(p, messages, max_tokens, temperature, response_format):
+    kwargs = dict(model=p["model"], messages=messages, max_tokens=max_tokens, temperature=temperature)
+    if response_format is not None:
+        kwargs["response_format"] = response_format
+    return kwargs
+
+
+async def _chat(messages: list[dict], max_tokens: int, temperature: float,
+                response_format: dict | None = None):
+    """Асинхронный чат-запрос с failover Groq→DeepSeek. При сбое провайдера — к
+    следующему; упавший уходит в кулдаун. Все упали → пробрасываем (вызывающий
+    код уходит в свой stub)."""
+    last_exc: Exception | None = None
+    for p in _ordered_providers():
+        try:
+            return await _acreate(_client_for(p), **_chat_kwargs(p, messages, max_tokens, temperature, response_format))
+        except Exception as e:
+            last_exc = e
+            _set_cooldown(p["name"], e)
+            logger.warning("AI провайдер '%s' упал (%s) — пробуем следующий", p["name"], e)
+    raise last_exc if last_exc else RuntimeError("нет настроенных AI-провайдеров")
+
+
+def _chat_sync(messages: list[dict], max_tokens: int, temperature: float,
+               response_format: dict | None = None):
+    """Синхронный вариант _chat — для фоновых задач (analyze_*), которые сами
+    выполняются в отдельном потоке и не могут await'ить."""
+    last_exc: Exception | None = None
+    for p in _ordered_providers():
+        try:
+            return _client_for(p).chat.completions.create(**_chat_kwargs(p, messages, max_tokens, temperature, response_format))
+        except Exception as e:
+            last_exc = e
+            _set_cooldown(p["name"], e)
+            logger.warning("AI провайдер '%s' упал (%s) — пробуем следующий", p["name"], e)
+    raise last_exc if last_exc else RuntimeError("нет настроенных AI-провайдеров")
 
 
 def _build_user_context(user: User, db: Session) -> str:
@@ -298,7 +386,6 @@ async def chat_response(
     if _STUB_MODE:
         return _stub_chat(user_message, user)
 
-    client = _make_client()
     lang_instruction = "Respond in English." if lang == "en" else "Отвечай на русском языке."
     context = _build_user_context(user, db)
     plan_status = (
@@ -325,13 +412,7 @@ async def chat_response(
     db.close()
 
     try:
-        resp = await _acreate(
-            client,
-            model="deepseek-chat",
-            messages=messages,
-            max_tokens=800,
-            temperature=0.7,
-        )
+        resp = await _chat(messages=messages, max_tokens=800, temperature=0.7)
         return _strip_date_prefix(resp.choices[0].message.content.strip())
     except Exception as e:
         logger.error("DeepSeek chat error: %s", e)
@@ -372,10 +453,6 @@ def analyze_new_activity(activity_id: int, user_id: int) -> str:
         if _STUB_MODE:
             return _save_unavailable_notice(user, db, "auto_analysis")
 
-        client = _make_client()
-        if not client:
-            return _save_unavailable_notice(user, db, "auto_analysis")
-
         context = _build_user_context(user, db)
         system = f"{SYSTEM_PROMPT}\nОтвечай на русском языке.\n\n{context}"
 
@@ -406,8 +483,7 @@ def analyze_new_activity(activity_id: int, user_id: int) -> str:
         db.close()
 
         try:
-            resp = client.chat.completions.create(
-                model="deepseek-chat",
+            resp = _chat_sync(
                 messages=[
                     {"role": "system", "content": system},
                     {"role": "user", "content": prompt},
@@ -417,7 +493,7 @@ def analyze_new_activity(activity_id: int, user_id: int) -> str:
             )
             ai_text = _strip_date_prefix(resp.choices[0].message.content.strip())
         except Exception as e:
-            logger.error("DeepSeek analyze_new_activity error: %s", e)
+            logger.error("AI analyze_new_activity error: %s", e)
             return _save_unavailable_notice(user, db, "auto_analysis")
 
         db.add(ChatMessage(user_id=user.id, role="user", content=prompt, context_type="auto_analysis"))
@@ -448,10 +524,6 @@ def analyze_workout_completion(workout_id: int, activity_id: int, user_id: int) 
         if _STUB_MODE:
             return _save_unavailable_notice(user, db, "workout_check")
 
-        client = _make_client()
-        if not client:
-            return _save_unavailable_notice(user, db, "workout_check")
-
         context = _build_user_context(user, db)
         system = f"{SYSTEM_PROMPT}\nОтвечай на русском языке.\n\n{context}"
 
@@ -478,8 +550,7 @@ def analyze_workout_completion(workout_id: int, activity_id: int, user_id: int) 
         db.close()
 
         try:
-            resp = client.chat.completions.create(
-                model="deepseek-chat",
+            resp = _chat_sync(
                 messages=[
                     {"role": "system", "content": system},
                     {"role": "user", "content": prompt},
@@ -489,7 +560,7 @@ def analyze_workout_completion(workout_id: int, activity_id: int, user_id: int) 
             )
             ai_text = _strip_date_prefix(resp.choices[0].message.content.strip())
         except Exception as e:
-            logger.error("DeepSeek analyze_workout_completion error: %s", e)
+            logger.error("AI analyze_workout_completion error: %s", e)
             return _save_unavailable_notice(user, db, "workout_check")
 
         db.add(ChatMessage(user_id=user.id, role="user", content=prompt, context_type="workout_check"))
@@ -632,7 +703,6 @@ async def _gen_plan_chunk(
     def _stub(): return [dict(stub_week[(start_index + i) % 7]) for i in range(n)]
     if _STUB_MODE:
         return _stub()
-    client = _make_client()
     prev_txt = ""
     if prev_tail:
         prev_txt = ("Предыдущие дни (продолжай логично отсюда, не обрывай прогрессию): "
@@ -651,8 +721,7 @@ async def _gen_plan_chunk(
 workout_type: easy | tempo | interval | long | recovery | rest. distance_km/target_pace_min_km = null для rest.
 Верни строго {{"plan": [ ... {n} объектов ... ]}}. Только JSON, без пояснений."""
     try:
-        resp = await _acreate(
-            client, model="deepseek-chat",
+        resp = await _chat(
             messages=[{"role": "system", "content": SYSTEM_PROMPT},
                       {"role": "user", "content": prompt}],
             max_tokens=min(4000, max(600, n * 75)),
@@ -661,7 +730,7 @@ workout_type: easy | tempo | interval | long | recovery | rest. distance_km/targ
         )
         plan = _extract_plan_list(json.loads(resp.choices[0].message.content.strip()))
     except Exception as e:
-        logger.error("DeepSeek plan chunk error (weeks %s-%s): %s", week_from, week_to, e)
+        logger.error("AI plan chunk error (weeks %s-%s): %s", week_from, week_to, e)
         plan = []
     if not plan:
         return _stub()
@@ -755,7 +824,6 @@ async def generate_training_plan(
     if _STUB_MODE:
         return _stub_plan(user, db, days)
 
-    client  = _make_client()
     context = _build_user_context(user, db)
     chat_context = _plan_chat_prefs(chat_history)
 
@@ -801,9 +869,7 @@ async def generate_training_plan(
     db.close()
 
     try:
-        resp = await _acreate(
-            client,
-            model="deepseek-chat",
+        resp = await _chat(
             messages=[
                 {"role": "system", "content": SYSTEM_PROMPT},
                 {"role": "user",   "content": prompt},
@@ -833,7 +899,6 @@ async def generate_insights(user: User, db: Session) -> list[str]:
     if _STUB_MODE:
         return _stub_insights(user, db)
 
-    client  = _make_client()
     context = _build_user_context(user, db)
 
     prompt = f"""{context}
@@ -848,9 +913,7 @@ async def generate_insights(user: User, db: Session) -> list[str]:
     db.close()
 
     try:
-        resp = await _acreate(
-            client,
-            model="deepseek-chat",
+        resp = await _chat(
             messages=[
                 {"role": "system", "content": SYSTEM_PROMPT},
                 {"role": "user",   "content": prompt},
