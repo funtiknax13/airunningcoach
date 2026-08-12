@@ -55,7 +55,8 @@
     .time-input input{width:100%;border:none;background:none;outline:none;text-align:center;font-family:var(--font);font-weight:700;font-size:1.3rem;color:var(--text);-moz-appearance:textfield}
     .time-input input::-webkit-outer-spin-button,.time-input input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
     .time-sep{font-weight:700;font-size:1.3rem;color:var(--text-3)}
-    .time-unit{font-size:0.68rem;color:var(--text-3);text-align:center;margin-top:3px;letter-spacing:0.04em}
+    .time-col{flex:1;display:flex;flex-direction:column;min-width:0}
+    .time-unit{font-size:0.68rem;color:var(--text-3);text-align:center;margin-top:4px;letter-spacing:0.04em}
     .btn-calc{width:100%;padding:14px;font-size:1rem;justify-content:center}
     .calc-error{color:var(--red);font-size:0.85rem;margin-top:10px}
     .result-hero{display:none;border-radius:var(--r-lg);padding:28px;margin-top:24px;text-align:center;animation:resultIn 0.45s cubic-bezier(0.16,1,0.3,1)}
@@ -126,13 +127,12 @@
             <div class="field-group">
               <label class="field-label">Ваш результат</label>
               <div class="time-input">
-                <input type="number" id="th" placeholder="00" min="0" max="99" aria-label="Часы">
+                <div class="time-col"><input type="number" id="t0" placeholder="00" min="0" max="99" aria-labelledby="u0"><span class="time-unit" id="u0">часы</span></div>
                 <span class="time-sep">:</span>
-                <input type="number" id="tm" placeholder="00" min="0" max="59" aria-label="Минуты">
+                <div class="time-col"><input type="number" id="t1" placeholder="00" min="0" max="59" aria-labelledby="u1"><span class="time-unit" id="u1">минуты</span></div>
                 <span class="time-sep">:</span>
-                <input type="number" id="ts" placeholder="00" min="0" max="59" step="0.01" aria-label="Секунды">
+                <div class="time-col"><input type="number" id="t2" placeholder="00" min="0" max="59" step="0.01" aria-labelledby="u2"><span class="time-unit" id="u2">секунды</span></div>
               </div>
-              <div class="time-unit">часы&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;минуты&nbsp;&nbsp;&nbsp;&nbsp;секунды</div>
             </div>
           </div>
           <div class="field-row" id="km-row" style="display:none">
@@ -236,23 +236,48 @@ function populateDistances() {
   onDistanceChange();
 }
 
+// Формат ввода времени: 'hms' (часы:минуты:секунды) для длинных дистанций,
+// 'msc' (минуты:секунды:сотые) для коротких/трековых — до 5000 м включительно.
+// Бег хронометрируется до сотых долей секунды, поэтому дробная часть — сотые,
+// а не «миллисекунды» (в ЕВСК данных с точностью до тысячных нет).
+var timeMode = 'hms';
+function isFineDistance(d) { return d.unit === 'sec' && d.km && d.km <= 5.0; }
+
+function setTimeMode(d) {
+  var fine = isFineDistance(d);
+  timeMode = fine ? 'msc' : 'hms';
+  var u0 = document.getElementById('u0'), u1 = document.getElementById('u1'), u2 = document.getElementById('u2');
+  var t0 = document.getElementById('t0'), t1 = document.getElementById('t1'), t2 = document.getElementById('t2');
+  if (fine) {
+    u0.textContent = 'минуты'; u1.textContent = 'секунды'; u2.textContent = 'сотые';
+    t0.max = 99; t1.max = 59; t2.max = 99; t2.step = 1;
+  } else {
+    u0.textContent = 'часы'; u1.textContent = 'минуты'; u2.textContent = 'секунды';
+    t0.max = 99; t1.max = 59; t2.max = 59; t2.step = '0.01';
+  }
+  t0.value = ''; t1.value = ''; t2.value = '';
+}
+
 function onDistanceChange() {
   var d = NORMS[currentGender][+document.getElementById('distance').value];
   var isKm = d.unit === 'km_min';
   document.getElementById('time-row').style.display = isKm ? 'none' : 'flex';
   document.getElementById('km-row').style.display = isKm ? 'flex' : 'none';
+  if (!isKm) setTimeMode(d);
   document.getElementById('result-hero').classList.remove('show');
   renderBreakdown(d, null);
 }
 
+function pad2(n) { return String(n).padStart(2, '0'); }
 function fmtTime(totalSec) {
   var s = Math.max(0, Math.round(totalSec * 100) / 100);
   var h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60;
   var secWhole = Math.floor(sec);
   var frac = Math.round((sec - secWhole) * 100);
-  var secStr = String(secWhole).padStart(2, '0') + (frac > 0 ? ',' + String(frac).padStart(2, '0') : '');
-  if (h > 0) return h + ':' + String(m).padStart(2, '0') + ':' + secStr;
-  return m + ':' + secStr;
+  var fracStr = frac > 0 ? ',' + pad2(frac) : '';
+  if (h > 0) return h + ':' + pad2(m) + ':' + pad2(secWhole) + fracStr;
+  if (m > 0) return m + ':' + pad2(secWhole) + fracStr;
+  return secWhole + fracStr;   // чистые секунды для спринтов: «10,62», «6,65»
 }
 
 function calcRank() {
@@ -264,10 +289,11 @@ function calcRank() {
     value = parseFloat(document.getElementById('km-input').value);
     if (!value || value <= 0) { errEl.textContent = 'Укажите пройденную дистанцию.'; return; }
   } else {
-    var h = parseInt(document.getElementById('th').value || '0', 10);
-    var m = parseInt(document.getElementById('tm').value || '0', 10);
-    var s = parseFloat(document.getElementById('ts').value || '0');
-    value = h * 3600 + m * 60 + s;
+    var v0 = parseFloat(document.getElementById('t0').value || '0');
+    var v1 = parseFloat(document.getElementById('t1').value || '0');
+    var v2 = parseFloat(document.getElementById('t2').value || '0');
+    // msc: минуты:секунды:сотые; hms: часы:минуты:секунды
+    value = timeMode === 'msc' ? (v0 * 60 + v1 + v2 / 100) : (v0 * 3600 + v1 * 60 + v2);
     if (!value || value <= 0) { errEl.textContent = 'Укажите ваш результат.'; return; }
   }
 
