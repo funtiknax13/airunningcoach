@@ -3,6 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <script>if (localStorage.getItem('access_token')) location.replace('/dashboard');</script>
+  <!-- ALTCHA-капча (self-hosted веб-компонент <altcha-widget>) -->
+  <script type="module" src="/js/altcha.min.js"></script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>AI-тренер по бегу — планы тренировок онлайн | AIRunningCoach</title>
   <meta name="description" content="AIRunningCoach — AI-тренер по бегу: персональные планы тренировок, анализ пробежек из Garmin, Coros, Suunto, советы 24/7. 14 дней Premium бесплатно.">
@@ -820,6 +822,9 @@
       <input id="login-email" type="email" class="auth-input" placeholder="Email" onkeyup="if(event.key==='Enter')doLogin()">
       <input id="login-password" type="password" class="auth-input" placeholder="Пароль" onkeyup="if(event.key==='Enter')doLogin()">
       <button id="login-resend-btn" class="auth-btn-link" style="display:none" onclick="doResendVerification()">📧 Отправить письмо повторно</button>
+      <altcha-widget id="login-altcha" challengeurl="/api/auth/altcha/challenge"
+        strings='{"label":"Я не робот","verifying":"Проверяем…","verified":"Проверено","error":"Не удалось проверить, попробуйте ещё раз"}'
+        style="display:block;margin:6px 0 12px;--altcha-border-radius:10px;--altcha-color-base:var(--surface);--altcha-color-border:var(--border);--altcha-color-text:var(--text);--altcha-color-border-focus:var(--brand);--altcha-max-width:100%"></altcha-widget>
       <button id="login-btn" class="auth-btn" onclick="doLogin()">Войти</button>
       <div class="auth-switch"><a onclick="showScreen('forgot')">Забыли пароль?</a></div>
       <div class="auth-switch">Нет аккаунта? <a onclick="showScreen('register')">Зарегистрироваться</a></div>
@@ -847,6 +852,9 @@
         <input type="checkbox" id="reg-consent">
         <span>Я принимаю <a href="/terms/" target="_blank" rel="noopener">условия использования</a> и <a href="/privacy/" target="_blank" rel="noopener">политику конфиденциальности</a></span>
       </label>
+      <altcha-widget id="reg-altcha" challengeurl="/api/auth/altcha/challenge"
+        strings='{"label":"Я не робот","verifying":"Проверяем…","verified":"Проверено","error":"Не удалось проверить, попробуйте ещё раз"}'
+        style="display:block;margin:6px 0 12px;--altcha-border-radius:10px;--altcha-color-base:var(--surface);--altcha-color-border:var(--border);--altcha-color-text:var(--text);--altcha-color-border-focus:var(--brand);--altcha-max-width:100%"></altcha-widget>
       <button id="reg-btn" class="auth-btn" onclick="doRegister()">Зарегистрироваться</button>
       <div class="auth-switch">Уже есть аккаунт? <a onclick="showScreen('login')">Войти</a></div>
       <div class="auth-divider"><span>или</span></div>
@@ -943,6 +951,28 @@ var _resetToken = '';
 var _lastEmail  = '';
 var _lastPw     = '';
 
+// ── ALTCHA: ловим решение виджета (payload) в переменные ────────────────────
+var loginAltcha = '', regAltcha = '';
+function _bindAltcha(id, set) {
+  var el = document.getElementById(id);
+  if (el) el.addEventListener('statechange', function (e) {
+    set(e.detail && e.detail.state === 'verified' ? (e.detail.payload || '') : '');
+  });
+}
+_bindAltcha('login-altcha', function (v) { loginAltcha = v; });
+_bindAltcha('reg-altcha',   function (v) { regAltcha = v; });
+// Локализованные подписи — через СВОЙСТВО strings (объект): атрибут-JSON виджет
+// не подхватывает. whenDefined гарантирует, что элемент уже проапгрейжен.
+if (window.customElements && customElements.whenDefined) {
+  customElements.whenDefined('altcha-widget').then(function () {
+    var s = { label: 'Я не робот', verifying: 'Проверяем…', verified: 'Проверено',
+              error: 'Не удалось проверить, попробуйте ещё раз' };
+    ['login-altcha', 'reg-altcha'].forEach(function (id) {
+      var el = document.getElementById(id); if (el) el.strings = s;
+    });
+  });
+}
+
 function openAuth(screen) {
   document.getElementById('auth-overlay').style.display = 'flex';
   document.body.style.overflow = 'hidden';
@@ -984,9 +1014,10 @@ async function doLogin() {
   var pw    = document.getElementById('login-password').value;
   showMsg('login-error', ''); showMsg('login-success', '');
   document.getElementById('login-resend-btn').style.display = 'none';
+  if (!loginAltcha) { showMsg('login-error', 'Подтвердите, что вы не робот'); return; }
   setLoading('login-btn', true);
   try {
-    var data = await apiPost('/api/auth/login', { email: email, password: pw });
+    var data = await apiPost('/api/auth/login', { email: email, password: pw, altcha: loginAltcha });
     localStorage.setItem('access_token', data.access_token);
     location.replace('/dashboard');
   } catch (e) {
@@ -1010,9 +1041,10 @@ async function doRegister() {
   showMsg('reg-error', '');
   if (!document.getElementById('reg-consent').checked) { showMsg('reg-error', 'Нужно принять условия использования и политику конфиденциальности'); return; }
   if (pw !== confirm) { showMsg('reg-error', 'Пароли не совпадают'); return; }
+  if (!regAltcha) { showMsg('reg-error', 'Подтвердите, что вы не робот'); return; }
   setLoading('reg-btn', true);
   try {
-    await apiPost('/api/auth/register', { email: email, password: pw, confirm_password: confirm, name: name, age: age, weight: weight, height: height, lang: 'ru', timezone: Intl.DateTimeFormat().resolvedOptions().timeZone });
+    await apiPost('/api/auth/register', { email: email, password: pw, confirm_password: confirm, name: name, age: age, weight: weight, height: height, lang: 'ru', timezone: Intl.DateTimeFormat().resolvedOptions().timeZone, altcha: regAltcha });
     _lastEmail = email;
     showMsg('verify-desc', 'Письмо с подтверждением отправлено на ' + email);
     showScreen('verify');

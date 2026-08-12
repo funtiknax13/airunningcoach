@@ -154,7 +154,9 @@ const reg = ref({ name:'', email:'', password:'', confirm:'', consent: false,
 
 // ── Капча ALTCHA ─────────────────────────────────────────────────────────────
 const loginAltcha = ref(''); const regAltcha = ref('')
-const altchaStrings = computed(() => JSON.stringify({
+// Объект, а не JSON-строка: Vue выставит его как СВОЙСТВО элемента, а свойство
+// strings у виджета ожидает объект (строку он бы не распарсил и мог отрисоваться пустым).
+const altchaStrings = computed(() => ({
   label: t('auth.captcha.label'),
   verifying: t('auth.captcha.verifying'),
   verified: t('auth.captcha.verified'),
