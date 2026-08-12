@@ -6,7 +6,10 @@ import { resolve } from 'path'
 const API_TARGET = process.env.VITE_API_TARGET ?? 'http://localhost:8000'
 
 export default defineConfig({
-  plugins: [vue()],
+  // altcha-widget — веб-компонент (custom element), не Vue-компонент
+  plugins: [vue({
+    template: { compilerOptions: { isCustomElement: (tag) => tag.startsWith('altcha-') } },
+  })],
   // Меняется на каждой сборке — используется как ключ версии для localStorage-кеша
   // стора (utils/cache.ts), чтобы новый деплой автоматически сбрасывал старый кеш.
   define: {
@@ -18,11 +21,11 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
-      '/api':    API_TARGET,
-      '/admin':  API_TARGET,
-      '/health': API_TARGET,
-      '/docs':   API_TARGET,
-      '/images': API_TARGET,
+      '/api':      API_TARGET,
+      '/sqladmin': API_TARGET,   // sqladmin переехал сюда; /admin теперь SPA-роут
+      '/health':   API_TARGET,
+      '/docs':     API_TARGET,
+      '/images':   API_TARGET,
     },
   },
   build: {

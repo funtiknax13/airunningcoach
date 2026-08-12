@@ -9,11 +9,13 @@ export interface UserCreate {
   height?: number | null
   lang?: string
   timezone?: string
+  altcha?: string
 }
 
 export interface UserLogin {
   email: string
   password: string
+  altcha?: string
 }
 
 export interface Token {

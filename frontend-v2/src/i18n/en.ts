@@ -7,6 +7,11 @@ export default {
     reset: { title: 'New password', pw: 'New password (min 8 chars)', btn: 'Save password' },
     reg: { title: 'Create account', name: 'Name', age: 'Age', weight: 'Weight', height: 'Height', btn: 'Sign up', haveAccount: 'Already have an account?', loginLink: 'Sign in', consent: 'I accept the <a href="/terms/" target="_blank" rel="noopener">terms of use</a> and <a href="/privacy/" target="_blank" rel="noopener">privacy policy</a>', consentRequired: 'You must accept the terms of use and privacy policy' },
     verify: { title: 'Check your email', resend: 'Resend verification email', back: '← Back to sign in' },
+    captcha: {
+      label: "I'm not a robot", verifying: 'Verifying…', verified: 'Verified',
+      error: 'Verification failed. Please try again.',
+      required: 'Please verify you are human',
+    },
   },
   header: { logout: 'Sign out', profile: 'Profile', dark: 'Dark', light: 'Light' },
   notFound: { title: 'Looks like you took a wrong turn', desc: "This page doesn't exist — the link may be broken or outdated.", home: 'Back to home' },

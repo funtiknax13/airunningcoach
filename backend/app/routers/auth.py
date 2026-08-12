@@ -23,16 +23,32 @@ from app.auth import (
 )
 from app.services.email import send_verification_email, send_password_reset_email
 from app.services.rate_limit import get_usage, _is_premium_active
+from app.services import altcha
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/auth", tags=["authentication"])
 
 
+# ── Капча ─────────────────────────────────────────────────────────────────────
+
+@router.get("/altcha/challenge")
+def altcha_challenge():
+    """Свежий ALTCHA-челлендж для виджета на регистрации/логине."""
+    return altcha.create_challenge()
+
+
+def _verify_captcha(payload: str | None) -> None:
+    ok, _ = altcha.verify_solution(payload)
+    if not ok:
+        raise HTTPException(status_code=400, detail="Подтвердите, что вы не робот")
+
+
 # ── Регистрация ───────────────────────────────────────────────────────────────
 
 @router.post("/register", response_model=dict, status_code=status.HTTP_201_CREATED)
 async def register(user_data: UserCreate, db: Session = Depends(get_db)):
+    _verify_captcha(user_data.altcha)
     if db.query(User).filter(User.email == user_data.email).first():
         raise HTTPException(status_code=400, detail="Email уже зарегистрирован")
 
@@ -113,6 +129,7 @@ async def resend_verification(body: ResendVerificationRequest, db: Session = Dep
 
 @router.post("/login", response_model=Token)
 def login(user_data: UserLogin, db: Session = Depends(get_db)):
+    _verify_captcha(user_data.altcha)
     user = db.query(User).filter(User.email == user_data.email).first()
     if user and user.google_id and not user.password_hash:
         raise HTTPException(status_code=400, detail="Этот аккаунт создан через Google. Войдите через Google.")

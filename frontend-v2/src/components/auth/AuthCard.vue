@@ -18,6 +18,8 @@
       <button v-if="showResend" class="auth-btn-resend" @click="resendVerification" :disabled="loading">
         {{ loading ? '...' : '📧 Отправить письмо повторно' }}
       </button>
+      <altcha-widget class="altcha" challengeurl="/api/auth/altcha/challenge"
+                     :strings="altchaStrings" @statechange="onLoginAltcha"></altcha-widget>
       <button class="auth-btn" @click="login" :disabled="loading">
         {{ loading ? '...' : $t('auth.login.btn') }}
       </button>
@@ -58,6 +60,8 @@
         <span v-html="$t('auth.reg.consent')"></span>
       </label>
       <div v-if="error" class="auth-error">{{ error }}</div>
+      <altcha-widget class="altcha" challengeurl="/api/auth/altcha/challenge"
+                     :strings="altchaStrings" @statechange="onRegAltcha"></altcha-widget>
       <button class="auth-btn" @click="register" :disabled="loading">
         {{ loading ? '...' : $t('auth.reg.btn') }}
       </button>
@@ -112,7 +116,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { authApi } from '@/api'
@@ -148,6 +152,22 @@ const resetConfirm = ref('')
 const reg = ref({ name:'', email:'', password:'', confirm:'', consent: false,
   age: null as number|null, weight: null as number|null, height: null as number|null })
 
+// ── Капча ALTCHA ─────────────────────────────────────────────────────────────
+const loginAltcha = ref(''); const regAltcha = ref('')
+const altchaStrings = computed(() => JSON.stringify({
+  label: t('auth.captcha.label'),
+  verifying: t('auth.captcha.verifying'),
+  verified: t('auth.captcha.verified'),
+  error: t('auth.captcha.error'),
+}))
+function payloadFrom(e: Event): string {
+  const d = (e as CustomEvent).detail
+  return d && d.state === 'verified' ? (d.payload || '') : ''
+}
+function onLoginAltcha(e: Event) { loginAltcha.value = payloadFrom(e) }
+function onRegAltcha(e: Event)   { regAltcha.value   = payloadFrom(e) }
+watch(screen, () => { loginAltcha.value = ''; regAltcha.value = ''; error.value = '' })
+
 onMounted(() => {
   const params = new URLSearchParams(window.location.search)
   const tok = params.get('reset_token')
@@ -169,8 +189,9 @@ async function afterLogin() {
 }
 
 async function login() {
+  if (!loginAltcha.value) { error.value = t('auth.captcha.required'); return }
   loading.value = true; error.value = ''; showResend.value = false
-  try { await auth.login(email.value, password.value); await afterLogin() }
+  try { await auth.login(email.value, password.value, loginAltcha.value); await afterLogin() }
   catch (e: any) {
     error.value = e.message
     // Показываем кнопку повторной отправки если email не подтверждён
@@ -193,12 +214,14 @@ async function resendVerification() {
 async function register() {
   if (!reg.value.consent) { error.value = t('auth.reg.consentRequired'); return }
   if (reg.value.password !== reg.value.confirm) { error.value = 'Пароли не совпадают'; return }
+  if (!regAltcha.value) { error.value = t('auth.captcha.required'); return }
   loading.value = true; error.value = ''
   try {
     await authApi.register({ email: reg.value.email, password: reg.value.password,
       confirm_password: reg.value.confirm, name: reg.value.name,
       age: reg.value.age, weight: reg.value.weight, height: reg.value.height,
-      lang: locale.value, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone })
+      lang: locale.value, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      altcha: regAltcha.value })
     verifyText.value = `Письмо отправлено на ${reg.value.email}`
     screen.value = 'verify'
   } catch (e: any) { error.value = e.message }
@@ -238,3 +261,19 @@ function registerWithGoogle() {
   loginWithGoogle()
 }
 </script>
+
+<style scoped>
+/* Виджет капчи под визуал сайта (токены глобальные — тёмная/светлая тема авто) */
+.altcha {
+  display: block;
+  margin: 2px 0 12px;
+  --altcha-border-width: 1px;
+  --altcha-border-radius: 10px;
+  --altcha-color-base: var(--surface);
+  --altcha-color-border: var(--border);
+  --altcha-color-text: var(--text);
+  --altcha-color-border-focus: var(--brand);
+  --altcha-color-error-text: var(--red, #dc2626);
+  --altcha-max-width: 100%;
+}
+</style>

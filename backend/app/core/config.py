@@ -13,6 +13,9 @@ class Settings(BaseSettings):
     GMAIL_APP_PASSWORD: str = ""
     EMAIL_FROM_NAME: str = "AIRunningCoach"
 
+    # ALTCHA captcha — секрет для подписи челленджей (пусто = капча выключена, для dev)
+    ALTCHA_HMAC_KEY: str = ""
+
     # App base URL for verification links
     APP_BASE_URL: str = "http://localhost:8000"
 

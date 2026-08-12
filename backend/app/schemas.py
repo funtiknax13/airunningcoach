@@ -15,6 +15,7 @@ class UserCreate(BaseModel):
     height: Optional[float] = Field(None, gt=0, le=300)
     lang: Optional[str] = "ru"  # язык интерфейса: "ru" | "en"
     timezone: Optional[str] = None  # IANA-имя из браузера, напр. Asia/Yekaterinburg
+    altcha: Optional[str] = None  # решение ALTCHA-капчи (base64)
 
     @model_validator(mode="after")
     def passwords_match(self) -> "UserCreate":
@@ -26,6 +27,7 @@ class UserCreate(BaseModel):
 class UserLogin(BaseModel):
     email: EmailStr
     password: str
+    altcha: Optional[str] = None  # решение ALTCHA-капчи (base64)
 
 
 class Token(BaseModel):

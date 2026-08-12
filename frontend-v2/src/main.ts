@@ -3,6 +3,7 @@ import { createPinia } from 'pinia'
 import { i18n } from './i18n'
 import router from './router'
 import App from './App.vue'
+import 'altcha'   // регистрирует веб-компонент <altcha-widget> (капча)
 import './style.css'
 
 const app = createApp(App)
