@@ -71,10 +71,17 @@ a{color:var(--brand);text-decoration:none}
 
 .app{display:grid;grid-template-columns:380px 1fr;height:calc(100dvh - 64px)}
 .panel{background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow-y:auto;z-index:2}
+/* Кастомный фирменный скролл (панель + мобильный body-скролл) */
+.panel,body{scrollbar-width:thin;scrollbar-color:var(--brand) transparent}
+.panel::-webkit-scrollbar,body::-webkit-scrollbar{width:10px;height:10px}
+.panel::-webkit-scrollbar-track,body::-webkit-scrollbar-track{background:transparent}
+.panel::-webkit-scrollbar-thumb,body::-webkit-scrollbar-thumb{background:var(--brand);background-clip:content-box;border:3px solid transparent;border-radius:99px}
+.panel::-webkit-scrollbar-thumb:hover,body::-webkit-scrollbar-thumb:hover{background:var(--brand-hover);background-clip:content-box}
 .map-wrap{position:relative;overflow:hidden}
-/* Dark Matter сам по себе почти чёрный — поднимаем контраст ТОЛЬКО слоя тайлов,
-   чтобы дороги читались; маркер и линия маршрута в других panes и не тускнеют. */
-:root[data-theme="dark"] .leaflet-tile-pane{filter:brightness(1.7) contrast(1.2)}
+/* Тёмная тема = тот же Voyager, инвертированный в тёмный — так здания/кварталы
+   остаются видны (Dark Matter их почти не рисует). Фильтр ТОЛЬКО на слой тайлов,
+   поэтому маркер и линия маршрута в других panes не тускнеют. */
+:root[data-theme="dark"] .leaflet-tile-pane{filter:invert(.94) hue-rotate(190deg) saturate(.6) brightness(.9) contrast(1.08)}
 #map{position:absolute;inset:0;background:var(--surface-2)}
 
 .brand{display:flex;align-items:center;gap:11px;padding:18px 22px;border-bottom:1px solid var(--border)}
@@ -310,8 +317,7 @@ function $(id){ return document.getElementById(id); }
 function upd(d){ var i=document.getElementById('theme-icon'); if(i) i.className=d?'fas fa-sun':'fas fa-moon'; }
 function toggleTheme(){ var d=document.documentElement.getAttribute('data-theme')==='dark';
   if(d){ document.documentElement.setAttribute('data-theme','light'); localStorage.setItem('theme','light'); upd(false); }
-  else { document.documentElement.setAttribute('data-theme','dark'); localStorage.setItem('theme','dark'); upd(true); }
-  if(window.applyBasemap) applyBasemap(); }
+  else { document.documentElement.setAttribute('data-theme','dark'); localStorage.setItem('theme','dark'); upd(true); } }
 upd(document.documentElement.getAttribute('data-theme')==='dark');
 (function(){ var el=document.getElementById('nav-auth'); if(!el) return;
   if(localStorage.getItem('access_token')){ el.innerHTML='<a href="/dashboard" class="btn btn-primary btn-sm"><i class="fas fa-tachometer-alt"></i> Дашборд</a>'; }
@@ -319,20 +325,12 @@ upd(document.documentElement.getAttribute('data-theme')==='dark');
 
 // ── Map ─────────────────────────────────────────────────────────────────────
 var map = L.map('map',{zoomControl:true,attributionControl:true}).setView([55.751244,37.618423],13);
-// Чистые basemap'ы CARTO без API-ключа (бесплатно): Positron для светлой темы,
-// Dark Matter для тёмной — маршрут-оранж на спокойном фоне читается контрастно.
+// Basemap CARTO Voyager без API-ключа (бесплатно): показывает здания/кварталы,
+// парки и воду, но остаётся чистым. Тёмная тема — тот же слой, инвертированный
+// CSS-фильтром (см. .leaflet-tile-pane выше), поэтому свапать слои не нужно.
 var CARTO_ATTR='© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> © <a href="https://carto.com/attributions">CARTO</a>';
-var basemaps={
-  light: L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',{maxZoom:20,subdomains:'abcd',attribution:CARTO_ATTR}),
-  dark:  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{maxZoom:20,subdomains:'abcd',attribution:CARTO_ATTR})
-};
-var activeBase=null;
-function applyBasemap(){ var d=document.documentElement.getAttribute('data-theme')==='dark';
-  var next=d?basemaps.dark:basemaps.light;
-  if(next===activeBase) return;
-  if(activeBase) map.removeLayer(activeBase);
-  next.addTo(map); activeBase=next; }
-applyBasemap();
+L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
+  {maxZoom:20,subdomains:'abcd',attribution:CARTO_ATTR}).addTo(map);
 
 var startMarker=null, finishMarker=null, routeLine=null, routeGlow=null;
 function pinIcon(color){ return L.divIcon({className:'', html:
