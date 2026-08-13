@@ -24,27 +24,36 @@
     <SkeletonLoader v-if="store.loadingPlan && !store.all.length" type="workout-list" :count="6" />
 
     <template v-else>
-      <!-- Агенда по неделям -->
-      <div v-for="wk in weeks" :key="wk.key" class="card wk" :class="{ 'wk--current': wk.isCurrent }">
-        <div class="wk-head">
-          <div class="wk-title">
-            <span class="wk-n">{{ weekTitle(wk.n) }}</span>
-            <span v-if="wk.isCurrent" class="wk-badge">{{ ruEn('Текущая', 'This week') }}</span>
-            <span class="wk-range">{{ weekRange(wk.start) }}</span>
+      <div v-if="!store.all.length" class="card empty-state" style="padding:32px 0">
+        <i class="fas fa-calendar-week"></i>
+        <p>{{ t('plan.empty') }}</p>
+      </div>
+
+      <!-- Одна неделя + пагинация Пн–Вс -->
+      <div v-else class="card wk">
+        <div class="wk-nav">
+          <button class="wk-arrow" :disabled="!canPrev" @click="shiftWeek(-1)" :aria-label="ruEn('Прошлая неделя', 'Previous week')">
+            <i class="fas fa-chevron-left"></i>
+          </button>
+          <div class="wk-heading">
+            <div class="wk-range-lg">{{ weekRangeLong(viewWeek.start) }}</div>
+            <div class="wk-rel">{{ relLabel }}</div>
           </div>
-          <div class="wk-meta">
-            <span class="wk-vol"><i class="fas fa-route"></i>{{ wk.volumeKm }} {{ ruEn('км', 'km') }}</span>
-            <span class="wk-cnt">{{ wk.count }} {{ ruEn('трен.', 'wo.') }}</span>
-          </div>
+          <button class="wk-arrow" :disabled="!canNext" @click="shiftWeek(1)" :aria-label="ruEn('Следующая неделя', 'Next week')">
+            <i class="fas fa-chevron-right"></i>
+          </button>
+          <button v-if="!viewWeek.isCurrent" class="wk-today" @click="goCurrentWeek">{{ ruEn('Сегодня', 'Today') }}</button>
         </div>
 
-        <div v-if="wk.count" class="wk-prog">
-          <div class="wk-prog-bar"><span :style="{ width: progPct(wk) + '%' }"></span></div>
-          <span class="wk-prog-txt">{{ wk.doneCount }}/{{ wk.count }}</span>
+        <div v-if="viewWeek.count" class="wk-stats">
+          <span class="wk-vol"><i class="fas fa-route"></i>{{ viewWeek.volumeKm }} {{ ruEn('км', 'km') }}</span>
+          <span class="wk-cnt">{{ viewWeek.count }} {{ ruEn('трен.', 'wo.') }}</span>
+          <div class="wk-prog-bar"><span :style="{ width: progPct(viewWeek) + '%' }"></span></div>
+          <span class="wk-prog-txt">{{ viewWeek.doneCount }}/{{ viewWeek.count }}</span>
         </div>
 
-        <ul class="agw">
-          <li v-for="w in wk.days" :key="w.id" class="agw-row"
+        <ul v-if="viewWeek.days.length" class="agw">
+          <li v-for="w in viewWeek.days" :key="w.id" class="agw-row"
             :class="[`t-${w.workout_type}`, `s-${statusOfW(w)}`, { 'is-today': isTodayW(w), 'is-rest': isRest(w.workout_type) }]">
             <div class="agw-date">
               <span class="agw-dow">{{ wdShort(w) }}</span>
@@ -91,23 +100,17 @@
             </div>
           </li>
         </ul>
-      </div>
-
-      <!-- Пустые состояния -->
-      <div v-if="!store.all.length" class="card empty-state" style="padding:32px 0">
-        <i class="fas fa-calendar-week"></i>
-        <p>{{ t('plan.empty') }}</p>
-      </div>
-      <div v-else-if="!weeks.length" class="card empty-state" style="padding:32px 0">
-        <i class="fas fa-flag-checkered"></i>
-        <p>{{ ruEn('Все тренировки уже позади — сгенерируйте новый план.', 'All workouts are behind you — generate a new plan.') }}</p>
+        <div v-else class="wk-empty">
+          <i class="fas fa-mug-hot"></i>
+          <span>{{ ruEn('На этой неделе тренировок нет', 'No workouts this week') }}</span>
+        </div>
       </div>
     </template>
   </AppLayout>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import AppLayout from '@/components/layout/AppLayout.vue'
@@ -124,6 +127,9 @@ const router = useRouter()
 const { prompt, confirm } = useDialog()
 
 onMounted(() => { store.load(); store.refreshStatus() })
+
+// Когда длинный план собрался в фоне — возвращаемся на текущую неделю.
+watch(() => store.generating, (now, was) => { if (was && !now) goCurrentWeek() })
 
 const ruEn = (ru: string, en: string) => (locale.value === 'ru' ? ru : en)
 
@@ -155,6 +161,7 @@ async function pickHorizon(opt: { weeks: number; locked: boolean }) {
 async function onGenerate() {
   try {
     await store.generate(selectedWeeks.value)
+    goCurrentWeek()
   } catch (e: any) {
     // На всякий случай (клиентский гейт должен был не пустить): 403 от бэкенда
     if (String(e?.message ?? '').includes('Premium') || e?.status === 403) {
@@ -168,8 +175,8 @@ async function onGenerate() {
 
 // ── Дата-хелперы ──────────────────────────────────────────────────────────
 const RUNNING: WorkoutType[] = ['easy', 'tempo', 'interval', 'long', 'recovery']
-const MON_RU_SHORT = ['янв','фев','мар','апр','май','июн','июл','авг','сен','окт','ноя','дек']
-const MON_EN_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+const MON_RU = ['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря']
+const MON_EN = ['January','February','March','April','May','June','July','August','September','October','November','December']
 const WD_RU = ['Пн','Вт','Ср','Чт','Пт','Сб','Вс']
 const WD_EN = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun']
 
@@ -178,7 +185,6 @@ function keyOf(d: Date) {
 }
 const today = new Date(); today.setHours(0, 0, 0, 0)
 const todayKey = keyOf(today)
-function monthShort(d: Date) { return (locale.value === 'ru' ? MON_RU_SHORT : MON_EN_SHORT)[d.getMonth()] }
 
 // Понедельник недели, к которой относится дата
 function weekStartOf(d: Date) {
@@ -190,43 +196,68 @@ function weekStartOf(d: Date) {
 const currentWeekStart = weekStartOf(today)
 const currentWeekKey = keyOf(currentWeekStart)
 
-// ── Недели (агенда): текущая и будущие. Прошедшие недели скрываем — план
-// смотрит вперёд, «что делать сейчас и дальше». ──────────────────────────
-interface Week {
-  key: string; n: number; start: Date; isCurrent: boolean;
-  days: Workout[]; count: number; doneCount: number; volumeKm: number;
-}
-const weeks = computed<Week[]>(() => {
+// ── Пагинация по неделям (Пн–Вс). Показываем ровно одну неделю; стрелками
+// листаем к прошлым тренировкам и вперёд, в пределах диапазона плана. ──────
+const weekMap = computed(() => {
   const map = new Map<string, Workout[]>()
   for (const w of store.all) {
     if (!w.planned_date) continue
     const d = new Date(w.planned_date); d.setHours(0, 0, 0, 0)
     const wk = keyOf(weekStartOf(d))
-    if (wk < currentWeekKey) continue        // прошлые недели скрываем
     if (!map.has(wk)) map.set(wk, [])
     map.get(wk)!.push(w)
   }
-  return [...map.keys()].sort().map((k, i) => {
-    const days = map.get(k)!.slice().sort((a, b) => (a.planned_date! < b.planned_date! ? -1 : 1))
-    const running = days.filter(w => !isRest(w.workout_type))
-    const volumeKm = running.reduce((s, w) => s + (w.distance_km || 0), 0)
-    const [y, m, dd] = k.split('-').map(Number)
-    return {
-      key: k, n: i + 1, start: new Date(y, m - 1, dd), isCurrent: k === currentWeekKey,
-      days, count: running.length, doneCount: running.filter(isDone).length,
-      volumeKm: Math.round(volumeKm * 10) / 10,
-    }
-  })
+  return map
+})
+// Границы навигации — от самой ранней до самой поздней недели плана; текущая
+// неделя всегда доступна, даже если тренировок в ней нет.
+const weekBounds = computed(() => {
+  const keys = [...weekMap.value.keys(), currentWeekKey].sort()
+  return { min: keys[0], max: keys[keys.length - 1] }
 })
 
-function weekTitle(n: number) { return ruEn(`Неделя ${n}`, `Week ${n}`) }
-function weekRange(start: Date) {
-  const end = new Date(start); end.setDate(end.getDate() + 6)
-  return start.getMonth() === end.getMonth()
-    ? `${start.getDate()}–${end.getDate()} ${monthShort(end)}`
-    : `${start.getDate()} ${monthShort(start)} – ${end.getDate()} ${monthShort(end)}`
+const viewWeekStart = ref(new Date(currentWeekStart))
+const viewWeekKey = computed(() => keyOf(viewWeekStart.value))
+const canPrev = computed(() => viewWeekKey.value > weekBounds.value.min)
+const canNext = computed(() => viewWeekKey.value < weekBounds.value.max)
+
+function shiftWeek(delta: number) {
+  const d = new Date(viewWeekStart.value); d.setDate(d.getDate() + delta * 7)
+  const k = keyOf(d)
+  if (k < weekBounds.value.min || k > weekBounds.value.max) return
+  viewWeekStart.value = d
 }
-function progPct(wk: Week) { return wk.count ? Math.round((wk.doneCount / wk.count) * 100) : 0 }
+function goCurrentWeek() { viewWeekStart.value = new Date(currentWeekStart) }
+
+const viewWeek = computed(() => {
+  const k = viewWeekKey.value
+  const days = (weekMap.value.get(k) ?? []).slice()
+    .sort((a, b) => (a.planned_date! < b.planned_date! ? -1 : 1))
+  const running = days.filter(w => !isRest(w.workout_type))
+  const volumeKm = running.reduce((s, w) => s + (w.distance_km || 0), 0)
+  return {
+    start: new Date(viewWeekStart.value), key: k, isCurrent: k === currentWeekKey,
+    days, count: running.length, doneCount: running.filter(isDone).length,
+    volumeKm: Math.round(volumeKm * 10) / 10,
+  }
+})
+
+const relLabel = computed(() => {
+  const off = Math.round((viewWeekStart.value.getTime() - currentWeekStart.getTime()) / (7 * 864e5))
+  if (off === 0) return ruEn('Текущая неделя', 'This week')
+  if (off === 1) return ruEn('Следующая неделя', 'Next week')
+  if (off === -1) return ruEn('Прошлая неделя', 'Last week')
+  return off > 0 ? ruEn(`Через ${off} нед.`, `In ${off} wk`) : ruEn(`${-off} нед. назад`, `${-off} wk ago`)
+})
+
+function weekRangeLong(start: Date) {
+  const end = new Date(start); end.setDate(end.getDate() + 6)
+  const mon = locale.value === 'ru' ? MON_RU : MON_EN
+  return start.getMonth() === end.getMonth()
+    ? `${start.getDate()}–${end.getDate()} ${mon[end.getMonth()]}`
+    : `${start.getDate()} ${mon[start.getMonth()]} – ${end.getDate()} ${mon[end.getMonth()]}`
+}
+function progPct(wk: { count: number; doneCount: number }) { return wk.count ? Math.round((wk.doneCount / wk.count) * 100) : 0 }
 
 function wdShort(w: Workout) {
   const d = new Date(w.planned_date!); const idx = (d.getDay() + 6) % 7
@@ -321,33 +352,44 @@ async function uncomplete(id: number) {
 
 /* ── Неделя-карточка ── */
 .wk { margin-bottom: 14px; }
-.wk--current { border-color: color-mix(in srgb, var(--brand) 45%, var(--border)); }
-.wk-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
-.wk-title { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
-.wk-n { font-size: 1.05rem; font-weight: 800; letter-spacing: -0.01em; }
-.wk-badge {
-  font-size: 0.66rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em;
-  color: var(--brand); background: var(--brand-light); padding: 2px 8px; border-radius: 99px;
+
+/* Навигация Пн–Вс */
+.wk-nav { display: flex; align-items: center; gap: 10px; }
+.wk-arrow {
+  width: 36px; height: 36px; flex: none; border-radius: 9px; border: 1px solid var(--border);
+  background: var(--surface); color: var(--text-2); cursor: pointer; transition: background .15s, color .15s;
 }
-.wk-range { font-size: 0.82rem; color: var(--text-3); }
-.wk-meta { display: flex; align-items: center; gap: 12px; font-size: 0.82rem; color: var(--text-2); }
+.wk-arrow:hover:not(:disabled) { background: var(--surface-2); color: var(--text); }
+.wk-arrow:disabled { opacity: 0.4; cursor: not-allowed; }
+.wk-heading { flex: 1; text-align: center; }
+.wk-range-lg { font-size: 1.05rem; font-weight: 800; letter-spacing: -0.01em; }
+.wk-rel { font-size: 0.76rem; color: var(--text-3); margin-top: 1px; }
+.wk-today {
+  flex: none; border: 1px solid var(--border); background: var(--surface); color: var(--text-2);
+  border-radius: 8px; padding: 7px 12px; font-size: 0.8rem; font-weight: 600; cursor: pointer;
+}
+.wk-today:hover { background: var(--surface-2); color: var(--text); }
+
+.wk-stats { display: flex; align-items: center; gap: 12px; margin: 14px 0 2px; font-size: 0.82rem; color: var(--text-2); }
 .wk-vol { font-weight: 700; }
 .wk-vol i { color: var(--brand); margin-right: 5px; }
 .wk-cnt { color: var(--text-3); }
-
-.wk-prog { display: flex; align-items: center; gap: 10px; margin: 12px 0 2px; }
 .wk-prog-bar { flex: 1; height: 6px; border-radius: 99px; background: var(--surface-3); overflow: hidden; }
 .wk-prog-bar span { display: block; height: 100%; background: var(--green); border-radius: 99px; transition: width .3s; }
 .wk-prog-txt { font-size: 0.76rem; font-weight: 700; color: var(--text-3); min-width: 32px; text-align: right; }
+
+.wk-empty {
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+  padding: 32px 0 12px; color: var(--text-3); font-size: 0.88rem;
+}
+.wk-empty i { font-size: 1.4rem; }
 
 /* ── Список дней ── */
 .agw { list-style: none; margin: 12px 0 0; padding: 0; }
 .agw-row { display: flex; align-items: flex-start; gap: 12px; padding: 12px 0; border-top: 1px solid var(--border); }
 .agw-row:first-child { border-top: none; }
-.agw-row.is-today {
-  margin: 4px -10px; padding: 12px 10px; border-radius: 12px;
-  background: var(--brand-light); border-top-color: transparent;
-}
+/* «Сегодня» — тонкий оранжевый акцент слева + оранжевая дата, без заливки */
+.agw-row.is-today { margin: 0 -20px; padding-left: 20px; padding-right: 20px; box-shadow: inset 3px 0 0 var(--brand); }
 
 .agw-date { flex: none; width: 40px; text-align: center; padding-top: 2px; }
 .agw-dow { display: block; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; color: var(--text-3); }
@@ -392,6 +434,7 @@ async function uncomplete(id: number) {
   .agw-num { font-size: 1.05rem; }
   .agw-ico { margin-top: 0; }
   .agw-action { grid-column: 1 / -1; padding-top: 0; }
-  .wk-head { gap: 6px; }
+  .agw-row.is-today { margin: 0 -20px; }
+  .wk-range-lg { font-size: 1rem; }
 }
 </style>
