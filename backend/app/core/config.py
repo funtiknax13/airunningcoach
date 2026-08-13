@@ -16,6 +16,10 @@ class Settings(BaseSettings):
     # ALTCHA captcha — секрет для подписи челленджей (пусто = капча выключена, для dev)
     ALTCHA_HMAC_KEY: str = ""
 
+    # OpenRouteService — генератор маршрутов (публичный инструмент). Ключ на сервере,
+    # клиент ходит через /api/tools/route (иначе ключ утёк бы в браузер).
+    ORS_API_KEY: str = ""
+
     # App base URL for verification links
     APP_BASE_URL: str = "http://localhost:8000"
 
