@@ -72,6 +72,9 @@ a{color:var(--brand);text-decoration:none}
 .app{display:grid;grid-template-columns:380px 1fr;height:calc(100dvh - 64px)}
 .panel{background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow-y:auto;z-index:2}
 .map-wrap{position:relative;overflow:hidden}
+/* Dark Matter сам по себе почти чёрный — поднимаем контраст ТОЛЬКО слоя тайлов,
+   чтобы дороги читались; маркер и линия маршрута в других panes и не тускнеют. */
+:root[data-theme="dark"] .leaflet-tile-pane{filter:brightness(1.7) contrast(1.2)}
 #map{position:absolute;inset:0;background:var(--surface-2)}
 
 .brand{display:flex;align-items:center;gap:11px;padding:18px 22px;border-bottom:1px solid var(--border)}
