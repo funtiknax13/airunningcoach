@@ -307,7 +307,8 @@ function $(id){ return document.getElementById(id); }
 function upd(d){ var i=document.getElementById('theme-icon'); if(i) i.className=d?'fas fa-sun':'fas fa-moon'; }
 function toggleTheme(){ var d=document.documentElement.getAttribute('data-theme')==='dark';
   if(d){ document.documentElement.setAttribute('data-theme','light'); localStorage.setItem('theme','light'); upd(false); }
-  else { document.documentElement.setAttribute('data-theme','dark'); localStorage.setItem('theme','dark'); upd(true); } }
+  else { document.documentElement.setAttribute('data-theme','dark'); localStorage.setItem('theme','dark'); upd(true); }
+  if(window.applyBasemap) applyBasemap(); }
 upd(document.documentElement.getAttribute('data-theme')==='dark');
 (function(){ var el=document.getElementById('nav-auth'); if(!el) return;
   if(localStorage.getItem('access_token')){ el.innerHTML='<a href="/dashboard" class="btn btn-primary btn-sm"><i class="fas fa-tachometer-alt"></i> Дашборд</a>'; }
@@ -315,9 +316,20 @@ upd(document.documentElement.getAttribute('data-theme')==='dark');
 
 // ── Map ─────────────────────────────────────────────────────────────────────
 var map = L.map('map',{zoomControl:true,attributionControl:true}).setView([55.751244,37.618423],13);
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
-  maxZoom:19, attribution:'© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-}).addTo(map);
+// Чистые basemap'ы CARTO без API-ключа (бесплатно): Positron для светлой темы,
+// Dark Matter для тёмной — маршрут-оранж на спокойном фоне читается контрастно.
+var CARTO_ATTR='© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> © <a href="https://carto.com/attributions">CARTO</a>';
+var basemaps={
+  light: L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',{maxZoom:20,subdomains:'abcd',attribution:CARTO_ATTR}),
+  dark:  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{maxZoom:20,subdomains:'abcd',attribution:CARTO_ATTR})
+};
+var activeBase=null;
+function applyBasemap(){ var d=document.documentElement.getAttribute('data-theme')==='dark';
+  var next=d?basemaps.dark:basemaps.light;
+  if(next===activeBase) return;
+  if(activeBase) map.removeLayer(activeBase);
+  next.addTo(map); activeBase=next; }
+applyBasemap();
 
 var startMarker=null, finishMarker=null, routeLine=null, routeGlow=null;
 function pinIcon(color){ return L.divIcon({className:'', html:
