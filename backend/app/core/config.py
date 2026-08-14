@@ -33,6 +33,9 @@ class Settings(BaseSettings):
     GROQ_API_KEY: str = ""
     GROQ_MODEL: str = "llama-3.3-70b-versatile"
     GROQ_BASE_URL: str = "https://api.groq.com/openai/v1"
+    # Прокси ТОЛЬКО для Groq (сервер в РФ → гео-блок Groq). Пусто = напрямую.
+    # Форматы: http://user:pass@host:port или socks5://host:port (нужен httpx[socks]).
+    GROQ_PROXY: str = ""
 
     DEEPSEEK_API_KEY: str = ""
     DEEPSEEK_MODEL: str = "deepseek-chat"

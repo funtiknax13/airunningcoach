@@ -15,6 +15,7 @@ from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 from typing import Optional
 
+import httpx
 from openai import OpenAI
 from sqlalchemy.orm import Session
 
@@ -74,7 +75,8 @@ def _providers() -> list[dict]:
     out: list[dict] = []
     if settings.GROQ_API_KEY:
         out.append({"name": "groq", "base_url": settings.GROQ_BASE_URL,
-                    "api_key": settings.GROQ_API_KEY, "model": settings.GROQ_MODEL})
+                    "api_key": settings.GROQ_API_KEY, "model": settings.GROQ_MODEL,
+                    "proxy": settings.GROQ_PROXY or None})
     dk = settings.DEEPSEEK_API_KEY
     if dk and dk != "your-deepseek-api-key-here":
         out.append({"name": "deepseek", "base_url": settings.DEEPSEEK_BASE_URL,
@@ -91,11 +93,15 @@ _clients: dict[str, OpenAI] = {}
 def _client_for(p: dict) -> OpenAI:
     c = _clients.get(p["name"])
     if c is None:
-        c = OpenAI(
+        kwargs = dict(
             api_key=p["api_key"], base_url=p["base_url"],
             timeout=45.0,     # дефолт OpenAI = 600 сек; зависший запрос не должен морозить воркер
             max_retries=1,
         )
+        # Прокси только для провайдера, у которого он задан (Groq в РФ обходит гео-блок).
+        if p.get("proxy"):
+            kwargs["http_client"] = httpx.Client(proxy=p["proxy"], timeout=45.0)
+        c = OpenAI(**kwargs)
         _clients[p["name"]] = c
     return c
 
