@@ -411,6 +411,21 @@
       .article-layout { padding-bottom: 48px; }
       .landing-nav-actions .btn-primary { padding: 7px 12px; font-size: 0.78rem; }
     }
+      /* ── Мобильный фикс (Яндекс: убрать горизонтальную прокрутку) ── */
+    @media (max-width: 768px) {
+      .article-layout { grid-template-columns: minmax(0, 1fr); }
+      .article-layout > * { min-width: 0; }
+    }
+    @media (max-width: 540px) {
+      .landing-nav-ecg { display: none; }
+      #nav-auth .btn-ghost { display: none; }
+    }
+    @media (max-width: 400px) {
+      .landing-nav { padding: 0 10px; }
+      .landing-nav-actions { gap: 6px; }
+      .landing-nav-burger { width: 32px; }
+      #nav-auth .btn-primary { padding: 7px 10px; }
+    }
   </style>
 </head>
 <body>
