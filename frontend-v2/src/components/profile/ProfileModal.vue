@@ -3,6 +3,8 @@
     <div class="profile-modal-tabs">
       <button class="profile-tab" :class="{ active: tab === 'info' }"
               @click="tab = 'info'">{{ $t('profile.tabInfo') }}</button>
+      <button class="profile-tab" :class="{ active: tab === 'training' }"
+              @click="tab = 'training'">{{ $t('profile.tabTraining') }}</button>
       <button class="profile-tab" :class="{ active: tab === 'password' }"
               @click="tab = 'password'">{{ $t('profile.tabPassword') }}</button>
     </div>
@@ -57,6 +59,44 @@
       </div>
     </div>
 
+    <!-- Training profile (used by the AI coach) -->
+    <div v-if="tab === 'training'" class="profile-tab-content active">
+      <label class="modal-label">{{ $t('profile.trLevel') }}</label>
+      <div class="pm-chips">
+        <button v-for="o in fitnessOptions" :key="o.value" type="button" class="pm-chip"
+                :class="{ active: training.fitness_level === o.value }"
+                @click="training.fitness_level = o.value">{{ o.icon }} {{ o.label }}</button>
+      </div>
+
+      <label class="modal-label">{{ $t('profile.trGoal') }}</label>
+      <div class="pm-chips">
+        <button v-for="o in goalOptions" :key="o.value" type="button" class="pm-chip"
+                :class="{ active: training.running_goal === o.value }"
+                @click="training.running_goal = o.value">{{ o.icon }} {{ o.label }}</button>
+      </div>
+
+      <label class="modal-label">{{ $t('profile.trVolume') }}</label>
+      <div class="pm-chips">
+        <button v-for="o in kmOptions" :key="o.value" type="button" class="pm-chip"
+                :class="{ active: training.weekly_km === o.value }"
+                @click="training.weekly_km = o.value">{{ o.label }}</button>
+      </div>
+
+      <label class="modal-label">{{ $t('profile.trDays') }}</label>
+      <div class="pm-chips">
+        <button v-for="o in dayOptions" :key="o.value" type="button" class="pm-chip"
+                :class="{ active: training.training_days === o.value }"
+                @click="training.training_days = o.value">{{ o.label }}</button>
+      </div>
+
+      <div v-if="trainingError" class="auth-error">{{ trainingError }}</div>
+      <div class="modal-buttons">
+        <button class="btn-primary" @click="saveTraining" :disabled="savingTraining">{{ $t('profile.save') }}</button>
+        <button class="btn-secondary" @click="show = false">{{ $t('btn.cancel') }}</button>
+      </div>
+      <p class="pm-hint"><i class="fas fa-robot"></i> {{ $t('profile.trHint') }}</p>
+    </div>
+
     <!-- Change password -->
     <div v-if="tab === 'password'" class="profile-tab-content active">
       <input type="password" v-model="pw.current" class="modal-input" :placeholder="$t('profile.currentPw')">
@@ -81,19 +121,45 @@ import { usePush } from '@/composables/usePush'
 const { t }   = useI18n()
 const auth    = useAuthStore()
 const show    = defineModel<boolean>({ default: false })
-const tab     = ref<'info' | 'password'>('info')
+const tab     = ref<'info' | 'training' | 'password'>('info')
 const savingInfo = ref(false); const infoError = ref('')
+const savingTraining = ref(false); const trainingError = ref('')
 const savingPw   = ref(false); const pwError   = ref('')
 const push = usePush()
 
 const info = ref({ name: '', age: null as number|null, weight: null as number|null, height: null as number|null, gender: '' as string })
+const training = ref({ fitness_level: '' as string, running_goal: '' as string,
+                       weekly_km: null as number|null, training_days: null as number|null })
 const pw   = ref({ current: '', new_: '', confirm: '' })
 
+// Те же варианты, что и в онбординге — их использует AI-тренер в планах и советах.
+const fitnessOptions = [
+  { value: 'beginner',     icon: '🌱', label: 'Начинающий' },
+  { value: 'intermediate', icon: '🏃', label: 'Любитель' },
+  { value: 'advanced',     icon: '🏅', label: 'Продвинутый' },
+]
+const goalOptions = [
+  { value: '5k',            icon: '🎯', label: '5 км' },
+  { value: '10k',           icon: '🎯', label: '10 км' },
+  { value: 'half_marathon', icon: '🏁', label: 'Полумарафон' },
+  { value: 'marathon',      icon: '🏆', label: 'Марафон' },
+  { value: 'fitness',       icon: '❤️', label: 'Для здоровья' },
+]
+const kmOptions  = [
+  { value: 0, label: '0 км' }, { value: 10, label: '~10 км' }, { value: 20, label: '~20 км' },
+  { value: 30, label: '~30 км' }, { value: 40, label: '40+ км' },
+]
+const dayOptions = [
+  { value: 2, label: '2 дня' }, { value: 3, label: '3 дня' }, { value: 4, label: '4 дня' }, { value: 5, label: '5+ дней' },
+]
+
 function open() {
-  tab.value = 'info'; infoError.value = ''; pwError.value = ''
+  tab.value = 'info'; infoError.value = ''; pwError.value = ''; trainingError.value = ''
   info.value = { name: auth.user?.name ?? '', age: auth.user?.age ?? null,
                  weight: auth.user?.weight ?? null, height: auth.user?.height ?? null,
                  gender: auth.user?.gender ?? '' }
+  training.value = { fitness_level: auth.user?.fitness_level ?? '', running_goal: auth.user?.running_goal ?? '',
+                     weekly_km: auth.user?.weekly_km ?? null, training_days: auth.user?.training_days ?? null }
   pw.value = { current: '', new_: '', confirm: '' }
   show.value = true
   push.checkStatus()
@@ -114,6 +180,21 @@ async function saveInfo() {
     toast(t('profile.updated'))
   } catch (e: any) { infoError.value = e.message }
   finally { savingInfo.value = false }
+}
+
+async function saveTraining() {
+  savingTraining.value = true; trainingError.value = ''
+  try {
+    await auth.updateProfile({
+      fitness_level: training.value.fitness_level || undefined,
+      running_goal:  training.value.running_goal || undefined,
+      weekly_km:     training.value.weekly_km,
+      training_days: training.value.training_days,
+    })
+    show.value = false
+    toast(t('profile.updated'))
+  } catch (e: any) { trainingError.value = e.message }
+  finally { savingTraining.value = false }
 }
 
 async function savePassword() {
@@ -137,3 +218,16 @@ function toast(msg: string) {
 
 defineExpose({ open })
 </script>
+
+<style scoped>
+.pm-chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 6px 0 4px; }
+.pm-chip {
+  border: 1px solid var(--border); background: var(--surface); color: var(--text-2);
+  border-radius: 99px; padding: 8px 14px; font-size: 0.82rem; font-weight: 600;
+  cursor: pointer; font-family: inherit; transition: border-color .15s, color .15s, background .15s;
+}
+.pm-chip:hover { border-color: var(--border-2); color: var(--text); }
+.pm-chip.active { background: var(--brand); border-color: var(--brand); color: #fff; }
+.pm-hint { margin-top: 12px; font-size: 0.78rem; color: var(--text-3); display: flex; align-items: center; gap: 6px; }
+.pm-hint i { color: var(--brand); }
+</style>
