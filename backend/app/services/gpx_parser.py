@@ -12,6 +12,8 @@ from datetime import datetime, timezone
 from xml.etree import ElementTree as ET
 from typing import Optional
 
+from app.services.activity_analysis import compute_analysis
+
 _NS_HR  = "http://www.garmin.com/xmlschemas/TrackPointExtension/v1"
 _NS_CAD = "http://www.garmin.com/xmlschemas/TrackPointExtension/v1"
 
@@ -166,14 +168,17 @@ def parse_gpx(content: bytes) -> dict:
         return "other"
 
     activity_type = "run"
+    raw_type_text: str | None = None  # для compute_analysis — тот же тег/имя, что дало activity_type
     for trk in root.iter(f"{px}trk"):
         type_el = trk.find(f"{px}type")
         if type_el is not None and type_el.text:
+            raw_type_text = type_el.text
             activity_type = _type_from_text(type_el.text)
             break
         # Фолбэк: имя трека (Suunto: "suuntoapp-Walking-...")
         name_el = trk.find(f"{px}name")
         if name_el is not None and name_el.text:
+            raw_type_text = name_el.text
             activity_type = _type_from_text(name_el.text)
             break
 
@@ -277,8 +282,18 @@ def parse_gpx(content: bytes) -> dict:
         }
         if p["ele"] is not None: pt["ele"] = round(p["ele"], 1)
         if p["hr"]:              pt["hr"]  = p["hr"]
+        if p["cad"]:              pt["cad"] = p["cad"] * 2  # GPX хранит одну ногу → обе
         track_points.append(pt)
         prev = p
+
+    # ── Расширенный анализ (интервалы, тип бег/ходьба, сплит, decoupling) ─────
+    # На полноразрешённых all_points, ДО прореживания — детекции интервалов нужны
+    # 50-метровые микросплиты, а не разреженный track_points.
+    analysis_points = [
+        {"lat": p["lat"], "lon": p["lon"], "t": p["time"], "ele": p["ele"], "hr": p["hr"], "cad": p["cad"]}
+        for p in all_points
+    ]
+    analysis = compute_analysis(analysis_points, type_text=raw_type_text)
 
     return {
         "date":           times[0],
@@ -292,5 +307,6 @@ def parse_gpx(content: bytes) -> dict:
         "splits":         splits if splits else None,
         "track_points":   track_points if track_points else None,
         "activity_type":  activity_type,
+        "analysis":       analysis,
         "source":         "gpx",
     }

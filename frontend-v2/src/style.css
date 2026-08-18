@@ -1443,6 +1443,11 @@ input, select, textarea { font-family: var(--font); }
 /* Detail inner styles */
 .act-detail-loading { color: var(--text-3); font-size: 0.85rem; padding: 12px 0; }
 .act-detail-empty   { color: var(--text-3); font-size: 0.82rem; padding: 8px 0; font-style: italic; }
+.act-detail-full-link {
+  display: inline-flex; align-items: center; gap: 6px; margin-top: 12px;
+  font-size: 0.84rem; font-weight: 700; color: var(--brand); text-decoration: none;
+}
+.act-detail-full-link:hover { text-decoration: underline; }
 .act-detail-metrics { display: flex; flex-wrap: wrap; gap: 16px; margin-bottom: 14px; padding-top: 4px; }
 .act-dm { display: flex; align-items: center; gap: 6px; font-size: 0.85rem; color: var(--text-2); }
 .act-dm i { width: 14px; text-align: center; }

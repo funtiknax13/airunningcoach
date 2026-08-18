@@ -69,6 +69,10 @@ class Activity(Base):
     # track_points (полный GPS-трек) большой и нужен только на детальной карте —
     # deferred: НЕ грузится при обычных db.query(Activity), только при явном обращении.
     track_points = deferred(Column(JSON, nullable=True))  # [{t,lat,lon,ele,hr,dist}]
+    # Разбор тренировки (интервалы, тип бег/ходьба, сплит, decoupling) — считается один раз
+    # при импорте (activity_analysis.compute_analysis), deferred по тому же принципу, что
+    # track_points: не нужен в списковых запросах, только на детальной странице анализа.
+    analysis     = deferred(Column(JSON, nullable=True))
     created_at   = Column(DateTime(timezone=True), server_default=func.now())
 
     user = relationship("User", back_populates="activities")
@@ -112,6 +116,10 @@ class Workout(Base):
     distance_km = Column(Float)  # рекомендуемая дистанция
     target_pace_min_km = Column(Float)  # целевой темп
     duration_min = Column(Float)  # рекомендуемая длительность
+    # Структура интервальной/фартлек-тренировки (разминка/повторы/заминка) — только для
+    # таких дней, у остальных (easy/long/recovery/rest) остаётся null: {warmup_km,
+    # main: [{reps, distance_m, target_pace_min_km, recovery_m, recovery_pace_min_km}], cooldown_km}
+    plan_structure = Column(JSON, nullable=True)
     planned_date      = Column(DateTime, nullable=True)       # конкретная дата тренировки — единственный якорь
     completed         = Column(Boolean, default=False)
     completion_status = Column(String(20), default="none")  # none | completed | approximate | unconfirmed

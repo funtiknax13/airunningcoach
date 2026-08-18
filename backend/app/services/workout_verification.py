@@ -31,6 +31,50 @@ def _deviation(actual: float | None, target: float | None) -> float:
     return abs(actual - target) / target
 
 
+def _interval_deviation(activity: Activity, workout: Workout) -> float:
+    """Доп. отклонение по СТРУКТУРЕ интервалов — сколько повторов реально было и в
+    каком темпе, а не только суммарная дистанция/темп всей тренировки (можно
+    формально попасть в план по дистанции, пробежав его совсем не по структуре).
+
+    Защитно включается ТОЛЬКО когда план структурирован И анализатор реально
+    обнаружил интервалы в активности — если детектор ничего не нашёл (напр. GPS-шум,
+    нетипичный профиль трассы), НЕ штрафуем: это тот же принцип, что и в детекторе
+    интервалов (см. gpx-analyzer) — не наказывать за то, что не сработал детектор,
+    а не за то, что тренировка реально не выполнена. Без этих условий — 0.0 (не
+    влияет на существующее поведение)."""
+    plan = workout.plan_structure
+    if not plan or not isinstance(plan, dict):
+        return 0.0
+    analysis = activity.analysis
+    if not analysis or not isinstance(analysis, dict):
+        return 0.0
+    intervals = analysis.get("intervals")
+    if not intervals or intervals.get("kind") != "intervals":
+        return 0.0
+
+    main = plan.get("main") or []
+    planned_reps = sum(b.get("reps") or 0 for b in main if isinstance(b, dict))
+    if planned_reps <= 0:
+        return 0.0
+    # Темп повторов плана — средний по блокам, взвешенный по числу повторов в блоке.
+    weighted_pace = sum(
+        (b.get("reps") or 0) * (b.get("target_pace_min_km") or 0)
+        for b in main if isinstance(b, dict)
+    )
+    planned_pace = weighted_pace / planned_reps if planned_reps else None
+
+    actual_reps = intervals.get("reps") or []
+    actual_pace = (
+        sum(r.get("pace_min_km") or 0 for r in actual_reps) / len(actual_reps)
+        if actual_reps else None
+    )
+
+    return max(
+        _deviation(len(actual_reps), planned_reps),
+        _deviation(actual_pace, planned_pace),
+    )
+
+
 def verdict_for(activity: Activity | None, workout: Workout) -> str:
     """completion_status по факту относительно плана этой тренировки."""
     if activity is None:
@@ -38,6 +82,7 @@ def verdict_for(activity: Activity | None, workout: Workout) -> str:
     worst = max(
         _deviation(activity.distance_km, workout.distance_km),
         _deviation(activity.pace_min_per_km, workout.target_pace_min_km),
+        _interval_deviation(activity, workout),
     )
     if worst <= DEVIATION_OK:
         return "completed"

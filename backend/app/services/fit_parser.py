@@ -10,6 +10,8 @@
 from datetime import datetime, timezone
 from typing import Optional
 
+from app.services.activity_analysis import compute_analysis
+
 try:
     import fitparse
     _AVAILABLE = True
@@ -216,12 +218,13 @@ def parse_fit(content: bytes) -> dict:
     # ── Прореженный трек ─────────────────────────────────────────────────────
     has_gps = any(r.get("position_lat") for r in records)
     track_points = []
+    analysis_points = []
     if has_gps:
         sampled = _downsample(records)
         t0 = start_time
         for r in sampled:
             lat = r.get("position_lat")
-            lon = r.get("position_lon")
+            lon = r.get("position_long")  # было "position_lon" — опечатка, поле всегда было None
             if lat is None or lon is None: continue
             # FIT хранит координаты в semicircles → градусы
             lat_deg = lat * (180 / 2**31)
@@ -235,7 +238,21 @@ def parse_fit(content: bytes) -> dict:
             }
             if r.get("altitude"):    pt["ele"] = round(r["altitude"], 1)
             if r.get("heart_rate"):  pt["hr"]  = r["heart_rate"]
+            if r.get("cadence"):     pt["cad"] = r["cadence"] * 2  # одна нога → обе
             track_points.append(pt)
+
+        # ── Расширенный анализ — на ПОЛНОМ разрешении (не sampled), детекции
+        # интервалов нужны 50-метровые микросплиты, а не прореженный track_points.
+        for r in records:
+            lat, lon = r.get("position_lat"), r.get("position_long")
+            if lat is None or lon is None: continue
+            analysis_points.append({
+                "lat": lat * (180 / 2**31), "lon": lon * (180 / 2**31),
+                "t": _to_utc(r.get("timestamp")),
+                "ele": r.get("altitude"), "hr": r.get("heart_rate"), "cad": r.get("cadence"),
+            })
+
+    analysis = compute_analysis(analysis_points, type_text=raw_sport) if analysis_points else None
 
     return {
         "date":           start_time,
@@ -250,5 +267,6 @@ def parse_fit(content: bytes) -> dict:
         "splits":         splits if splits else None,
         "track_points":   track_points if track_points else None,
         "activity_type":  activity_type,
+        "analysis":       analysis,
         "source":         "fit",
     }

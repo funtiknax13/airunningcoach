@@ -573,9 +573,103 @@ def analyze_workout_completion(workout_id: int, activity_id: int, user_id: int) 
         db.add(ChatMessage(user_id=user.id, role="ai", content=ai_text, context_type="workout_check", read=False))
         db.commit()
 
+        _check_ai_verdict_against_code(workout, activity)
+
         return ai_text
     finally:
         db.close()
+
+
+def _check_ai_verdict_against_code(workout: Workout, activity: Activity) -> None:
+    """Скрытая сверка: независимый от кода вердикт ИИ по тем же фактам плана/факта,
+    БЕЗ подсказки уже вычисленного workout.completion_status — иначе модель просто
+    повторит то, что ей сказали, и сверка ничего не покажет. Никогда не показывается
+    пользователю — только лог, как сигнал для калибровки (тот же принцип, что и
+    ручная калибровка детектора интервалов по реальным файлам в этой сессии).
+
+    Сбой здесь не должен испортить уже сохранённый пользователю ответ тренера —
+    свой изолированный try/except, никогда не поднимает исключение наружу и не
+    трогает _save_unavailable_notice (та привязана к видимому сообщению)."""
+    try:
+        plan_parts = [f"план — {workout.workout_type}, {workout.description}"]
+        if workout.distance_km:
+            plan_parts.append(f"{workout.distance_km} км")
+        if workout.target_pace_min_km:
+            plan_parts.append(f"целевой темп {_fmt_pace(workout.target_pace_min_km)}/км")
+        if workout.plan_structure:
+            plan_parts.append(f"структура: {json.dumps(workout.plan_structure, ensure_ascii=False)}")
+
+        pace_str = f"{_fmt_pace(activity.pace_min_per_km)}/км" if activity.pace_min_per_km else "—"
+        fact_parts = [f"факт — {activity.distance_km} км, {_fmt_time(activity.duration_min)}, темп {pace_str}"]
+        analysis = activity.analysis if isinstance(activity.analysis, dict) else None
+        intervals = analysis.get("intervals") if analysis else None
+        if intervals and intervals.get("kind") == "intervals":
+            reps = intervals.get("reps") or []
+            if reps:
+                avg_pace = sum(r.get("pace_min_km") or 0 for r in reps) / len(reps)
+                fact_parts.append(f"обнаружено интервалов: {len(reps)}, средний темп повтора {_fmt_pace(avg_pace)}/км")
+
+        prompt = (
+            f"{', '.join(plan_parts)}\n{'; '.join(fact_parts)}\n\n"
+            'Оцени, выполнена ли эта тренировка относительно плана. Ответь строго JSON вида '
+            '{"verdict": "completed"|"approximate"|"unconfirmed", "reason": "краткая причина"}. '
+            "completed — уложились в план (~7% допуска по дистанции/темпу), "
+            "approximate — частично (до ~30% отклонения), unconfirmed — существенно разошлось с планом."
+        )
+        resp = _chat_sync(
+            messages=[
+                {"role": "system", "content": "Ты оцениваешь соответствие пробежки плану тренировки. Отвечай только JSON, без пояснений вне JSON."},
+                {"role": "user", "content": prompt},
+            ],
+            max_tokens=150,
+            temperature=0.0,
+            response_format={"type": "json_object"},
+        )
+        parsed = json.loads(resp.choices[0].message.content.strip())
+        ai_verdict = parsed.get("verdict")
+        if ai_verdict not in ("completed", "approximate", "unconfirmed"):
+            return
+        if ai_verdict != workout.completion_status:
+            logger.warning(
+                "AI/code verdict mismatch: workout_id=%s code=%s ai=%s reason=%s",
+                workout.id, workout.completion_status, ai_verdict, parsed.get("reason"),
+            )
+    except Exception as e:
+        logger.debug("AI verdict cross-check skipped (workout_id=%s): %s", workout.id, e)
+
+
+def _plan_item_schema(desc_rule: str) -> str:
+    """Общий фрагмент промпта — формат JSON одного дня плана. Раньше был продублирован
+    в generate_training_plan и _gen_plan_chunk по отдельности и рисковал разъехаться —
+    теперь оба места собирают промпт из одного источника."""
+    return f"""Формат объекта:
+{{
+  "workout_type": "easy",    // easy | tempo | interval | long | recovery | rest
+  "description": "...",      // {desc_rule}
+  "distance_km": 8.0,        // целевая дистанция (null для rest)
+  "target_pace_min_km": 5.5, // целевой темп мин/км (null для rest)
+  "plan_structure": null     // структура интервалов — см. правило ниже
+}}
+
+plan_structure: null для ВСЕХ типов, КРОМЕ interval — там вместо null дай объект вида
+{{"warmup_km": 2.0, "main": [{{"reps": 6, "distance_m": 1000, "target_pace_min_km": 4.2, "recovery_m": 400, "recovery_pace_min_km": 6.0}}], "cooldown_km": 1.5}}
+(несколько блоков в "main", если тренировка комбинирует разные отрезки — например пирамида
+200/400/800/400/200). Не выдумывай структуру для easy/tempo/long/recovery/rest — там всегда null."""
+
+
+def _validate_plan_structure(ps) -> Optional[dict]:
+    """Защита от мусора в structured-поле от модели: сохраняем, только если форма
+    похожа на ожидаемую, иначе тихо отбрасываем (тренировка остаётся плоской, как
+    раньше) — не даём кривому JSON сломать рендер плана у пользователя."""
+    if not isinstance(ps, dict):
+        return None
+    main = ps.get("main")
+    if not isinstance(main, list) or not main:
+        return None
+    for block in main:
+        if not isinstance(block, dict) or "reps" not in block or "distance_m" not in block:
+            return None
+    return ps
 
 
 def replace_upcoming_workouts(
@@ -628,6 +722,7 @@ def replace_upcoming_workouts(
             target_pace_min_km=w.get("target_pace_min_km"),
             duration_min=None,
             completion_status="none",
+            plan_structure=_validate_plan_structure(w.get("plan_structure")),
         ))
 
 
@@ -723,8 +818,8 @@ async def _gen_plan_chunk(
 Сейчас верни ТОЛЬКО дни для недель {week_from}–{week_to} этого блока — ровно {n} объектов \
 ПО ПОРЯДКУ (элемент 0 = первый день этого куска, ..., {n - 1} = последний). {prev_txt}
 
-Формат объекта: {{"workout_type": "easy", "description": "коротко 3-8 слов", "distance_km": 8.0, "target_pace_min_km": 5.5}}
-workout_type: easy | tempo | interval | long | recovery | rest. distance_km/target_pace_min_km = null для rest.
+{_plan_item_schema("коротко 3-8 слов")}
+
 Верни строго {{"plan": [ ... {n} объектов ... ]}}. Только JSON, без пояснений."""
     try:
         resp = await _chat(
@@ -858,13 +953,7 @@ async def generate_training_plan(
 ровно {days} объектов ПО ПОРЯДКУ: элемент 0 = сегодня, 1 = завтра, ..., {days - 1} = через {days - 1} дней. \
 Не раскладывай дни отдельными ключами объекта — только массив в "plan".
 
-Формат каждого объекта:
-{{
-  "workout_type": "easy",    // easy | tempo | interval | long | recovery | rest
-  "description": "...",      // {desc_rule}
-  "distance_km": 8.0,        // целевая дистанция (null для rest)
-  "target_pace_min_km": 5.5  // целевой темп мин/км (null для rest)
-}}
+{_plan_item_schema(desc_rule)}
 
 Учитывай цели спортсмена, его текущий уровень и принцип 80/20. {periodization}
 Только JSON, без пояснений."""

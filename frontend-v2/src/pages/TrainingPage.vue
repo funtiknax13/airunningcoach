@@ -72,6 +72,7 @@
                 <span v-if="w.distance_km" class="workout-chip">📏 {{ w.distance_km }} {{ ruEn('км', 'km') }}</span>
                 <span v-if="w.target_pace_min_km" class="workout-chip">⏱ {{ formatPace(w.target_pace_min_km) }}/{{ ruEn('км', 'km') }}</span>
               </div>
+              <p v-if="w.plan_structure" class="agw-structure">{{ formatPlanStructure(w.plan_structure) }}</p>
             </div>
             <div class="agw-action">
               <span v-if="isRest(w.workout_type)" class="badge badge-rest">
@@ -118,7 +119,7 @@ import SkeletonLoader from '@/components/common/SkeletonLoader.vue'
 import { useTrainingStore } from '@/stores/training'
 import { useAuthStore } from '@/stores/auth'
 import { useDialog } from '@/composables/useDialog'
-import type { Workout, WorkoutType } from '@/api/types'
+import type { Workout, WorkoutType, PlanStructure } from '@/api/types'
 
 const { t, locale } = useI18n()
 const store  = useTrainingStore()
@@ -306,6 +307,24 @@ function isFuture(w: Workout) {
 }
 function formatPace(p: number) { const m = Math.floor(p); const s = Math.round((p - m) * 60); return `${m}:${String(s).padStart(2, '0')}` }
 
+// Человекочитаемая раскладка структуры интервальной тренировки — чисто форматирование,
+// вся логика (что вообще предложить как интервалы) уже решена на бэкенде промптом.
+function formatPlanStructure(ps: PlanStructure): string {
+  const parts: string[] = []
+  if (ps.warmup_km) parts.push(ruEn(`разминка ${ps.warmup_km} км`, `${ps.warmup_km}km warmup`))
+  for (const b of ps.main) {
+    let s = `${b.reps}× ${b.distance_m}м`
+    if (b.target_pace_min_km) s += ` @${formatPace(b.target_pace_min_km)}/${ruEn('км', 'km')}`
+    if (b.recovery_m) {
+      s += ruEn(`, отдых ${b.recovery_m}м`, `, ${b.recovery_m}m rest`)
+      if (b.recovery_pace_min_km) s += ` @${formatPace(b.recovery_pace_min_km)}/${ruEn('км', 'km')}`
+    }
+    parts.push(s)
+  }
+  if (ps.cooldown_km) parts.push(ruEn(`заминка ${ps.cooldown_km} км`, `${ps.cooldown_km}km cooldown`))
+  return parts.join(' · ')
+}
+
 // ── Действия ──────────────────────────────────────────────────────────────
 async function complete(id: number) {
   const notes = await prompt(t('plan.workout.notes'), {
@@ -406,6 +425,7 @@ async function uncomplete(id: number) {
 .agw-top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .agw-label { font-weight: 700; font-size: 0.92rem; }
 .agw-desc { margin: 4px 0 0; font-size: 0.84rem; line-height: 1.45; color: var(--text-2); }
+.agw-structure { margin: 4px 0 0; font-size: 0.78rem; line-height: 1.4; color: var(--text-3); }
 .agw-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
 
 .agw-action { flex: none; display: flex; align-items: center; gap: 8px; padding-top: 2px; }

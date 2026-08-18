@@ -108,12 +108,17 @@
       <div v-if="!hasAnyDetail" class="act-detail-empty">
         Детальные данные отсутствуют. Импортируйте пробежку через GPX или FIT для полной статистики.
       </div>
+
+      <RouterLink v-if="detail.track_points?.length" :to="`/activities/${activityId}/analysis`" class="act-detail-full-link">
+        <i class="fas fa-chart-line"></i> Полный анализ
+      </RouterLink>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
+import { RouterLink } from 'vue-router'
 import { activitiesApi } from '@/api'
 import type { ActivityDetail, ActivitySplit } from '@/api/types'
 

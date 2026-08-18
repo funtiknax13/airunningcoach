@@ -208,6 +208,7 @@ class WorkoutResponse(BaseModel):
     completion_status: str
     activity_id: Optional[int]
     notes_after: Optional[str]
+    plan_structure: Optional[Any] = None
 
     class Config:
         from_attributes = True

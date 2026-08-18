@@ -159,6 +159,7 @@ def _save_imported_activity(
         laps=data.get("laps"),
         splits=data.get("splits"),
         track_points=data.get("track_points"),
+        analysis=data.get("analysis"),
         activity_type=data.get("activity_type", "run"),
         source=data["source"],
     )
@@ -317,6 +318,7 @@ def get_activity_detail(
         "laps":           activity.laps,
         "splits":         activity.splits,
         "track_points":   activity.track_points,
+        "analysis":       activity.analysis,
     }
 
 

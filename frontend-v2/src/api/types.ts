@@ -121,6 +121,7 @@ export interface ActivityTrackPoint {
   dist: number
   ele?: number
   hr?: number
+  cad?: number
 }
 
 export interface Activity {
@@ -143,8 +144,51 @@ export interface Activity {
   created_at: string
 }
 
+// ── Разбор тренировки (интервалы, тип, сплит) — activity_analysis.compute_analysis ──
+export interface ActivityTypeInfo {
+  type: 'run' | 'walk'
+  source: 'file' | 'cadence' | 'pace' | 'unknown'
+}
+
+export interface IntervalSegment {
+  cls: 'fast' | 'slow'
+  from_m: number
+  to_m: number
+  dist_m: number
+  dur_sec: number
+  pace_min_km: number | null
+  avg_hr: number | null
+  inner_cv: number
+}
+
+export interface IntervalSet {
+  segments: IntervalSegment[]
+  reps: IntervalSegment[]
+  extra_reps: IntervalSegment[]
+  recoveries: IntervalSegment[]
+  warmup: IntervalSegment | null
+  cooldown: IntervalSegment | null
+  kind: 'intervals' | 'fartlek'
+}
+
+export interface NegativeSplit {
+  first_avg: number
+  second_avg: number
+  diff_pct: number
+}
+
+export interface ActivityAnalysis {
+  activity_type: ActivityTypeInfo
+  intervals: IntervalSet | null
+  negative_split: NegativeSplit | null
+  pace_consistency: number | null
+  hr_decoupling: number | null
+  pauses: { count: number; total_sec: number }
+}
+
 export interface ActivityDetail extends Activity {
   track_points: ActivityTrackPoint[] | null
+  analysis: ActivityAnalysis | null
 }
 
 export interface ActivityWithAnalysis extends Activity {
@@ -189,6 +233,20 @@ export interface Goal {
 export type WorkoutType = 'easy' | 'tempo' | 'interval' | 'long' | 'recovery' | 'rest'
 export type CompletionStatus = 'none' | 'completed' | 'approximate' | 'unconfirmed'
 
+export interface PlanStructureBlock {
+  reps: number
+  distance_m: number
+  target_pace_min_km: number | null
+  recovery_m: number | null
+  recovery_pace_min_km: number | null
+}
+
+export interface PlanStructure {
+  warmup_km: number | null
+  main: PlanStructureBlock[]
+  cooldown_km: number | null
+}
+
 export interface Workout {
   id: number
   day_of_week: number
@@ -202,6 +260,7 @@ export interface Workout {
   completion_status: CompletionStatus
   activity_id: number | null
   notes_after: string | null
+  plan_structure: PlanStructure | null
 }
 
 export interface WorkoutWithAnalysis extends Workout {
