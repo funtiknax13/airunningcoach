@@ -173,6 +173,7 @@ import ProfileModal       from '@/components/profile/ProfileModal.vue'
 import AppDialog          from '@/components/common/AppDialog.vue'
 import TrialExpiredBanner from '@/components/common/TrialExpiredBanner.vue'
 
+const props = defineProps<{ title?: string }>()
 const { t, locale } = useI18n()
 const route     = useRoute()
 const auth      = useAuthStore()
@@ -233,5 +234,7 @@ const titles: Record<string, string> = {
   '/achievements': 'nav.achievements',
   '/coach':        'nav.coach',
 }
-const currentTitle = computed(() => t(titles[route.path] ?? 'nav.dashboard'))
+// Динамические роуты (например /activities/:id/analysis) не входят в titles —
+// страница может передать свой заголовок явно через prop, иначе фолбэк на "Главная".
+const currentTitle = computed(() => props.title ?? t(titles[route.path] ?? 'nav.dashboard'))
 </script>

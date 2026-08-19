@@ -1,5 +1,5 @@
 <template>
-  <AppLayout>
+  <AppLayout :title="ruEn('Тренировка', 'Activity')">
     <template #header-actions>
       <RouterLink :to="`/activities`" class="btn btn-secondary btn-sm">
         <i class="fas fa-arrow-left"></i> {{ ruEn('Назад', 'Back') }}
@@ -13,6 +13,8 @@
     </div>
 
     <template v-else>
+      <div class="activity-when">{{ startDateTime }}</div>
+
       <!-- Статистика -->
       <div class="stats-grid">
         <div class="stat-card">
@@ -161,6 +163,15 @@ async function load() {
   renderMap()
 }
 
+const startDateTime = computed(() => {
+  if (!detail.value?.date) return ''
+  const d = new Date(detail.value.date)
+  const lang = locale.value === 'ru' ? 'ru-RU' : 'en-US'
+  const datePart = d.toLocaleDateString(lang, { weekday: 'long', day: 'numeric', month: 'long' })
+  const timePart = d.toLocaleTimeString(lang, { hour: '2-digit', minute: '2-digit' })
+  return `${datePart[0].toUpperCase()}${datePart.slice(1)} · ${timePart}`
+})
+
 const analysis = computed<ActivityAnalysis | null>(() => detail.value?.analysis ?? null)
 const narrative = computed<Narrative | null>(() =>
   analysis.value ? buildNarrative(analysis.value, detail.value?.splits ?? null) : null
@@ -251,6 +262,7 @@ watch(() => route.params.id, load)
 </script>
 
 <style scoped>
+.activity-when { font-size: .84rem; font-weight: 600; color: var(--text-2); margin-bottom: 10px; }
 .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; margin-bottom: 16px; }
 .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); padding: 14px 16px; }
 .stat-label { font-size: .68rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--text-3); margin-bottom: 4px; }
