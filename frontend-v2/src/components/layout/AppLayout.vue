@@ -48,11 +48,11 @@
           <i class="fas fa-globe"></i>
           <span>{{ nextLang }}</span>
         </button>
-        <a href="/blog/" class="nav-item" target="_blank" rel="noopener">
+        <a href="/blog/" class="nav-item" :target="externalTarget" rel="noopener">
           <i class="fas fa-newspaper"></i>
           <span>Блог</span>
         </a>
-        <a href="/tools/" class="nav-item" target="_blank" rel="noopener">
+        <a href="/tools/" class="nav-item" :target="externalTarget" rel="noopener">
           <i class="fas fa-calculator"></i>
           <span>Инструменты</span>
         </a>
@@ -113,10 +113,10 @@
             <button class="mobile-menu-item" @click="changeLang(); menuOpen = false">
               <i class="fas fa-globe"></i> {{ nextLang }}
             </button>
-            <a href="/blog/" class="mobile-menu-item" target="_blank" rel="noopener" @click="menuOpen = false">
+            <a href="/blog/" class="mobile-menu-item" :target="externalTarget" rel="noopener" @click="menuOpen = false">
               <i class="fas fa-newspaper"></i> Блог
             </a>
-            <a href="/tools/" class="mobile-menu-item" target="_blank" rel="noopener" @click="menuOpen = false">
+            <a href="/tools/" class="mobile-menu-item" :target="externalTarget" rel="noopener" @click="menuOpen = false">
               <i class="fas fa-calculator"></i> Инструменты
             </a>
             <RouterLink to="/support" class="mobile-menu-item" @click="menuOpen = false">
@@ -176,6 +176,14 @@ import TrialExpiredBanner from '@/components/common/TrialExpiredBanner.vue'
 const props = defineProps<{ title?: string }>()
 const { t, locale } = useI18n()
 const route     = useRoute()
+
+// В обычном браузере блог/инструменты открываем в новой вкладке — это ожидаемо.
+// Но в установленном PWA (standalone) новая вкладка означает выход из режима
+// приложения в обычное окно браузера с адресной строкой — там переходим в
+// том же окне, чтобы остаться в PWA-оболочке.
+const isStandalonePwa = window.matchMedia?.('(display-mode: standalone)').matches
+  || (window.navigator as any).standalone === true
+const externalTarget = isStandalonePwa ? undefined : '_blank'
 const auth      = useAuthStore()
 const chatStore = useChatStore()
 const achievementsStore = useAchievementsStore()
