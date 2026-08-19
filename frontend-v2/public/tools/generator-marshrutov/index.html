@@ -115,9 +115,16 @@ a{color:var(--brand);text-decoration:none}
 .mini.armed{background:var(--brand);border-color:var(--brand);color:#fff}
 .hint{font-size:.75rem;color:var(--text-3);line-height:1.5;margin-top:2px}
 
-.dist-head{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:10px}
-.dist-val{font-size:1.7rem;font-weight:800;letter-spacing:-.02em}
-.dist-val small{font-size:.9rem;color:var(--text-3);font-weight:600;margin-left:3px}
+.dist-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.dist-val{display:flex;align-items:center;gap:8px;font-size:1.7rem;font-weight:800;letter-spacing:-.02em}
+.dist-val small{font-size:.9rem;color:var(--text-3);font-weight:600}
+.dist-val input[type=number]{width:2.4em;font:inherit;font-weight:800;color:var(--text);background:none;border:none;text-align:right;padding:0;-moz-appearance:textfield}
+.dist-val input[type=number]:focus{outline:none;color:var(--brand)}
+.dist-val input[type=number]::-webkit-outer-spin-button,.dist-val input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.dist-step{width:30px;height:30px;flex:none;border-radius:9px;border:1px solid var(--border-2);background:var(--surface-2);color:var(--text-2);
+  display:grid;place-items:center;font-size:.78rem;transition:.15s}
+.dist-step:hover{border-color:var(--brand);color:var(--brand)}
+.dist-step:active{transform:scale(.9)}
 .dist-note{font-size:.72rem;color:var(--text-3)}
 input[type=range]{width:100%;-webkit-appearance:none;height:6px;border-radius:99px;background:var(--surface-3);outline:none}
 input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:22px;height:22px;border-radius:50%;background:var(--brand);cursor:pointer;box-shadow:0 2px 8px var(--brand-glow);border:3px solid var(--surface)}
@@ -171,14 +178,22 @@ input[type=range]::-moz-range-thumb{width:19px;height:19px;border-radius:50%;bac
 @keyframes sp{to{transform:rotate(360deg)}}
 
 @media(max-width:820px){
-  body{overflow:auto}
-  .app{grid-template-columns:minmax(0,1fr);height:auto;min-height:calc(100dvh - 56px)}
-  .app>*{min-width:0}
-  .panel{border-right:none;order:2}
-  .map-wrap{order:1;height:48vh;min-height:320px}
+  /* Карта закреплена сверху (под навбаром) и всегда видна; панель настроек —
+     отдельная скроллящаяся область под ней. Раньше карта и панель шли одна
+     под другой в общем скролле body — при генерации маршрута пользователь,
+     докрутивший панель вниз до кнопки «Построить», карту уже не видел (она
+     укатилась вверх за пределы экрана), и результат выглядел так, будто
+     ничего не произошло. */
+  body{overflow:hidden}
+  .app{display:block;height:100dvh}
+  .map-wrap{position:fixed;top:56px;left:0;right:0;height:max(34vh,240px);z-index:1;order:unset}
   #map{position:absolute}
+  .panel{position:fixed;top:calc(56px + max(34vh,240px));left:0;right:0;bottom:0;border-right:none;order:unset}
   .actions{margin-top:0}
-  .result{max-width:none}
+  .result{max-width:none;padding:13px 16px}
+  .result-top{margin-bottom:9px}
+  .result-stats{margin-bottom:10px;gap:6px}
+  .stat{padding:6px 9px;font-size:.76rem}
   .landing-nav{padding:0 16px;height:56px}
   .landing-nav-burger{display:flex}
   .landing-nav-more{display:none;position:absolute;top:calc(100% + 6px);right:16px;z-index:950;flex-direction:column;align-items:stretch;gap:6px;min-width:170px;padding:8px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r-md);box-shadow:0 10px 30px rgba(0,0,0,.18)}
@@ -260,7 +275,12 @@ input[type=range]::-moz-range-thumb{width:19px;height:19px;border-radius:50%;bac
     <div class="section" id="dist-section">
       <div class="section-label"><i class="fa-solid fa-ruler"></i> Дистанция</div>
       <div class="dist-head">
-        <div class="dist-val"><span id="dist-num">10</span><small>км</small></div>
+        <div class="dist-val">
+          <button type="button" class="dist-step" id="dist-dec" aria-label="Меньше на 0.5 км"><i class="fa-solid fa-minus"></i></button>
+          <input type="number" id="dist-num" value="10" min="1" max="100" step="0.5" inputmode="decimal">
+          <small>км</small>
+          <button type="button" class="dist-step" id="dist-inc" aria-label="Больше на 0.5 км"><i class="fa-solid fa-plus"></i></button>
+        </div>
         <div class="dist-note" id="dist-note">длина кольца</div>
       </div>
       <input type="range" id="dist" min="1" max="100" step="0.5" value="10">
@@ -399,10 +419,22 @@ $('terrain').addEventListener('click',function(e){ var b=e.target.closest('butto
 $('nosteps').addEventListener('change',function(){ state.noSteps=this.checked; });
 
 // ── Distance ─────────────────────────────────────────────────────────────────
-function setKm(v){ v=Math.round(v*2)/2; state.km=v; $('dist').value=v; $('dist-num').textContent=v;
-  [].forEach.call($('dist-chips').children,function(c){c.classList.toggle('active',parseFloat(c.dataset.km)===v);}); }
+// Три способа задать дистанцию: точный ввод числом, шаговые +/- (по 0.5 км —
+// удобно попадать пальцем в точное значение) и слайдер/чипы для примерной
+// прикидки. Слайдер с шагом 0.5 км на диапазоне 1-100 км сам по себе слишком
+// мелкий для пальца — раньше это был единственный способ задать дистанцию.
+function setKm(v){
+  if(!isFinite(v)) return;
+  v=Math.min(100,Math.max(1,Math.round(v*2)/2)); state.km=v;
+  $('dist').value=v; $('dist-num').value=v;
+  [].forEach.call($('dist-chips').children,function(c){c.classList.toggle('active',parseFloat(c.dataset.km)===v);});
+}
 $('dist').addEventListener('input',function(){ setKm(parseFloat(this.value)); });
 $('dist-chips').addEventListener('click',function(e){ var c=e.target.closest('.chip'); if(c) setKm(parseFloat(c.dataset.km)); });
+$('dist-num').addEventListener('input',function(){ if(this.value!=='') setKm(parseFloat(this.value)); });
+$('dist-num').addEventListener('blur',function(){ setKm(state.km); }); // нормализуем показанное значение (шаг/границы)
+$('dist-dec').onclick=function(){ setKm(state.km-0.5); };
+$('dist-inc').onclick=function(){ setKm(state.km+0.5); };
 
 // ── Toast ─────────────────────────────────────────────────────────────────────
 var toastT=null;
