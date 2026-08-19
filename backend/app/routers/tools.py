@@ -66,6 +66,11 @@ async def analyze_public_activity(request: Request, file: UploadFile = File(...)
         "elevation_gain": data["elevation_gain"],
         "splits":         data["splits"],
         "activity_type":  data["activity_type"],
+        # Трек и разбор (интервалы, тип бег/ходьба, сплит, decoupling) — для карты,
+        # графиков и нарратива на публичной странице анализатора. Ничего не
+        # сохраняется на сервере, только отдаётся в этом ответе.
+        "track_points":   data["track_points"],
+        "analysis":       data["analysis"],
     }
 
 

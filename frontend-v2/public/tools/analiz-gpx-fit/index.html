@@ -24,6 +24,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" media="print" onload="this.media='all'">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <noscript>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
@@ -74,6 +75,24 @@
     .stat-tile-value{font-size:1.4rem;font-weight:800;color:var(--text);letter-spacing:-0.02em;font-variant-numeric:tabular-nums}
     .stat-tile-unit{font-size:0.75rem;font-weight:400;color:var(--text-3)}
     .tbl-wrap{overflow-x:auto;margin:18px 0}table{width:100%;border-collapse:collapse;font-size:0.875rem}thead tr{background:var(--surface-2)}th{padding:11px 14px;text-align:left;font-size:0.72rem;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:0.07em;border-bottom:2px solid var(--border)}td{padding:11px 14px;border-bottom:1px solid var(--border);color:var(--text-2);vertical-align:top}tr:last-child td{border-bottom:none}tr:hover td{background:var(--surface-2)}td strong{color:var(--text)}
+    /* ── Разбор: нарратив / карта / графики ── */
+    .narrative-card{background:var(--surface-2);border:1px solid var(--border);border-radius:var(--r-lg);padding:18px 20px;margin:20px 0;display:flex;flex-direction:column;gap:8px}
+    .narrative-badge{display:inline-flex;align-items:center;gap:8px;font-size:0.78rem;font-weight:800;text-transform:uppercase;letter-spacing:0.04em;color:var(--brand)}
+    .type-pill{margin-left:4px;font-size:0.68rem;font-weight:700;text-transform:none;color:var(--text-2);background:var(--surface);border:1px solid var(--border);border-radius:99px;padding:2px 9px}
+    .narrative-text{font-size:0.92rem;line-height:1.65;color:var(--text-2)}
+    .narrative-text strong{color:var(--text)}
+    .map-card{border:1px solid var(--border);border-radius:var(--r-lg);overflow:hidden;margin:20px 0}
+    #analysis-map{height:320px;width:100%;background:var(--surface-2)}
+    :root[data-theme="dark"] #analysis-map .leaflet-tile-pane{filter:invert(.94) hue-rotate(190deg) saturate(.6) brightness(.9) contrast(1.08)}
+    .rec-note{margin-top:10px;font-size:0.82rem;color:var(--text-3)}
+    .tchart{padding:4px 0;margin:20px 0}
+    .tchart-head{display:flex;align-items:baseline;gap:8px;margin-bottom:6px}
+    .tchart-title{font-weight:700;font-size:0.88rem;color:var(--text)}
+    .tchart-unit{font-size:0.74rem;color:var(--text-3)}
+    .tchart-svg{width:100%;height:150px;display:block}
+    .tchart-labels{display:flex;justify-content:space-between;font-size:0.7rem;color:var(--text-3);margin-top:2px}
+    .tchart-x{flex:1;text-align:center}
+    .section-label{font-weight:700;font-size:0.88rem;color:var(--text);margin:24px 0 10px;display:flex;align-items:center;gap:8px}
     .cta-block{background:linear-gradient(135deg,var(--brand) 0%,#FF6B35 100%);border-radius:var(--r-xl);padding:48px 40px;text-align:center;color:white;margin:48px 0 0}.cta-block h2{font-size:1.7rem;font-weight:800;letter-spacing:-0.03em;margin:0 0 12px!important;padding:0!important;color:white}.cta-block p{font-size:1rem;opacity:0.88;margin-bottom:28px;color:white}.btn-white{background:white;color:var(--brand);padding:13px 32px;border-radius:var(--r-md);border:none;font-size:0.95rem;font-weight:700;font-family:var(--font);cursor:pointer;transition:all 0.2s;display:inline-block;text-decoration:none}.btn-white:hover{box-shadow:0 8px 24px rgba(0,0,0,0.2);transform:translateY(-2px)}.cta-note{font-size:0.8rem;opacity:0.7;margin-top:12px}
     hr{border:none;border-top:1px solid var(--border);margin:32px 0}
     .sidebar{position:sticky;top:84px}.sidebar-box{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:20px 22px;margin-bottom:16px}.sidebar-title{font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-3);margin-bottom:14px}.toc-list{list-style:none}.toc-list li{margin-bottom:2px}.toc-list a{color:var(--text-2);font-size:0.87rem;display:block;padding:5px 0 5px 10px;border-left:2px solid transparent;transition:all 0.15s;line-height:1.4}.toc-list a:hover{color:var(--brand);border-left-color:var(--brand)}.sidebar-cta{background:var(--brand-light);border:1px solid rgba(248,92,30,0.2);border-radius:var(--r-lg);padding:20px 22px;text-align:center}.sidebar-cta p{font-size:0.87rem;color:var(--text-2);margin-bottom:14px;line-height:1.5}.sidebar-cta a{display:block;background:var(--brand);color:white;padding:11px;border-radius:var(--r);font-weight:700;font-size:0.88rem;transition:background 0.2s}.sidebar-cta a:hover{background:var(--brand-hover)}.sidebar-cta .note{font-size:0.75rem;color:var(--text-3);margin-top:10px}
@@ -147,6 +166,10 @@
 
           <div class="result-wrap" id="result-wrap">
             <div class="stat-grid" id="stat-grid"></div>
+            <div id="narrative-wrap"></div>
+            <div id="map-wrap"></div>
+            <div id="reps-wrap"></div>
+            <div id="charts-wrap"></div>
             <div id="splits-wrap"></div>
           </div>
         </div>
@@ -187,6 +210,7 @@
   <p>© 2026 AIRunningCoach. Тренируйтесь умнее каждый день.</p>
   <nav class="footer-links"><a href="/">Главная</a><a href="/blog/">Блог</a><a href="/tools/">Инструменты</a><a href="/privacy/">Конфиденциальность</a><a href="/terms/">Условия использования</a><a href="/sitemap.xml" rel="nofollow">Sitemap</a></nav>
 </footer>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 (function(){var s=localStorage.getItem('theme'),p=window.matchMedia('(prefers-color-scheme: dark)').matches,d=s?s==='dark':p;if(d){document.documentElement.setAttribute('data-theme','dark');upd(true);}})();
 function toggleTheme(){var d=document.documentElement.getAttribute('data-theme')==='dark';if(d){document.documentElement.removeAttribute('data-theme');localStorage.setItem('theme','light');upd(false);}else{document.documentElement.setAttribute('data-theme','dark');localStorage.setItem('theme','dark');upd(true);}}
@@ -275,7 +299,173 @@ async function analyzeFile() {
   }
 }
 
+// ══════════════════════════════════════════════════════════════════════════
+// Разбор (нарратив/карта/графики) — porting только РЕНДЕРА из gpx-analyzer/
+// index.html и ActivityAnalysisPage.vue. Вся "умная" калиброванная логика
+// (детекция интервалов, тип бег/ходьба, пороги) уже посчитана на бэкенде
+// (activity_analysis.py) и приходит готовыми фактами в data.analysis —
+// здесь только шаблонизация текста и отрисовка SVG/карты по готовым цифрам.
+// ══════════════════════════════════════════════════════════════════════════
+function fmtDur(sec) {
+  sec = Math.round(sec);
+  var h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), s = sec % 60;
+  return h > 0 ? h + ':' + String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0') : m + ':' + String(s).padStart(2, '0');
+}
+function plural(n) { var m = n % 10, m100 = n % 100; if (m100 >= 11 && m100 <= 14) return 'ов'; if (m === 1) return ''; if (m >= 2 && m <= 4) return 'а'; return 'ов'; }
+function avgOf(arr) { var v = arr.filter(function(x){return x != null && isFinite(x);}); return v.length ? v.reduce(function(a,b){return a+b;},0) / v.length : 0; }
+
+function buildNarrative(a, splits) {
+  var sentences = [];
+  var badge = 'Равномерная тренировка';
+  var actGen = a.activity_type.type === 'walk' ? 'прогулки' : 'пробежки';
+
+  var iv = a.intervals;
+  if (iv) {
+    badge = iv.kind === 'intervals' ? 'Интервальная тренировка' : 'Фартлек / ускорения';
+    var repDist = Math.round(avgOf(iv.reps.map(function(r){return r.dist_m;})));
+    var repPace = avgOf(iv.reps.map(function(r){return r.pace_min_km;}));
+    var recDist = iv.recoveries.length ? Math.round(avgOf(iv.recoveries.map(function(r){return r.dist_m;}))) : null;
+    var recPace = iv.recoveries.length ? avgOf(iv.recoveries.map(function(r){return r.pace_min_km;})) : null;
+
+    var lead = iv.kind === 'intervals'
+      ? ('Похоже на интервальную тренировку: <strong>' + iv.reps.length + ' повтор' + plural(iv.reps.length) + ' по ~' + repDist + ' м</strong> в темпе <strong>' + fmtPace(repPace) + '/км</strong>')
+      : ('Похоже на фартлек: <strong>' + iv.reps.length + ' ускорени' + (iv.reps.length === 1 ? 'е' : 'й') + '</strong> разной длины (в среднем ~' + repDist + ' м) в темпе около <strong>' + fmtPace(repPace) + '/км</strong>');
+    if (recDist) lead += ', отдых между ними — ~' + recDist + ' м трусцой в темпе ' + fmtPace(recPace) + '/км';
+    lead += '.';
+    sentences.push(lead);
+
+    var wc = [];
+    if (iv.warmup) wc.push('разминка ~' + (iv.warmup.dist_m / 1000).toFixed(2) + ' км');
+    if (iv.cooldown) wc.push('заминка ~' + (iv.cooldown.dist_m / 1000).toFixed(2) + ' км');
+    if (wc.length) sentences.push('Плюс ' + wc.join(' и ') + '.');
+
+    if (iv.extra_reps.length) {
+      var exN = iv.extra_reps.length;
+      var exDist = Math.round(avgOf(iv.extra_reps.map(function(r){return r.dist_m;})));
+      sentences.push((exN === 1 ? 'Ещё был один короткий всплеск' : 'Ещё было ' + exN + ' коротких всплеска') + ' (~' + exDist + ' м) — в набор не считаем: заметно короче остальных повторов или не держит темп плато внутри себя (похоже на случайный скачок — светофор, GPS-шум и т.п.).');
+    }
+  } else {
+    var ns = a.negative_split;
+    if (ns) {
+      if (ns.diff_pct < -1.5) { badge = 'Негативный сплит'; sentences.push('Вторая половина ' + actGen + ' быстрее первой на <strong>' + Math.abs(ns.diff_pct).toFixed(1) + '%</strong> — хороший контроль темпа.'); }
+      else if (ns.diff_pct > 1.5) { badge = 'Позитивный сплит'; sentences.push('Вторая половина медленнее первой на <strong>' + ns.diff_pct.toFixed(1) + '%</strong> — обычно так и есть на длинных или тяжёлых тренировках.'); }
+      else { sentences.push('Темп по дистанции ровный — разница между половинами ' + actGen + ' меньше 1.5%.'); }
+    }
+    if (a.pace_consistency != null) {
+      var c = a.pace_consistency;
+      var stabLabel = c < 0.03 ? 'очень стабильный' : c < 0.07 ? 'стабильный' : 'неровный';
+      sentences.push('Темп по километрам — <strong>' + stabLabel + '</strong> (разброс ' + (c * 100).toFixed(1) + '%).');
+    }
+  }
+
+  if (a.hr_decoupling != null && a.hr_decoupling > 5) {
+    sentences.push('Пульс «подъедает» темп к концу тренировки — эффективность (скорость на удар пульса) упала на <strong>' + a.hr_decoupling.toFixed(1) + '%</strong> во второй половине. Это нормально для длинных/жарких тренировок, но может говорить и о недовосстановлении.');
+  }
+
+  var validSplits = (splits || []).filter(function(s){return s.pace != null;});
+  if (validSplits.length) {
+    var best = validSplits.reduce(function(a,b){return (a.pace <= b.pace) ? a : b;});
+    sentences.push('Лучший километр — №' + best.km + ', ' + fmtPace(best.pace) + '/км.');
+  }
+
+  if (a.pauses.count > 0) {
+    sentences.push('Остановок: ' + a.pauses.count + ' (суммарно ' + fmtDur(a.pauses.total_sec) + ').');
+  }
+
+  return { badge: badge, sentences: sentences };
+}
+
+// ── График: та же математика, что TrackChart.vue (SVG viewBox 0..800x0..160) ──
+function renderChart(containerId, title, unit, points, color, opts) {
+  opts = opts || {};
+  var el = document.getElementById(containerId);
+  var valid = points.filter(function(p){return p.y != null && isFinite(p.y);});
+  if (valid.length < 2) { el.innerHTML = ''; return; }
+
+  var W = 800, H = 160, padL = 8, padR = 8, padT = 10, padB = 10;
+  var totalX = points.length ? (points[points.length - 1].x || 1) : 1;
+  var ys = valid.map(function(p){return p.y;});
+  var yMin = Math.min.apply(null, ys), yMax = Math.max.apply(null, ys);
+  var yRange = (yMax - yMin) > 0 ? (yMax - yMin) : 1;
+  var invert = !!opts.invert;
+  var fmtY = opts.fmtY || function(v){return String(Math.round(v));};
+
+  function xPix(x) { return padL + (x / totalX) * (W - padL - padR); }
+  function yPix(y) { var t = (y - yMin) / yRange; if (invert) t = 1 - t; return padT + (1 - t) * (H - padT - padB); }
+
+  var linePts = valid.map(function(p){return xPix(p.x) + ',' + yPix(p.y);}).join(' ');
+  var base = H - padB;
+  var areaPts = xPix(valid[0].x) + ',' + base + ' ' + linePts + ' ' + xPix(valid[valid.length-1].x) + ',' + base;
+  var gridYs = [yPix(yMin), yPix((yMin+yMax)/2), yPix(yMax)];
+
+  var bandRects = (opts.bands || []).map(function(b) {
+    var x = xPix(b.from_m), w = Math.max(1, xPix(b.to_m) - x);
+    return '<rect x="' + x + '" y="' + padT + '" width="' + w + '" height="' + (H-padT-padB) + '" fill="var(--brand)" opacity="0.14"></rect>';
+  }).join('');
+
+  var gridLines = gridYs.map(function(y) {
+    return '<line x1="' + padL + '" y1="' + y + '" x2="' + (W-padR) + '" y2="' + y + '" stroke="var(--border)" stroke-width="1"></line>';
+  }).join('');
+
+  el.innerHTML =
+    '<div class="tchart-head"><span class="tchart-title">' + title + '</span><span class="tchart-unit">' + unit + '</span></div>' +
+    '<svg viewBox="0 0 ' + W + ' ' + H + '" class="tchart-svg" preserveAspectRatio="none">' +
+      gridLines + bandRects +
+      '<polygon points="' + areaPts + '" fill="' + color + '" opacity="0.12"></polygon>' +
+      '<polyline points="' + linePts + '" fill="none" stroke="' + color + '" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"></polyline>' +
+    '</svg>' +
+    '<div class="tchart-labels"><span>' + fmtY(yMax) + '</span><span class="tchart-x">0 — ' + (totalX/1000).toFixed(1) + ' км</span><span>' + fmtY(yMin) + '</span></div>';
+}
+
+// ── Карта: полилиния, окрашенная по относительному темпу (как в прототипе) ──
+var _mapInstance = null;
+function renderMap(points) {
+  var mapWrap = document.getElementById('map-wrap');
+  mapWrap.innerHTML = '<div class="map-card"><div id="analysis-map"></div></div>';
+  if (_mapInstance) { _mapInstance.remove(); _mapInstance = null; }
+  if (!points.length) return;
+
+  _mapInstance = L.map('analysis-map', { zoomControl: true, attributionControl: true });
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+    maxZoom: 20, subdomains: 'abcd',
+    attribution: '&copy; OpenStreetMap &copy; CARTO',
+  }).addTo(_mapInstance);
+
+  var paces = [], segPaces = [null];
+  for (var i = 1; i < points.length; i++) {
+    var dDistKm = points[i].dist - points[i-1].dist;
+    var dTsec = (points[i].t || 0) - (points[i-1].t || 0);
+    var pace = (dTsec > 0 && dDistKm > 0) ? (dTsec/60)/dDistKm : null;
+    segPaces.push(pace);
+    if (pace != null) paces.push(pace);
+  }
+  paces.sort(function(a,b){return a-b;});
+  function quantile(q) { return paces.length ? paces[Math.min(paces.length-1, Math.floor(q*paces.length))] : 0; }
+  var q20 = quantile(0.2), q40 = quantile(0.4), q60 = quantile(0.6), q80 = quantile(0.8);
+  var ramp = ['#C2440E', '#F85C1E', '#F8834B', '#FBB489', '#FDE4D3'];
+  function bucketColor(p) {
+    if (p == null) return ramp[2];
+    if (p <= q20) return ramp[0]; if (p <= q40) return ramp[1]; if (p <= q60) return ramp[2]; if (p <= q80) return ramp[3];
+    return ramp[4];
+  }
+
+  var bounds = [];
+  for (var j = 1; j < points.length; j++) {
+    var seg = [[points[j-1].lat, points[j-1].lon], [points[j].lat, points[j].lon]];
+    L.polyline(seg, { color: bucketColor(segPaces[j]), weight: 4, opacity: 0.95, lineCap: 'round', lineJoin: 'round' }).addTo(_mapInstance);
+    bounds.push(seg[0], seg[1]);
+  }
+  if (bounds.length) {
+    L.circleMarker([points[0].lat, points[0].lon], { radius: 7, color: '#fff', weight: 2, fillColor: '#16A34A', fillOpacity: 1 }).addTo(_mapInstance).bindTooltip('Старт');
+    L.circleMarker([points[points.length-1].lat, points[points.length-1].lon], { radius: 7, color: '#fff', weight: 2, fillColor: '#DC2626', fillOpacity: 1 }).addTo(_mapInstance).bindTooltip('Финиш');
+    _mapInstance.fitBounds(bounds, { padding: [24, 24] });
+  }
+  setTimeout(function(){ if (_mapInstance) _mapInstance.invalidateSize(); }, 60);
+}
+
 function renderResult(data) {
+  var a = data.analysis;
+
   var tiles = [
     { label: 'Дистанция', value: data.distance_km != null ? data.distance_km.toFixed(2) : '—', unit: 'км' },
     { label: 'Время', value: data.duration_min != null ? fmtDuration(data.duration_min) : '—', unit: '' },
@@ -285,23 +475,101 @@ function renderResult(data) {
     { label: 'Каденс', value: data.avg_cadence ?? '—', unit: data.avg_cadence ? 'шаг/мин' : '' },
     { label: 'Набор высоты', value: data.elevation_gain != null ? Math.round(data.elevation_gain) : '—', unit: data.elevation_gain != null ? 'м' : '' },
   ];
+  if (a && a.pauses && a.pauses.count > 0) {
+    tiles.push({ label: 'Паузы', value: a.pauses.count, unit: fmtDur(a.pauses.total_sec) });
+  }
   var grid = document.getElementById('stat-grid');
   grid.innerHTML = tiles.map(function(t) {
     return '<div class="stat-tile"><div class="stat-tile-label">' + t.label + '</div>' +
       '<div class="stat-tile-value">' + t.value + ' <span class="stat-tile-unit">' + t.unit + '</span></div></div>';
   }).join('');
 
+  var points = data.track_points || [];
+
+  // Нарратив
+  var narrativeWrap = document.getElementById('narrative-wrap');
+  if (a) {
+    var nar = buildNarrative(a, data.splits);
+    var typeLabel = a.activity_type.type === 'walk' ? 'Ходьба' : 'Бег';
+    narrativeWrap.innerHTML =
+      '<div class="narrative-card"><div class="narrative-badge"><i class="fas fa-robot"></i> ' + nar.badge +
+      '<span class="type-pill">' + typeLabel + '</span></div>' +
+      '<p class="narrative-text">' + nar.sentences.join(' ') + '</p></div>';
+  } else {
+    narrativeWrap.innerHTML = '';
+  }
+
+  // Показываем контейнер результатов ДО инициализации карты — Leaflet должен
+  // мерить реальные, а не нулевые (display:none) размеры контейнера, иначе
+  // fitBounds считает зум по 0-пиксельному вьюпорту и карта улетает на zoom 20
+  // в случайную точку (пустые/неверные тайлы).
+  document.getElementById('result-wrap').classList.add('show');
+
+  // Карта
+  if (points.length) { setTimeout(function(){ renderMap(points); }, 0); } else { document.getElementById('map-wrap').innerHTML = ''; }
+
+  // Разбор интервалов
+  var repsWrap = document.getElementById('reps-wrap');
+  if (a && a.intervals) {
+    var hasRepHr = a.intervals.reps.some(function(r){return r.avg_hr != null;});
+    var rows = a.intervals.reps.map(function(r, i) {
+      return '<tr><td>' + (i+1) + '</td><td>' + Math.round(r.dist_m) + ' м</td><td>' + fmtPace(r.pace_min_km) + '/км</td>' +
+        (hasRepHr ? '<td>' + (r.avg_hr ?? '—') + '</td>' : '') + '</tr>';
+    }).join('');
+    var recNote = '';
+    if (a.intervals.recoveries.length) {
+      var recDist = Math.round(avgOf(a.intervals.recoveries.map(function(r){return r.dist_m;})));
+      var recPace = avgOf(a.intervals.recoveries.map(function(r){return r.pace_min_km;}));
+      recNote = '<p class="rec-note"><i class="fas fa-person-walking"></i> Отдых между повторами: ~' + recDist + ' м, ' + fmtPace(recPace) + '/км</p>';
+    }
+    repsWrap.innerHTML = '<div class="section-label"><i class="fas fa-rotate"></i> Повторы</div>' +
+      '<div class="tbl-wrap"><table><thead><tr><th>#</th><th>Дист.</th><th>Темп</th>' + (hasRepHr ? '<th>♥</th>' : '') + '</tr></thead><tbody>' + rows + '</tbody></table></div>' + recNote;
+  } else {
+    repsWrap.innerHTML = '';
+  }
+
+  // Графики
+  var chartsWrap = document.getElementById('charts-wrap');
+  chartsWrap.innerHTML =
+    '<div class="tchart" id="chart-pace"></div>' +
+    '<div class="tchart" id="chart-ele"></div>' +
+    '<div class="tchart" id="chart-hr"></div>' +
+    '<div class="tchart" id="chart-cad"></div>';
+
+  if (points.length >= 2) {
+    var pacePoints = [{ x: 0, y: null }];
+    for (var i = 1; i < points.length; i++) {
+      var dDistKm = points[i].dist - points[i-1].dist;
+      var dTsec = (points[i].t || 0) - (points[i-1].t || 0);
+      var pace = (dTsec > 0 && dDistKm > 0) ? (dTsec/60)/dDistKm : null;
+      pacePoints.push({ x: points[i].dist * 1000, y: pace });
+    }
+    var elePoints = points.map(function(p){return { x: p.dist*1000, y: p.ele ?? null };});
+    var hrPoints  = points.map(function(p){return { x: p.dist*1000, y: p.hr ?? null };});
+    var cadPoints = points.map(function(p){return { x: p.dist*1000, y: p.cad ?? null };});
+    var fastBands = (a && a.intervals) ? a.intervals.segments.filter(function(s){return s.cls === 'fast';}).map(function(s){return { from_m: s.from_m, to_m: s.to_m };}) : [];
+
+    renderChart('chart-pace', 'Темп', 'мин/км', pacePoints, 'var(--brand)', { invert: true, bands: fastBands, fmtY: fmtPace });
+    if (elePoints.some(function(p){return p.y != null;})) renderChart('chart-ele', 'Высота', 'м', elePoints, '#10b981', {});
+    else document.getElementById('chart-ele').remove();
+    if (hrPoints.some(function(p){return p.y != null;})) renderChart('chart-hr', 'Пульс', 'уд/мин', hrPoints, 'var(--red)', { bands: fastBands });
+    else document.getElementById('chart-hr').remove();
+    if (cadPoints.some(function(p){return p.y != null;})) renderChart('chart-cad', 'Каденс', 'шаг/мин', cadPoints, '#2563EB', { bands: fastBands });
+    else document.getElementById('chart-cad').remove();
+  } else {
+    chartsWrap.innerHTML = '';
+  }
+
   var splitsWrap = document.getElementById('splits-wrap');
   if (data.splits && data.splits.length) {
-    var rows = data.splits.map(function(s) {
+    var srows = data.splits.map(function(s) {
       return '<tr><td><strong>' + s.km + ' км</strong></td><td>' + fmtPace(s.pace) + ' /км</td><td>' + (s.avg_hr ?? '—') + '</td></tr>';
     }).join('');
-    splitsWrap.innerHTML = '<div class="tbl-wrap"><table><thead><tr><th>Км</th><th>Темп</th><th>Ср. пульс</th></tr></thead><tbody>' + rows + '</tbody></table></div>';
+    splitsWrap.innerHTML = '<div class="section-label"><i class="fas fa-stopwatch"></i> Сплиты по км</div><div class="tbl-wrap"><table><thead><tr><th>Км</th><th>Темп</th><th>Ср. пульс</th></tr></thead><tbody>' + srows + '</tbody></table></div>';
   } else {
     splitsWrap.innerHTML = '';
   }
 
-  document.getElementById('result-wrap').classList.add('show');
   document.getElementById('result-wrap').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 </script>
