@@ -1,5 +1,6 @@
 # app/routers/tools.py
 """Публичные бесплатные инструменты (лид-магниты) — без авторизации."""
+import math
 import time
 
 import httpx
@@ -80,6 +81,30 @@ ORS_MAX_M = 100000          # потолок длины маршрута у бе
 _LOOP_TOL = 0.05            # целимся в ±5% по длине кольца
 _LOOP_TRIES = 5            # попыток коррекции длины
 _LOOP_POINTS = 4
+_EARTH_R = 6_371_000
+
+
+def _haversine_m(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    p1, p2 = math.radians(lat1), math.radians(lat2)
+    dphi, dlam = math.radians(lat2 - lat1), math.radians(lon2 - lon1)
+    a = math.sin(dphi / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(dlam / 2) ** 2
+    return _EARTH_R * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+
+
+def _bearing_deg(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    p1, p2, dlam = math.radians(lat1), math.radians(lat2), math.radians(lon2 - lon1)
+    y = math.sin(dlam) * math.cos(p2)
+    x = math.cos(p1) * math.sin(p2) - math.sin(p1) * math.cos(p2) * math.cos(dlam)
+    return math.degrees(math.atan2(y, x)) % 360
+
+
+def _offset_point(lat: float, lon: float, bearing_deg: float, dist_m: float) -> tuple[float, float]:
+    br, lat1, lon1 = math.radians(bearing_deg), math.radians(lat), math.radians(lon)
+    d_r = dist_m / _EARTH_R
+    lat2 = math.asin(math.sin(lat1) * math.cos(d_r) + math.cos(lat1) * math.sin(d_r) * math.cos(br))
+    lon2 = lon1 + math.atan2(math.sin(br) * math.sin(d_r) * math.cos(lat1),
+                              math.cos(d_r) - math.sin(lat1) * math.sin(lat2))
+    return math.degrees(lat2), math.degrees(lon2)
 
 
 class Point(BaseModel):
@@ -136,11 +161,52 @@ async def generate_route(req: RouteRequest, request: Request):
             return data["features"][0]
 
         if not loop:
-            body = {"coordinates": [[req.start.lng, req.start.lat], [req.finish.lng, req.finish.lat]],
-                    "elevation": True, "instructions": False}
-            if avoid:
-                body["options"] = {"avoid_features": avoid}
-            feat = await call(body)
+            async def route_via(via: tuple[float, float] | None) -> dict:
+                coords = [[req.start.lng, req.start.lat]]
+                if via:
+                    coords.append([via[1], via[0]])
+                coords.append([req.finish.lng, req.finish.lat])
+                body = {"coordinates": coords, "elevation": True, "instructions": False}
+                if avoid:
+                    body["options"] = {"avoid_features": avoid}
+                return await call(body)
+
+            direct_dist = _haversine_m(req.start.lat, req.start.lng, req.finish.lat, req.finish.lng)
+            target = km * 1000
+
+            # Раньше старт+финиш всегда давали кратчайший путь между ними, полностью
+            # игнорируя заданную дистанцию — если цель короче прямой (или точки почти
+            # совпали), тянуть уже некуда, отдаём прямой маршрут как есть.
+            if target <= direct_dist * 1.05 or direct_dist < 50:
+                feat = await route_via(None)
+            else:
+                # Иначе гоним маршрут через одну доп. точку-«пузырь», смещённую
+                # перпендикулярно прямой старт-финиш — расстояние смещения подбираем
+                # из треугольника (эффорт: 2*sqrt(half²+bulge²) ≈ target), затем
+                # уточняем по факту, как для кольца (реальные дороги всегда петляют
+                # больше идеальной прямой). seed выбирает сторону/угол — так «Другой»
+                # даёт заметно другой маршрут, а не тот же самый.
+                bearing = _bearing_deg(req.start.lat, req.start.lng, req.finish.lat, req.finish.lng)
+                side = 1 if (req.seed % 2 == 0) else -1
+                jitter = (req.seed % 41) - 20  # ±20° для разнообразия вариантов на тот же seed-чёт/нечёт
+                perp = (bearing + side * 90 + jitter) % 360
+                mid_lat = (req.start.lat + req.finish.lat) / 2
+                mid_lon = (req.start.lng + req.finish.lng) / 2
+
+                half, half_target = direct_dist / 2, target / 2
+                bulge = math.sqrt(max(0.0, half_target ** 2 - half ** 2))
+                best, best_err = None, float("inf")
+                for _ in range(_LOOP_TRIES):
+                    via_pt = _offset_point(mid_lat, mid_lon, perp, max(30.0, bulge))
+                    feat = await route_via(via_pt)
+                    act = (feat["properties"].get("summary") or {}).get("distance") or 0
+                    err = abs(act - target) / target if target else 1
+                    if err < best_err:
+                        best_err, best = err, feat
+                    if err <= _LOOP_TOL or not act:
+                        break
+                    bulge = max(30.0, min(target * 0.7, bulge * (target / act) if act else bulge * 1.3))
+                feat = best
         else:
             target = km * 1000
             reqlen = target
