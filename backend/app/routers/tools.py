@@ -161,10 +161,9 @@ async def generate_route(req: RouteRequest, request: Request):
             return data["features"][0]
 
         if not loop:
-            async def route_via(via: tuple[float, float] | None) -> dict:
+            async def route_via(vias: list[tuple[float, float]]) -> dict:
                 coords = [[req.start.lng, req.start.lat]]
-                if via:
-                    coords.append([via[1], via[0]])
+                coords += [[v[1], v[0]] for v in vias]
                 coords.append([req.finish.lng, req.finish.lat])
                 body = {"coordinates": coords, "elevation": True, "instructions": False}
                 if avoid:
@@ -178,34 +177,42 @@ async def generate_route(req: RouteRequest, request: Request):
             # игнорируя заданную дистанцию — если цель короче прямой (или точки почти
             # совпали), тянуть уже некуда, отдаём прямой маршрут как есть.
             if target <= direct_dist * 1.05 or direct_dist < 50:
-                feat = await route_via(None)
+                feat = await route_via([])
             else:
-                # Иначе гоним маршрут через одну доп. точку-«пузырь», смещённую
-                # перпендикулярно прямой старт-финиш — расстояние смещения подбираем
-                # из треугольника (эффорт: 2*sqrt(half²+bulge²) ≈ target), затем
-                # уточняем по факту, как для кольца (реальные дороги всегда петляют
-                # больше идеальной прямой). seed выбирает сторону/угол — так «Другой»
-                # даёт заметно другой маршрут, а не тот же самый.
+                # Первая версия сдвигала обе via-точки на 28%/72% хорды старт-финиш.
+                # Это разваливалось именно в самом частом случае — старт и финиш
+                # близко друг к другу, а цель намного длиннее прямой (почти кольцо
+                # с чуть разнесёнными концами): 28%/72% тоже оказываются рядом на
+                # крошечной хорде, и после одинакового смещения «наружу» обе точки
+                # остаются в паре десятков метров друг от друга — «туда» и «обратно»
+                # снова идут по одному коридору. Разносим via-точки не вдоль хорды
+                # (она может быть нулевой), а вдоль радиуса петли — одна ближе к
+                # стороне старта, другая ближе к стороне финиша, — так расстояние
+                # между ними растёт вместе с петлёй, а не с расстоянием старт-финиш.
                 bearing = _bearing_deg(req.start.lat, req.start.lng, req.finish.lat, req.finish.lng)
                 side = 1 if (req.seed % 2 == 0) else -1
                 jitter = (req.seed % 41) - 20  # ±20° для разнообразия вариантов на тот же seed-чёт/нечёт
-                perp = (bearing + side * 90 + jitter) % 360
+                out_bearing = (bearing + side * 90 + jitter) % 360
                 mid_lat = (req.start.lat + req.finish.lat) / 2
                 mid_lon = (req.start.lng + req.finish.lng) / 2
 
                 half, half_target = direct_dist / 2, target / 2
-                bulge = math.sqrt(max(0.0, half_target ** 2 - half ** 2))
+                radius = math.sqrt(max(0.0, half_target ** 2 - half ** 2))
                 best, best_err = None, float("inf")
                 for _ in range(_LOOP_TRIES):
-                    via_pt = _offset_point(mid_lat, mid_lon, perp, max(30.0, bulge))
-                    feat = await route_via(via_pt)
+                    r = max(60.0, radius)
+                    width = r * 0.8  # ширина петли — доля радиуса, не хорды
+                    center_lat, center_lon = _offset_point(mid_lat, mid_lon, out_bearing, r)
+                    via1 = _offset_point(center_lat, center_lon, (bearing + 180) % 360, width / 2)  # к стороне старта
+                    via2 = _offset_point(center_lat, center_lon, bearing, width / 2)                # к стороне финиша
+                    feat = await route_via([via1, via2])
                     act = (feat["properties"].get("summary") or {}).get("distance") or 0
                     err = abs(act - target) / target if target else 1
                     if err < best_err:
                         best_err, best = err, feat
                     if err <= _LOOP_TOL or not act:
                         break
-                    bulge = max(30.0, min(target * 0.7, bulge * (target / act) if act else bulge * 1.3))
+                    radius = max(60.0, min(target * 0.7, radius * (target / act) if act else radius * 1.3))
                 feat = best
         else:
             target = km * 1000
