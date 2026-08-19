@@ -266,7 +266,7 @@ watch(() => route.params.id, load)
 .narrative-text { font-size: .92rem; line-height: 1.65; color: var(--text-2); }
 .narrative-text :deep(strong) { color: var(--text); }
 
-.map-card { padding: 0; overflow: hidden; }
+.map-card { position: relative; z-index: 0; padding: 0; overflow: hidden; }
 #analysis-map { height: 340px; width: 100%; }
 
 .section-label { font-weight: 700; font-size: .88rem; color: var(--text); margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
@@ -275,10 +275,4 @@ watch(() => route.params.id, load)
 .splits-table td { padding: 6px 8px; border-top: 1px solid var(--border); color: var(--text-2); }
 .rec-note { margin-top: 10px; font-size: .82rem; color: var(--text-3); }
 .empty-state { text-align: center; padding: 40px 0; color: var(--text-2); }
-</style>
-
-<style>
-:root[data-theme="dark"] #analysis-map .leaflet-tile-pane {
-  filter: invert(.94) hue-rotate(190deg) saturate(.6) brightness(.9) contrast(1.08);
-}
 </style>

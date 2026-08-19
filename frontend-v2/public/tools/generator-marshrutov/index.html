@@ -78,10 +78,8 @@ a{color:var(--brand);text-decoration:none}
 .panel::-webkit-scrollbar-thumb,body::-webkit-scrollbar-thumb{background:var(--brand);background-clip:content-box;border:3px solid transparent;border-radius:99px}
 .panel::-webkit-scrollbar-thumb:hover,body::-webkit-scrollbar-thumb:hover{background:var(--brand-hover);background-clip:content-box}
 .map-wrap{position:relative;overflow:hidden}
-/* Тёмная тема = тот же Voyager, инвертированный в тёмный — так здания/кварталы
-   остаются видны (Dark Matter их почти не рисует). Фильтр ТОЛЬКО на слой тайлов,
-   поэтому маркер и линия маршрута в других panes не тускнеют. */
-:root[data-theme="dark"] .leaflet-tile-pane{filter:invert(.94) hue-rotate(190deg) saturate(.6) brightness(.9) contrast(1.08)}
+/* Карта всегда светлая (Voyager) независимо от темы сайта — инвертированный
+   тёмный вариант давал плохую видимость улиц/маршрута, отказались от него. */
 #map{position:absolute;inset:0;background:var(--surface-2)}
 
 .brand{display:flex;align-items:center;gap:11px;padding:18px 22px;border-bottom:1px solid var(--border)}

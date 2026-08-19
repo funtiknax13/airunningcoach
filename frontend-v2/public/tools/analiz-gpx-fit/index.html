@@ -81,9 +81,11 @@
     .type-pill{margin-left:4px;font-size:0.68rem;font-weight:700;text-transform:none;color:var(--text-2);background:var(--surface);border:1px solid var(--border);border-radius:99px;padding:2px 9px}
     .narrative-text{font-size:0.92rem;line-height:1.65;color:var(--text-2)}
     .narrative-text strong{color:var(--text)}
-    .map-card{border:1px solid var(--border);border-radius:var(--r-lg);overflow:hidden;margin:20px 0}
+    /* position+z-index — иначе внутренние Leaflet-панели (z-index 200-700 в их
+       собственном CSS) сравниваются глобально с z-index sticky-навбара (50) и
+       всплывают НАД ним при скролле; так карта остаётся в своём стек-контексте. */
+    .map-card{position:relative;z-index:0;border:1px solid var(--border);border-radius:var(--r-lg);overflow:hidden;margin:20px 0}
     #analysis-map{height:320px;width:100%;background:var(--surface-2)}
-    :root[data-theme="dark"] #analysis-map .leaflet-tile-pane{filter:invert(.94) hue-rotate(190deg) saturate(.6) brightness(.9) contrast(1.08)}
     .rec-note{margin-top:10px;font-size:0.82rem;color:var(--text-3)}
     .tchart{padding:4px 0;margin:20px 0}
     .tchart-head{display:flex;align-items:baseline;gap:8px;margin-bottom:6px}
