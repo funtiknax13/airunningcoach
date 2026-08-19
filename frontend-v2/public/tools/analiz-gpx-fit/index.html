@@ -152,7 +152,7 @@
           <div class="dropzone" id="dropzone" onclick="document.getElementById('file-input').click()">
             <div class="dropzone-icon"><i class="fas fa-cloud-arrow-up"></i></div>
             <div class="dropzone-text">Перетащите файл сюда или нажмите, чтобы выбрать</div>
-            <div class="dropzone-hint">.GPX или .FIT · максимум 5 МБ</div>
+            <div class="dropzone-hint">.GPX или .FIT · максимум 15 МБ</div>
             <input type="file" id="file-input" accept=".gpx,.fit">
           </div>
           <div class="file-chip" id="file-chip">
@@ -244,8 +244,8 @@ function setFile(file) {
     errEl.textContent = 'Поддерживаются только файлы .gpx и .fit';
     return;
   }
-  if (file.size > 5 * 1024 * 1024) {
-    errEl.textContent = 'Файл слишком большой (максимум 5 МБ)';
+  if (file.size > 15 * 1024 * 1024) {
+    errEl.textContent = 'Файл слишком большой (максимум 15 МБ)';
     return;
   }
   selectedFile = file;

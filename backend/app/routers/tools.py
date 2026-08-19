@@ -13,7 +13,7 @@ from app.services.fit_parser import parse_fit
 
 router = APIRouter(prefix="/tools", tags=["tools"])
 
-MAX_FILE_SIZE = 5 * 1024 * 1024  # 5 МБ — с запасом для трека в несколько часов
+MAX_FILE_SIZE = 15 * 1024 * 1024  # 15 МБ — с запасом для сверхдлинных (100+ км) тренировок
 RATE_LIMIT = 20        # запросов
 RATE_WINDOW = 3600.0   # за час, на IP
 
@@ -39,7 +39,7 @@ async def analyze_public_activity(request: Request, file: UploadFile = File(...)
 
     content = await file.read()
     if len(content) > MAX_FILE_SIZE:
-        raise HTTPException(status_code=413, detail="Файл слишком большой (максимум 5 МБ)")
+        raise HTTPException(status_code=413, detail="Файл слишком большой (максимум 15 МБ)")
 
     filename = (file.filename or "").lower()
     if not (filename.endswith(".gpx") or filename.endswith(".fit")):
