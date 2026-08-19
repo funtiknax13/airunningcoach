@@ -188,9 +188,25 @@ input[type=range]::-moz-range-thumb{width:19px;height:19px;border-radius:50%;bac
   .app{display:block;height:100dvh}
   .map-wrap{position:fixed;top:56px;left:0;right:0;height:max(34vh,240px);z-index:1;order:unset}
   #map{position:absolute}
-  .panel{position:fixed;top:calc(56px + max(34vh,240px));left:0;right:0;bottom:0;border-right:none;order:unset}
+  /* Панель по умолчанию начинается сразу под картой; когда появляется
+     результат (см. .result ниже), JS добавляет body.has-result и выставляет
+     --result-h по реальной высоте карточки — панель отъезжает ровно на
+     столько же, поэтому её собственное содержимое (начиная с «Тип
+     активности») никогда не оказывается под карточкой, даже прокрученное
+     в самый верх. */
+  .panel{position:fixed;top:calc(56px + max(34vh,240px));left:0;right:0;bottom:0;border-right:none;order:unset;
+    transition:top .35s cubic-bezier(.16,1,.3,1)}
+  body.has-result .panel{top:calc(56px + max(34vh,240px) + var(--result-h,0px))}
   .actions{margin-top:0}
-  .result{max-width:none;padding:13px 16px}
+  /* Результат больше НЕ лежит поверх карты (внутри .map-wrap визуально) —
+     он свой фиксированный блок, пристыкованный ровно к нижнему краю карты,
+     во всю ширину. Раньше он перекрывал существенную часть и без того
+     небольшой мобильной карты. */
+  .result{position:fixed;left:0;right:0;bottom:auto;top:calc(56px + max(34vh,240px));max-width:none;
+    border-radius:0 0 var(--r-lg) var(--r-lg);padding:13px 16px;z-index:3;
+    opacity:0;visibility:hidden;transform:translateY(-10px);
+    transition:opacity .3s ease,transform .3s ease,visibility 0s .3s}
+  .result.show{opacity:1;visibility:visible;transform:translateY(0);transition:opacity .3s ease,transform .3s ease}
   .result-top{margin-bottom:9px}
   .result-stats{margin-bottom:10px;gap:6px}
   .stat{padding:6px 9px;font-size:.76rem}
@@ -482,6 +498,13 @@ function drawRoute(data, loop){
   $('r-asc').textContent  = asc!=null ? asc : '—';
   $('r-pace').textContent = state.mode==='bike' ? (dist/(mins/60)).toFixed(1)+' км/ч' : fmtPace(mins/dist);
   $('result').classList.add('show'); $('variant').disabled=false;
+  // На мобиле результат — свой фиксированный блок под картой (см. CSS), а не
+  // оверлей поверх неё; панель настроек отъезжает вниз на его реальную высоту,
+  // чтобы не перекрыть собственное содержимое панели, даже прокрученное наверх.
+  // На десктопе (.result остаётся position:absolute) переменная просто не
+  // используется вне мобильного медиазапроса.
+  document.body.classList.add('has-result');
+  document.documentElement.style.setProperty('--result-h', $('result').getBoundingClientRect().height+'px');
   toast('Маршрут готов: '+dist.toFixed(1)+' км');
 }
 function fmtTime(min){ var h=Math.floor(min/60),m=Math.round(min%60); return h>0?(h+' ч '+m+' мин'):(m+' мин'); }
