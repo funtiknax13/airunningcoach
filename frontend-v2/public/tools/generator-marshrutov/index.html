@@ -19,6 +19,12 @@
 <link rel="icon" type="image/x-icon" href="/favicon.ico">
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"WebApplication","name":"Генератор маршрутов для бега","url":"https://airunningcoach.pro/tools/generator-marshrutov/","applicationCategory":"SportsApplication","operatingSystem":"Any","offers":{"@type":"Offer","price":"0","priceCurrency":"RUB"},"inLanguage":"ru"}</script>
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Главная","item":"https://airunningcoach.pro/"},{"@type":"ListItem","position":2,"name":"Инструменты","item":"https://airunningcoach.pro/tools/"},{"@type":"ListItem","position":3,"name":"Генератор маршрутов","item":"https://airunningcoach.pro/tools/generator-marshrutov/"}]}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[
+  {"@type":"Question","name":"Как генератор попадает в нужную дистанцию?","acceptedAnswer":{"@type":"Answer","text":"Для кольца — итеративно подбирает длину петли по факту построенного маршрута. Для старт+финиш — вставляет доп. точку-крюк нужного размера и тоже уточняет по факту: реальные дороги всегда длиннее прямой линии, поэтому один запрос редко попадает точно с первого раза."}},
+  {"@type":"Question","name":"Можно ли задать и старт, и финиш, а не только кольцо?","acceptedAnswer":{"@type":"Answer","text":"Да. Без финиша строится кольцо от старта заданной длины. С финишем — маршрут из точки в точку, тоже подогнанный под заданную дистанцию, если по прямой между точками короче."}},
+  {"@type":"Question","name":"Чем «Город» отличается от «Тропы и парки»?","acceptedAnswer":{"@type":"Answer","text":"Это разные профили маршрутизации: «Город» держится улиц и тротуаров, «Тропы и парки» — предпочитает грунтовые дорожки, парки и природные зоны там, где они есть поблизости."}},
+  {"@type":"Question","name":"Можно ли скачать построенный маршрут на часы?","acceptedAnswer":{"@type":"Answer","text":"Да, кнопка «Скачать GPX» отдаёт файл в стандартном формате GPX — его понимают часы Garmin, Coros, Suunto и большинство спортивных приложений."}}
+]}</script>
 <script>(function(){var t=localStorage.getItem('theme')||(window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.setAttribute('data-theme',t);})();</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -152,6 +158,14 @@ input[type=range]::-moz-range-thumb{width:19px;height:19px;border-radius:50%;bac
 .cta-mini-btn{display:inline-block;background:#fff;color:var(--brand);font-weight:700;font-size:.82rem;padding:9px 16px;border-radius:var(--r-md);transition:.2s}
 .cta-mini-btn:hover{box-shadow:0 6px 16px rgba(0,0,0,.2);transform:translateY(-1px)}
 .cta-mini-note{font-size:.72rem;opacity:.82;margin-top:9px}
+.faq-mini{padding:0 22px 22px}
+.faq-mini-title{font-size:.72rem;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--text-3);margin-bottom:12px}
+.faq-item{border:1px solid var(--border);border-radius:var(--r);padding:12px 14px;margin-bottom:8px;background:var(--surface)}
+.faq-item summary{font-weight:700;cursor:pointer;list-style:none;display:flex;align-items:center;justify-content:space-between;gap:10px;color:var(--text);font-size:.85rem}
+.faq-item summary::-webkit-details-marker{display:none}
+.faq-item summary::after{content:'+';color:var(--brand);font-size:1.1rem;font-weight:400;flex:none}
+.faq-item[open] summary::after{content:'\2212'}
+.faq-item p{margin-top:8px;margin-bottom:0;color:var(--text-2);font-size:.82rem;line-height:1.5}
 
 .result{position:absolute;left:16px;bottom:16px;right:16px;max-width:420px;background:var(--surface);border:1px solid var(--border);
   border-radius:var(--r-lg);box-shadow:var(--shadow-lg);padding:16px 18px;z-index:1000;transform:translateY(140%);transition:transform .4s cubic-bezier(.16,1,.3,1)}
@@ -328,6 +342,26 @@ input[type=range]::-moz-range-thumb{width:19px;height:19px;border-radius:50%;bac
       <div class="cta-mini-text">AI-тренер составит программу под ваши цели и историю пробежек.</div>
       <a href="/?register=1&utm_source=tools&utm_medium=cta&utm_campaign=generator-marshrutov" class="cta-mini-btn">Построить план бесплатно →</a>
       <div class="cta-mini-note">14 дней Premium бесплатно · без карты</div>
+    </div>
+
+    <div class="faq-mini">
+      <div class="faq-mini-title">Частые вопросы</div>
+      <details class="faq-item">
+        <summary>Как генератор попадает в нужную дистанцию?</summary>
+        <p>Для кольца — итеративно подбирает длину петли по факту построенного маршрута. Для старт+финиш — вставляет доп. точку-крюк нужного размера и тоже уточняет по факту: реальные дороги всегда длиннее прямой линии, поэтому один запрос редко попадает точно с первого раза.</p>
+      </details>
+      <details class="faq-item">
+        <summary>Можно ли задать и старт, и финиш, а не только кольцо?</summary>
+        <p>Да. Без финиша строится кольцо от старта заданной длины. С финишем — маршрут из точки в точку, тоже подогнанный под заданную дистанцию, если по прямой между точками короче.</p>
+      </details>
+      <details class="faq-item">
+        <summary>Чем «Город» отличается от «Тропы и парки»?</summary>
+        <p>Это разные профили маршрутизации: «Город» держится улиц и тротуаров, «Тропы и парки» — предпочитает грунтовые дорожки, парки и природные зоны там, где они есть поблизости.</p>
+      </details>
+      <details class="faq-item">
+        <summary>Можно ли скачать построенный маршрут на часы?</summary>
+        <p>Да, кнопка «Скачать GPX» отдаёт файл в стандартном формате GPX — его понимают часы Garmin, Coros, Suunto и большинство спортивных приложений.</p>
+      </details>
     </div>
   </aside>
 

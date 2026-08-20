@@ -32,10 +32,20 @@ AIRunningCoach — веб-приложение с AI-тренером по бе�
 - Premium 4116 руб/год (343 руб/мес, экономия 30%)
 - При регистрации: 14 дней Premium бесплатно, без привязки карты
 
+## Бесплатные инструменты (без регистрации)
+
+- Калькулятор темпа: https://airunningcoach.pro/tools/kalkulyator-tempa/
+- Пульсовые зоны: https://airunningcoach.pro/tools/pulsovye-zony/
+- Прогноз результата: https://airunningcoach.pro/tools/prognoz-rezultata/
+- Нормативы разрядов по бегу: https://airunningcoach.pro/tools/normativy-bega/
+- Анализ GPX/FIT-файлов: https://airunningcoach.pro/tools/analiz-gpx-fit/
+- Генератор маршрутов: https://airunningcoach.pro/tools/generator-marshrutov/
+
 ## Ссылки
 
 - Главная: https://airunningcoach.pro/
-- Регистрация: https://airunningcoach.pro/register
+- Регистрация: https://airunningcoach.pro/?register=1
 - Тарифы: https://airunningcoach.pro/#pricing
 - Машиночитаемые тарифы: https://airunningcoach.pro/pricing.md
 - FAQ: https://airunningcoach.pro/#faq
+- Блог: https://airunningcoach.pro/blog/

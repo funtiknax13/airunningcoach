@@ -20,6 +20,12 @@
   <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon.png">
   <script type="application/ld+json">{"@context":"https://schema.org","@type":"WebApplication","name":"Калькулятор темпа бега","url":"https://airunningcoach.pro/tools/kalkulyator-tempa/","applicationCategory":"SportsApplication","operatingSystem":"Any","offers":{"@type":"Offer","price":"0","priceCurrency":"RUB"},"inLanguage":"ru"}</script>
   <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Главная","item":"https://airunningcoach.pro/"},{"@type":"ListItem","position":2,"name":"Инструменты","item":"https://airunningcoach.pro/tools/"},{"@type":"ListItem","position":3,"name":"Калькулятор темпа бега","item":"https://airunningcoach.pro/tools/kalkulyator-tempa/"}]}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[
+    {"@type":"Question","name":"Как посчитать темп бега вручную?","acceptedAnswer":{"@type":"Answer","text":"Разделите время на дистанцию: темп на км = общее время ÷ дистанция в км. Например, 5 км за 30 минут — это 6:00 на километр. Калькулятор делает это мгновенно и сразу переводит в темп на милю."}},
+    {"@type":"Question","name":"Чем темп на километр отличается от темпа на милю?","acceptedAnswer":{"@type":"Answer","text":"Это одна и та же скорость, просто в разных единицах — 1 миля ≈ 1.609 км. Темп на милю всегда больше темпа на километр в минутах, потому что миля длиннее. В России и Европе принято мерить в темпе на км, в США и Британии — на милю."}},
+    {"@type":"Question","name":"Откуда берутся 5 тренировочных зон под мою цель?","acceptedAnswer":{"@type":"Answer","text":"Целевой темп переводится в эквивалентный результат на 5 км (по формуле Ригеля), а от него уже рассчитываются восстановительный, аэробный, темповый, пороговый и интервальный темпы — та же логика, что и в пульсовых зонах, только через темп, а не пульс."}},
+    {"@type":"Question","name":"Насколько точен этот темп в реальной тренировке?","acceptedAnswer":{"@type":"Answer","text":"Это отправная точка, а не гарантия — реальный комфортный темп зависит от рельефа, погоды, усталости и текущей формы. AI-тренер уточняет зоны по мере роста результатов, опираясь на историю ваших реальных пробежек, а не только на формулу."}}
+  ]}</script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
@@ -73,6 +79,12 @@
     .zone-pace{font-size:0.9rem;font-weight:700;color:var(--text);white-space:nowrap;text-align:right;font-variant-numeric:tabular-nums}
     .cta-block{background:linear-gradient(135deg,var(--brand) 0%,#FF6B35 100%);border-radius:var(--r-xl);padding:48px 40px;text-align:center;color:white;margin:48px 0 0}.cta-block h2{font-size:1.7rem;font-weight:800;letter-spacing:-0.03em;margin:0 0 12px!important;padding:0!important;color:white}.cta-block p{font-size:1rem;opacity:0.88;margin-bottom:28px;color:white}.btn-white{background:white;color:var(--brand);padding:13px 32px;border-radius:var(--r-md);border:none;font-size:0.95rem;font-weight:700;font-family:var(--font);cursor:pointer;transition:all 0.2s;display:inline-block;text-decoration:none}.btn-white:hover{box-shadow:0 8px 24px rgba(0,0,0,0.2);transform:translateY(-2px)}.cta-note{font-size:0.8rem;opacity:0.7;margin-top:12px}
     hr{border:none;border-top:1px solid var(--border);margin:32px 0}
+    .faq-item{border:1px solid var(--border);border-radius:var(--r-md);padding:16px 20px;margin-bottom:10px;background:var(--surface)}
+    .faq-item summary{font-weight:700;cursor:pointer;list-style:none;display:flex;align-items:center;justify-content:space-between;gap:12px;color:var(--text)}
+    .faq-item summary::-webkit-details-marker{display:none}
+    .faq-item summary::after{content:'+';color:var(--brand);font-size:1.3rem;font-weight:400;flex:none}
+    .faq-item[open] summary::after{content:'\2212'}
+    .faq-item p{margin-top:10px;margin-bottom:0;color:var(--text-2)}
     .sidebar{position:sticky;top:84px}.sidebar-box{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:20px 22px;margin-bottom:16px}.sidebar-title{font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-3);margin-bottom:14px}.toc-list{list-style:none}.toc-list li{margin-bottom:2px}.toc-list a{color:var(--text-2);font-size:0.87rem;display:block;padding:5px 0 5px 10px;border-left:2px solid transparent;transition:all 0.15s;line-height:1.4}.toc-list a:hover{color:var(--brand);border-left-color:var(--brand)}.sidebar-cta{background:var(--brand-light);border:1px solid rgba(248,92,30,0.2);border-radius:var(--r-lg);padding:20px 22px;text-align:center}.sidebar-cta p{font-size:0.87rem;color:var(--text-2);margin-bottom:14px;line-height:1.5}.sidebar-cta a{display:block;background:var(--brand);color:white;padding:11px;border-radius:var(--r);font-weight:700;font-size:0.88rem;transition:background 0.2s}.sidebar-cta a:hover{background:var(--brand-hover)}.sidebar-cta .note{font-size:0.75rem;color:var(--text-3);margin-top:10px}
     .landing-footer{border-top:1px solid var(--border);text-align:center;padding:20px 32px;color:var(--text-3);font-size:0.8rem}.footer-links{display:flex;flex-wrap:wrap;justify-content:center;gap:8px 16px;margin-top:8px}.footer-links a{color:var(--text-3)}.footer-links a:hover{color:var(--text-2)}
     @media(max-width:768px){.article-layout{grid-template-columns:1fr;gap:24px}.sidebar{position:static;order:-1}.page-wrap{padding:0 16px}.landing-nav{padding:0 16px;height:56px}.landing-nav-burger{display:flex}.landing-nav-more{display:none;position:absolute;top:calc(100% + 6px);right:16px;z-index:60;flex-direction:column;align-items:stretch;gap:6px;min-width:170px;padding:8px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r-md);box-shadow:0 10px 30px rgba(0,0,0,0.18)}.landing-nav-more.open{display:flex}.landing-nav-more .btn,.landing-nav-more .theme-btn{width:100%;justify-content:flex-start}.cta-block{padding:32px 20px}.zone-row{grid-template-columns:32px 1fr auto}.zone-desc{display:none}}
@@ -170,6 +182,24 @@
         <h2 id="kak-schitaem">Как это считается</h2>
         <p>Целевой темп = целевое время ÷ дистанция. Тренировочные зоны рассчитаны от эквивалентного темпа на 5 км (формула Ригеля переводит вашу цель в результат на 5 км), а дальше — те же смещения, что в нашей статье про <a href="/blog/temp-bega-kak-rasschitat/" style="color:var(--brand);font-weight:600">расчёт темпа бега</a>: восстановительный, аэробный, темповый, пороговый и интервальный.</p>
         <p>Это отправная точка. Реальный оптимальный темп зависит от рельефа, погоды, усталости и текущей формы — AI-тренер учитывает историю ваших пробежек и уточняет зоны по мере роста результатов.</p>
+
+        <h2 id="chastye-voprosy">Частые вопросы</h2>
+        <details class="faq-item">
+          <summary>Как посчитать темп бега вручную?</summary>
+          <p>Разделите время на дистанцию: темп на км = общее время ÷ дистанция в км. Например, 5 км за 30 минут — это 6:00 на километр. Калькулятор делает это мгновенно и сразу переводит в темп на милю.</p>
+        </details>
+        <details class="faq-item">
+          <summary>Чем темп на километр отличается от темпа на милю?</summary>
+          <p>Это одна и та же скорость, просто в разных единицах — 1 миля ≈ 1.609 км. Темп на милю всегда больше темпа на километр в минутах, потому что миля длиннее. В России и Европе принято мерить в темпе на км, в США и Британии — на милю.</p>
+        </details>
+        <details class="faq-item">
+          <summary>Откуда берутся 5 тренировочных зон под мою цель?</summary>
+          <p>Целевой темп переводится в эквивалентный результат на 5 км (по формуле Ригеля), а от него уже рассчитываются восстановительный, аэробный, темповый, пороговый и интервальный темпы — та же логика, что и в пульсовых зонах, только через темп, а не пульс.</p>
+        </details>
+        <details class="faq-item">
+          <summary>Насколько точен этот темп в реальной тренировке?</summary>
+          <p>Это отправная точка, а не гарантия — реальный комфортный темп зависит от рельефа, погоды, усталости и текущей формы. AI-тренер уточняет зоны по мере роста результатов, опираясь на историю ваших реальных пробежек, а не только на формулу.</p>
+        </details>
 
         <hr>
         <div class="cta-block">

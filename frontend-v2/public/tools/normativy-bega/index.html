@@ -20,6 +20,12 @@
   <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon.png">
   <script type="application/ld+json">{"@context":"https://schema.org","@type":"WebApplication","name":"Калькулятор разряда по бегу","url":"https://airunningcoach.pro/tools/normativy-bega/","applicationCategory":"SportsApplication","operatingSystem":"Any","offers":{"@type":"Offer","price":"0","priceCurrency":"RUB"},"inLanguage":"ru"}</script>
   <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Главная","item":"https://airunningcoach.pro/"},{"@type":"ListItem","position":2,"name":"Инструменты","item":"https://airunningcoach.pro/tools/"},{"@type":"ListItem","position":3,"name":"Нормативы разрядов по бегу","item":"https://airunningcoach.pro/tools/normativy-bega/"}]}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[
+    {"@type":"Question","name":"Что такое ЕВСК?","acceptedAnswer":{"@type":"Answer","text":"Единая всероссийская спортивная классификация — официальный документ, по которому в России присваиваются спортивные звания и разряды во всех видах спорта, включая бег на всех дистанциях от 60 м до марафона."}},
+    {"@type":"Question","name":"Нужно ли официально подтверждать результат для получения разряда?","acceptedAnswer":{"@type":"Answer","text":"Да. Результат должен быть показан на официальных соревнованиях, включённых в календарный план, и запротоколирован судейской коллегией. Пробежать дистанцию в нужном темпе с личным GPS-треком для присвоения разряда недостаточно."}},
+    {"@type":"Question","name":"Разряды одинаковы для мужчин и женщин?","acceptedAnswer":{"@type":"Answer","text":"Нет, нормативы времени для одного и того же разряда отличаются по полу на всех дистанциях — таблица на этой странице переключается отдельно для мужчин и женщин."}},
+    {"@type":"Question","name":"Что если результат показан не на официальных соревнованиях?","acceptedAnswer":{"@type":"Answer","text":"Для официального разряда он не засчитывается — но это не значит, что результат бесполезен. AI-тренер отслеживает прогресс по любым вашим тренировкам и забегам, независимо от того, официальные они или нет."}}
+  ]}</script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
@@ -76,6 +82,12 @@
     .ref-table-group.show{display:block}
     .cta-block{background:linear-gradient(135deg,var(--brand) 0%,#FF6B35 100%);border-radius:var(--r-xl);padding:48px 40px;text-align:center;color:white;margin:48px 0 0}.cta-block h2{font-size:1.7rem;font-weight:800;letter-spacing:-0.03em;margin:0 0 12px!important;padding:0!important;color:white}.cta-block p{font-size:1rem;opacity:0.88;margin-bottom:28px;color:white}.btn-white{background:white;color:var(--brand);padding:13px 32px;border-radius:var(--r-md);border:none;font-size:0.95rem;font-weight:700;font-family:var(--font);cursor:pointer;transition:all 0.2s;display:inline-block;text-decoration:none}.btn-white:hover{box-shadow:0 8px 24px rgba(0,0,0,0.2);transform:translateY(-2px)}.cta-note{font-size:0.8rem;opacity:0.7;margin-top:12px}
     hr{border:none;border-top:1px solid var(--border);margin:32px 0}
+    .faq-item{border:1px solid var(--border);border-radius:var(--r-md);padding:16px 20px;margin-bottom:10px;background:var(--surface)}
+    .faq-item summary{font-weight:700;cursor:pointer;list-style:none;display:flex;align-items:center;justify-content:space-between;gap:12px;color:var(--text)}
+    .faq-item summary::-webkit-details-marker{display:none}
+    .faq-item summary::after{content:'+';color:var(--brand);font-size:1.3rem;font-weight:400;flex:none}
+    .faq-item[open] summary::after{content:'\2212'}
+    .faq-item p{margin-top:10px;margin-bottom:0;color:var(--text-2)}
     .sidebar{position:sticky;top:84px}.sidebar-box{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:20px 22px;margin-bottom:16px}.sidebar-title{font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-3);margin-bottom:14px}.toc-list{list-style:none}.toc-list li{margin-bottom:2px}.toc-list a{color:var(--text-2);font-size:0.87rem;display:block;padding:5px 0 5px 10px;border-left:2px solid transparent;transition:all 0.15s;line-height:1.4}.toc-list a:hover{color:var(--brand);border-left-color:var(--brand)}.sidebar-cta{background:var(--brand-light);border:1px solid rgba(248,92,30,0.2);border-radius:var(--r-lg);padding:20px 22px;text-align:center}.sidebar-cta p{font-size:0.87rem;color:var(--text-2);margin-bottom:14px;line-height:1.5}.sidebar-cta a{display:block;background:var(--brand);color:white;padding:11px;border-radius:var(--r);font-weight:700;font-size:0.88rem;transition:background 0.2s}.sidebar-cta a:hover{background:var(--brand-hover)}.sidebar-cta .note{font-size:0.75rem;color:var(--text-3);margin-top:10px}
     .landing-footer{border-top:1px solid var(--border);text-align:center;padding:20px 32px;color:var(--text-3);font-size:0.8rem}.footer-links{display:flex;flex-wrap:wrap;justify-content:center;gap:8px 16px;margin-top:8px}.footer-links a{color:var(--text-3)}.footer-links a:hover{color:var(--text-2)}
     @media(max-width:768px){.article-layout{grid-template-columns:1fr;gap:24px}.sidebar{position:static;order:-1}.page-wrap{padding:0 16px}.landing-nav{padding:0 16px;height:56px}.landing-nav-burger{display:flex}.landing-nav-more{display:none;position:absolute;top:calc(100% + 6px);right:16px;z-index:60;flex-direction:column;align-items:stretch;gap:6px;min-width:170px;padding:8px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r-md);box-shadow:0 10px 30px rgba(0,0,0,0.18)}.landing-nav-more.open{display:flex}.landing-nav-more .btn,.landing-nav-more .theme-btn{width:100%;justify-content:flex-start}.cta-block{padding:32px 20px}}
@@ -180,6 +192,24 @@
         <h2 id="chto-takoe-evsk">Что такое ЕВСК и как присваиваются разряды</h2>
         <p>ЕВСК (Единая всероссийская спортивная классификация) — официальный документ, по которому в России присваиваются спортивные звания и разряды во всех видах спорта. Для присвоения разряда результат обычно должен быть показан на официальных соревнованиях, включённых в календарный план, и запротоколирован судейской коллегией — просто пробежать дистанцию в тренировочном темпе с личным GPS-треком для присвоения разряда недостаточно.</p>
         <p>Разряды идут по возрастанию: <strong>III → II → I юношеский</strong>, затем <strong>III → II → I взрослый разряд</strong>, далее <strong>КМС (кандидат в мастера спорта) → МС (мастер спорта) → МСМК (мастер спорта международного класса)</strong>.</p>
+
+        <h2 id="chastye-voprosy">Частые вопросы</h2>
+        <details class="faq-item">
+          <summary>Что такое ЕВСК?</summary>
+          <p>Единая всероссийская спортивная классификация — официальный документ, по которому в России присваиваются спортивные звания и разряды во всех видах спорта, включая бег на всех дистанциях от 60 м до марафона.</p>
+        </details>
+        <details class="faq-item">
+          <summary>Нужно ли официально подтверждать результат для получения разряда?</summary>
+          <p>Да. Результат должен быть показан на официальных соревнованиях, включённых в календарный план, и запротоколирован судейской коллегией. Пробежать дистанцию в нужном темпе с личным GPS-треком для присвоения разряда недостаточно.</p>
+        </details>
+        <details class="faq-item">
+          <summary>Разряды одинаковы для мужчин и женщин?</summary>
+          <p>Нет, нормативы времени для одного и того же разряда отличаются по полу на всех дистанциях — таблица на этой странице переключается отдельно для мужчин и женщин.</p>
+        </details>
+        <details class="faq-item">
+          <summary>Что если результат показан не на официальных соревнованиях?</summary>
+          <p>Для официального разряда он не засчитывается — но это не значит, что результат бесполезен. AI-тренер отслеживает прогресс по любым вашим тренировкам и забегам, независимо от того, официальные они или нет.</p>
+        </details>
 
         <hr>
         <div class="cta-block">

@@ -20,6 +20,12 @@
   <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon.png">
   <script type="application/ld+json">{"@context":"https://schema.org","@type":"WebApplication","name":"Анализатор GPX/FIT-файлов","url":"https://airunningcoach.pro/tools/analiz-gpx-fit/","applicationCategory":"SportsApplication","operatingSystem":"Any","offers":{"@type":"Offer","price":"0","priceCurrency":"RUB"},"inLanguage":"ru"}</script>
   <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Главная","item":"https://airunningcoach.pro/"},{"@type":"ListItem","position":2,"name":"Инструменты","item":"https://airunningcoach.pro/tools/"},{"@type":"ListItem","position":3,"name":"Анализ GPX/FIT","item":"https://airunningcoach.pro/tools/analiz-gpx-fit/"}]}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[
+    {"@type":"Question","name":"Какие форматы файлов поддерживает анализатор?","acceptedAnswer":{"@type":"Answer","text":"GPX (открытый XML-формат, экспортируется большинством GPS-часов и приложений — Suunto, Strava-экспорт) и FIT (бинарный формат Garmin, используется также в часах Coros и некоторых моделях Polar)."}},
+    {"@type":"Question","name":"Как анализатор определяет бег это или ходьба?","acceptedAnswer":{"@type":"Answer","text":"По каскаду сигналов от самого надёжного к самому грубому: сначала метка типа тренировки из самого файла, если её нет — каденс (у бега есть фаза полёта, поэтому даже медленный бег держит заметно более высокий каденс, чем ходьба), и только если ни то ни другое не помогло — темп. Определение по темпу — грубый сигнал, потому что медленный бег и быстрая ходьба пересекаются по скорости."}},
+    {"@type":"Question","name":"Как находятся интервалы в тренировке?","acceptedAnswer":{"@type":"Answer","text":"Трек разбивается на 50-метровые отрезки, темп кластеризуется на «быстрые» и «медленные» сегменты, короткие случайные всплески (светофор, GPS-шум) статистически отсеиваются, а просадки темпа внутри одного повтора отличаются от настоящего отдыха между интервалами по пульсу и длине отрезка."}},
+    {"@type":"Question","name":"Сохраняется ли загруженный файл на сервере?","acceptedAnswer":{"@type":"Answer","text":"Нет. Файл разбирается сразу при загрузке и не сохраняется — после ответа сервера от него не остаётся ничего, кроме посчитанных цифр, которые вы видите на экране."}}
+  ]}</script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
@@ -97,6 +103,12 @@
     .section-label{font-weight:700;font-size:0.88rem;color:var(--text);margin:24px 0 10px;display:flex;align-items:center;gap:8px}
     .cta-block{background:linear-gradient(135deg,var(--brand) 0%,#FF6B35 100%);border-radius:var(--r-xl);padding:48px 40px;text-align:center;color:white;margin:48px 0 0}.cta-block h2{font-size:1.7rem;font-weight:800;letter-spacing:-0.03em;margin:0 0 12px!important;padding:0!important;color:white}.cta-block p{font-size:1rem;opacity:0.88;margin-bottom:28px;color:white}.btn-white{background:white;color:var(--brand);padding:13px 32px;border-radius:var(--r-md);border:none;font-size:0.95rem;font-weight:700;font-family:var(--font);cursor:pointer;transition:all 0.2s;display:inline-block;text-decoration:none}.btn-white:hover{box-shadow:0 8px 24px rgba(0,0,0,0.2);transform:translateY(-2px)}.cta-note{font-size:0.8rem;opacity:0.7;margin-top:12px}
     hr{border:none;border-top:1px solid var(--border);margin:32px 0}
+    .faq-item{border:1px solid var(--border);border-radius:var(--r-md);padding:16px 20px;margin-bottom:10px;background:var(--surface)}
+    .faq-item summary{font-weight:700;cursor:pointer;list-style:none;display:flex;align-items:center;justify-content:space-between;gap:12px;color:var(--text)}
+    .faq-item summary::-webkit-details-marker{display:none}
+    .faq-item summary::after{content:'+';color:var(--brand);font-size:1.3rem;font-weight:400;flex:none}
+    .faq-item[open] summary::after{content:'\2212'}
+    .faq-item p{margin-top:10px;margin-bottom:0;color:var(--text-2)}
     .sidebar{position:sticky;top:84px}.sidebar-box{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:20px 22px;margin-bottom:16px}.sidebar-title{font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-3);margin-bottom:14px}.toc-list{list-style:none}.toc-list li{margin-bottom:2px}.toc-list a{color:var(--text-2);font-size:0.87rem;display:block;padding:5px 0 5px 10px;border-left:2px solid transparent;transition:all 0.15s;line-height:1.4}.toc-list a:hover{color:var(--brand);border-left-color:var(--brand)}.sidebar-cta{background:var(--brand-light);border:1px solid rgba(248,92,30,0.2);border-radius:var(--r-lg);padding:20px 22px;text-align:center}.sidebar-cta p{font-size:0.87rem;color:var(--text-2);margin-bottom:14px;line-height:1.5}.sidebar-cta a{display:block;background:var(--brand);color:white;padding:11px;border-radius:var(--r);font-weight:700;font-size:0.88rem;transition:background 0.2s}.sidebar-cta a:hover{background:var(--brand-hover)}.sidebar-cta .note{font-size:0.75rem;color:var(--text-3);margin-top:10px}
     .landing-footer{border-top:1px solid var(--border);text-align:center;padding:20px 32px;color:var(--text-3);font-size:0.8rem}.footer-links{display:flex;flex-wrap:wrap;justify-content:center;gap:8px 16px;margin-top:8px}.footer-links a{color:var(--text-3)}.footer-links a:hover{color:var(--text-2)}
     @media(max-width:768px){.article-layout{grid-template-columns:1fr;gap:24px}.sidebar{position:static;order:-1}.page-wrap{padding:0 16px}.landing-nav{padding:0 16px;height:56px}.landing-nav-burger{display:flex}.landing-nav-more{display:none;position:absolute;top:calc(100% + 6px);right:16px;z-index:60;flex-direction:column;align-items:stretch;gap:6px;min-width:170px;padding:8px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r-md);box-shadow:0 10px 30px rgba(0,0,0,0.18)}.landing-nav-more.open{display:flex}.landing-nav-more .btn,.landing-nav-more .theme-btn{width:100%;justify-content:flex-start}.cta-block{padding:32px 20px}}
@@ -179,6 +191,24 @@
         <h2 id="podderzhka-formatov">Какие форматы поддерживаются</h2>
         <p><strong>GPX</strong> — открытый XML-формат, экспортируется большинством GPS-часов и приложений (Suunto, Strava-экспорт и др.). <strong>FIT</strong> — бинарный формат Garmin, используется в часах Garmin, Coros и некоторых моделях Polar.</p>
         <p>Если не знаете, где взять файл — в приложении вашего производителя часов обычно есть пункт «Экспорт» или «Поделиться» → «Экспортировать оригинальный файл» в настройках конкретной тренировки.</p>
+
+        <h2 id="chastye-voprosy">Частые вопросы</h2>
+        <details class="faq-item">
+          <summary>Какие форматы файлов поддерживает анализатор?</summary>
+          <p>GPX (открытый XML-формат, экспортируется большинством GPS-часов и приложений — Suunto, Strava-экспорт) и FIT (бинарный формат Garmin, используется также в часах Coros и некоторых моделях Polar).</p>
+        </details>
+        <details class="faq-item">
+          <summary>Как анализатор определяет — бег это или ходьба?</summary>
+          <p>По каскаду сигналов от самого надёжного к самому грубому: сначала метка типа тренировки из самого файла, если её нет — каденс (у бега есть фаза полёта, поэтому даже медленный бег держит заметно более высокий каденс, чем ходьба), и только если ни то ни другое не помогло — темп. Определение по темпу — самый грубый сигнал, потому что медленный бег и быстрая ходьба пересекаются по скорости.</p>
+        </details>
+        <details class="faq-item">
+          <summary>Как находятся интервалы в тренировке?</summary>
+          <p>Трек разбивается на 50-метровые отрезки, темп кластеризуется на «быстрые» и «медленные» сегменты, короткие случайные всплески (светофор, GPS-шум) статистически отсеиваются, а просадки темпа внутри одного повтора отличаются от настоящего отдыха между интервалами по пульсу и длине отрезка.</p>
+        </details>
+        <details class="faq-item">
+          <summary>Сохраняется ли загруженный файл на сервере?</summary>
+          <p>Нет. Файл разбирается сразу при загрузке и не сохраняется — после ответа сервера от него не остаётся ничего, кроме посчитанных цифр, которые вы видите на экране.</p>
+        </details>
 
         <hr>
         <div class="cta-block">
