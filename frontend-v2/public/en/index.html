@@ -58,7 +58,7 @@
         "operatingSystem": "All",
         "inLanguage": ["ru", "en"],
         "offers": [
-          { "@type": "Offer", "name": "Free plan", "price": "0", "priceCurrency": "RUB", "description": "Run logging, GPX/FIT import, AI coach up to 5 requests/day, 14 days Premium on sign-up" },
+          { "@type": "Offer", "name": "Free plan", "price": "0", "priceCurrency": "RUB", "description": "Run logging, GPX/FIT import, AI coach up to 5 requests/day, +48h Premium on sign-up" },
           { "@type": "Offer", "name": "Premium — month", "price": "490", "priceCurrency": "RUB", "description": "Unlimited AI coach, training plan generation, detailed analytics" },
           { "@type": "Offer", "name": "Premium — year", "price": "4116", "priceCurrency": "RUB", "description": "Premium for 12 months, 30% savings" }
         ]
@@ -75,7 +75,7 @@
         "name": "How to start training with an AI running coach",
         "description": "Three steps to your first workout with a personal AI coach",
         "step": [
-          { "@type": "HowToStep", "position": 1, "name": "Create an account", "text": "Sign up in 30 seconds. Enter your name, age, weight, and height. 14 days Premium starts immediately. No card required." },
+          { "@type": "HowToStep", "position": 1, "name": "Create an account", "text": "Sign up in 30 seconds. Enter your name, age, weight, and height. 48 hours of Premium starts immediately. No card required." },
           { "@type": "HowToStep", "position": 2, "name": "Upload your runs", "text": "Import workouts from Garmin, Coros, or Suunto in GPX or FIT format. Or add data manually." },
           { "@type": "HowToStep", "position": 3, "name": "Get a plan and advice", "text": "Your AI coach will analyze your data and build a personalized training plan. Ask questions in chat anytime." }
         ]
@@ -86,7 +86,7 @@
           { "@type": "Question", "name": "What is AIRunningCoach?", "acceptedAnswer": { "@type": "Answer", "text": "AIRunningCoach is a web app with a personal AI running coach. It builds individual training plans, analyzes your runs from Garmin, Coros, Suunto and other devices, and answers questions about technique, nutrition, and recovery." } },
           { "@type": "Question", "name": "How do I import runs from Garmin, Coros, or Suunto?", "acceptedAnswer": { "@type": "Answer", "text": "Export your workout from Garmin Connect, Coros or Suunto as a GPX or FIT file, then upload it in the Runs section. The app automatically extracts pace, heart rate, cadence, per-km splits and elevation profile." } },
           { "@type": "Question", "name": "Can I train for a marathon or half-marathon with AI?", "acceptedAnswer": { "@type": "Answer", "text": "Yes. AIRunningCoach builds personalized training plans for 5K, 10K, half-marathon (21.1 km) and marathon (42.2 km). Plans account for your current fitness level, training history, and goal finish time." } },
-          { "@type": "Question", "name": "How much does it cost?", "acceptedAnswer": { "@type": "Answer", "text": "The Basic plan is free: run logging, GPX/FIT import, AI coach up to 10 messages per day. Premium is 490 RUB/month: unlimited AI coach, plan generation, detailed analytics. 14 days of Premium free on sign-up." } },
+          { "@type": "Question", "name": "How much does it cost?", "acceptedAnswer": { "@type": "Answer", "text": "The app is fully free: run logging, GPX/FIT import, AI coach and training plans — no time limit, just rate limits (10 coach messages and 1 plan per day). Premium is 490 RUB/month: higher limits (50 messages/hour, 10 plans/hour) and a full month-ahead training plan. Sign up and get 48 hours of Premium to try it out." } },
           { "@type": "Question", "name": "Do I need to download an app?", "acceptedAnswer": { "@type": "Answer", "text": "No. AIRunningCoach is a web application that works directly in your browser on desktop and mobile. No installation required." } }
         ]
       }
@@ -500,7 +500,7 @@
       </button>
     </div>
     <div class="hero-trust">
-      <span class="hero-trust-item"><i class="fas fa-check" aria-hidden="true"></i> 14 days Premium free</span>
+      <span class="hero-trust-item"><i class="fas fa-check" aria-hidden="true"></i> 48 hours of Premium included</span>
       <span class="hero-trust-item"><i class="fas fa-check" aria-hidden="true"></i> No credit card required</span>
       <span class="hero-trust-item"><i class="fas fa-check" aria-hidden="true"></i> No app installation needed</span>
     </div>
@@ -609,7 +609,7 @@
         <div class="l-step-num">1</div>
         <div>
           <h3 class="l-step-title">Create an account</h3>
-          <p class="l-step-desc">Sign up in 30 seconds. Enter your name, age, weight, and height. 14 days of Premium starts immediately. No card required.</p>
+          <p class="l-step-desc">Sign up in 30 seconds. Enter your name, age, weight, and height. 48 hours of Premium starts immediately. No card required.</p>
         </div>
       </div>
       <div class="l-step">
@@ -650,8 +650,8 @@
       <p class="stat-card-desc">to the AI coach on Premium — unlimited for practical use</p>
     </div>
     <div class="stat-card">
-      <div class="stat-card-value">14 days free</div>
-      <p class="stat-card-desc">Premium on sign-up. No credit card required.</p>
+      <div class="stat-card-value">$0</div>
+      <p class="stat-card-desc">Always free — plus 48 hours of Premium on sign-up, no card required.</p>
     </div>
   </div>
 </section>
@@ -707,7 +707,7 @@
         <li>AI coach: 5 requests/day</li>
         <li>1 training plan/day</li>
         <li>Goals &amp; basic analytics</li>
-        <li>14 days Premium on sign-up</li>
+        <li>+48h Premium on sign-up</li>
       </ul>
       <button class="btn btn-secondary" style="width:100%;justify-content:center" onclick="openAuth('register')">Start for free</button>
     </div>
@@ -763,7 +763,7 @@
       </div>
       <div class="faq-item">
         <dt class="faq-q" onclick="toggleFaq(this)"><span>How much does it cost?</span><i class="fas fa-chevron-down"></i></dt>
-        <dd class="faq-a" style="display:none">The Basic plan is free: run logging, GPX/FIT import, AI coach up to 10 messages per day. Premium is 490 RUB/month: unlimited AI coach, plan generation, detailed analytics. 14 days of Premium free on sign-up.</dd>
+        <dd class="faq-a" style="display:none">The app is fully free: run logging, GPX/FIT import, AI coach and training plans — no time limit, just rate limits (10 coach messages and 1 plan per day). Premium is 490 RUB/month: higher limits (50 messages/hour, 10 plans/hour) and a full month-ahead training plan. Sign up and get 48 hours of Premium to try it out.</dd>
       </div>
       <div class="faq-item">
         <dt class="faq-q" onclick="toggleFaq(this)"><span>Do I need to download an app?</span><i class="fas fa-chevron-down"></i></dt>

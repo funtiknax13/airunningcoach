@@ -25,7 +25,9 @@ class User(Base):
     google_id = Column(String(128), nullable=True, unique=True, index=True)
     is_premium = Column(Boolean, default=False, nullable=False)
     premium_until = Column(DateTime(timezone=True), nullable=True)
-    trial_last_email_day = Column(Integer, nullable=True)
+    # 0/1/2 — последний отправленный чекпоинт письма 48-часового триала
+    # (0=приветствие, 1=напоминание, 2=истёк), не номер календарного дня.
+    trial_last_email_stage = Column(Integer, nullable=True)
     fitness_level = Column(String(20), nullable=True)       # beginner | intermediate | advanced
     running_goal = Column(String(20), nullable=True)        # 5k | 10k | half_marathon | marathon | fitness
     weekly_km = Column(Float, nullable=True)                # текущий объём км/нед

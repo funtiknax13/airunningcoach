@@ -38,7 +38,7 @@
         <RouterLink to="/subscription" class="nav-item nav-item--plan" :class="isPremium ? 'nav-item--premium' : 'nav-item--basic'">
           <i class="fas" :class="isPremium ? 'fa-crown' : 'fa-circle-user'"></i>
           <span>{{ isPremium ? 'Premium' : 'Basic' }}</span>
-          <span v-if="isPremium && daysLeft !== null" class="plan-days">{{ daysLeft }}д</span>
+          <span v-if="isPremium && timeLeft" class="plan-days">{{ timeLeft }}</span>
         </RouterLink>
         <button class="nav-item" @click="themeToggle">
           <i :class="theme === 'dark' ? 'fas fa-sun' : 'fas fa-moon'"></i>
@@ -104,7 +104,7 @@
               :class="isPremium ? 'nav-item--premium' : 'nav-item--basic'">
               <i class="fas" :class="isPremium ? 'fa-crown' : 'fa-circle-user'"></i>
               {{ isPremium ? 'Premium' : 'Basic' }}
-              <span v-if="isPremium && daysLeft !== null" class="plan-days">{{ daysLeft }}д</span>
+              <span v-if="isPremium && timeLeft" class="plan-days">{{ timeLeft }}</span>
             </RouterLink>
             <button class="mobile-menu-item" @click="themeToggle; menuOpen = false">
               <i :class="theme === 'dark' ? 'fas fa-sun' : 'fas fa-moon'"></i>
@@ -169,6 +169,7 @@ import { useChatStore } from '@/stores/chat'
 import { useAchievementsStore } from '@/stores/achievements'
 import { useSupportStore } from '@/stores/support'
 import { useTheme } from '@/composables/useTheme'
+import { formatTimeLeft } from '@/utils/premium'
 import ProfileModal       from '@/components/profile/ProfileModal.vue'
 import AppDialog          from '@/components/common/AppDialog.vue'
 import TrialExpiredBanner from '@/components/common/TrialExpiredBanner.vue'
@@ -211,11 +212,7 @@ const isPremium = computed(() => {
   if (!auth.user.premium_until) return true
   return new Date(auth.user.premium_until) > new Date()
 })
-const daysLeft = computed(() => {
-  const until = auth.user?.premium_until
-  if (!until) return null
-  return Math.max(0, Math.ceil((new Date(until).getTime() - Date.now()) / 86_400_000))
-})
+const timeLeft = computed(() => formatTimeLeft(auth.user?.premium_until, locale.value === 'ru' ? 'ru' : 'en'))
 const { theme, toggle: themeToggle } = useTheme()
 const profileModal = ref<InstanceType<typeof ProfileModal> | null>(null)
 const showProfile  = ref(false)

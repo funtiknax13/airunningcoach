@@ -66,25 +66,25 @@ def _feature_list(items: list[str], accent: str = "#4f46e5") -> str:
     return f'<ul style="padding: 0; margin: 16px 0; list-style: none;">{rows}</ul>'
 
 
-def _days_block(days: int, accent: str = "#f59e0b") -> str:
-    color = accent if days > 3 else "#ef4444"
+def _hours_block(hours: float, accent: str = "#f59e0b") -> str:
+    h = round(hours)
     return (
-        f'<div style="background: {"#fffbeb" if days > 3 else "#fef2f2"}; '
-        f'border: 1px solid {"#fde68a" if days > 3 else "#fecaca"}; '
+        f'<div style="background: #fef2f2; '
+        f'border: 1px solid #fecaca; '
         f'border-radius: 8px; padding: 12px 16px; margin: 16px 0; '
-        f'font-size: 15px; color: {color}; font-weight: 600;">'
-        f'⏳ Осталось дней Premium: {days}</div>'
+        f'font-size: 15px; color: #ef4444; font-weight: 600;">'
+        f'⏳ Осталось ускоренного режима: ~{h} ч</div>'
     )
 
 
-def _days_block_en(days: int, accent: str = "#f59e0b") -> str:
-    color = accent if days > 3 else "#ef4444"
+def _hours_block_en(hours: float, accent: str = "#f59e0b") -> str:
+    h = round(hours)
     return (
-        f'<div style="background: {"#fffbeb" if days > 3 else "#fef2f2"}; '
-        f'border: 1px solid {"#fde68a" if days > 3 else "#fecaca"}; '
+        f'<div style="background: #fef2f2; '
+        f'border: 1px solid #fecaca; '
         f'border-radius: 8px; padding: 12px 16px; margin: 16px 0; '
-        f'font-size: 15px; color: {color}; font-weight: 600;">'
-        f'⏳ Premium days left: {days}</div>'
+        f'font-size: 15px; color: #ef4444; font-weight: 600;">'
+        f'⏳ Boosted mode left: ~{h}h</div>'
     )
 
 
@@ -163,159 +163,121 @@ async def send_password_reset_email(
 
 
 # ── Trial emails ──────────────────────────────────────────────────────────────
+# Продукт бесплатный — регистрация даёт 48 часов ускоренного режима (выше лимиты
+# AI-тренера/планов + план на месяц), не «доступ, который потом отберут». Письма
+# формулируют это как пробный тест-драйв ускорения, а не как надвигающуюся потерю.
 
-async def send_trial_day1_email(to_email: str, name: str, lang: str = "ru") -> None:
-    """День 1: приветствие + что умеет Premium."""
+async def send_trial_welcome_email(to_email: str, name: str, lang: str = "ru") -> None:
+    """Чекпоинт 0 (~сразу после регистрации): приветствие + 48ч ускоренного режима."""
     app_url = f"{settings.APP_BASE_URL}/dashboard"
     features_ru = [
-        "AI-тренер без ограничений — спрашивай сколько угодно",
-        "Генерация персональных планов тренировок",
+        "AI-тренер: до 50 сообщений в час (обычно — 10 в день)",
+        "Генерация планов: до 10 в час, включая план на месяц",
         "Импорт пробежек из Garmin, Coros, Suunto (GPX/FIT)",
-        "Детальная аналитика: пульс, темп, каденс, сплиты",
+        "Разбор тренировок: пульс, темп, каденс, сплиты, интервалы",
     ]
     features_en = [
-        "Unlimited AI coach — ask as much as you want",
-        "Personalized training plan generation",
+        "AI coach: up to 50 messages/hour (normally 10/day)",
+        "Plan generation: up to 10/hour, including the monthly plan",
         "Import runs from Garmin, Coros, Suunto (GPX/FIT)",
-        "Detailed analytics: heart rate, pace, cadence, splits",
+        "Workout analysis: heart rate, pace, cadence, splits, intervals",
     ]
     if lang == "en":
         html = _build_email_html(
-            heading=f"Your 14-day Premium trial has started, {name}! 🎉",
-            body="Here's what's available to you right now:",
+            heading=f"Welcome, {name}! Your account is fully free 🎉",
+            body="For the next 48 hours you also get a boosted-limits test drive:",
             extra_blocks=_feature_list(features_en),
             button_text="Go to dashboard",
             button_url=app_url,
-            footer="Questions? Just reply to this email.",
+            footer="Everything above stays available after — just at regular free limits. Questions? Reply to this email.",
             accent="#4f46e5",
         )
-        await send_email(to_email, f"Your Premium trial started — {APP_NAME}", html)
+        await send_email(to_email, f"Welcome to {APP_NAME} — your account is free", html)
     else:
         html = _build_email_html(
-            heading=f"Твой 14-дневный Premium-триал начался, {name}! 🎉",
-            body="Вот что тебе доступно прямо сейчас:",
+            heading=f"Привет, {name}! Твой аккаунт полностью бесплатный 🎉",
+            body="А на ближайшие 48 часов — ещё и повышенные лимиты, чтобы распробовать:",
             extra_blocks=_feature_list(features_ru),
             button_text="Открыть дашборд",
             button_url=app_url,
-            footer="Есть вопросы? Просто ответь на это письмо.",
+            footer="Всё это остаётся доступно и дальше — просто на обычных бесплатных лимитах. Есть вопросы? Просто ответь на это письмо.",
             accent="#4f46e5",
         )
-        await send_email(to_email, f"Твой Premium-триал начался — {APP_NAME}", html)
+        await send_email(to_email, f"Добро пожаловать в {APP_NAME} — аккаунт бесплатный", html)
 
 
-async def send_trial_day5_email(
-    to_email: str, name: str, days_left: int, lang: str = "ru"
+async def send_trial_reminder_email(
+    to_email: str, name: str, hours_left: float, lang: str = "ru"
 ) -> None:
-    """День 5: напоминание + подсказка как использовать."""
-    app_url = f"{settings.APP_BASE_URL}/coach"
-    tips_ru = [
-        "Загрузи свою первую пробежку через импорт GPX/FIT",
-        "Попроси тренера составить план на следующую неделю",
-        "Задай вопрос о пульсовых зонах или темпе",
-    ]
-    tips_en = [
-        "Upload your first run via GPX/FIT import",
-        "Ask the coach to build a plan for next week",
-        "Ask about heart rate zones or target pace",
-    ]
-    if lang == "en":
-        html = _build_email_html(
-            heading=f"How's the training going, {name}? 🏃",
-            body="A few ideas to get the most out of your Premium trial:",
-            extra_blocks=_days_block_en(days_left) + _feature_list(tips_en, accent="#10b981"),
-            button_text="Chat with AI coach",
-            button_url=app_url,
-            footer=f"Your trial ends in {days_left} days.",
-            accent="#10b981",
-        )
-        await send_email(to_email, f"Getting the most from your trial — {APP_NAME}", html)
-    else:
-        html = _build_email_html(
-            heading=f"Как тренировки, {name}? 🏃",
-            body="Несколько идей, чтобы получить максимум от Premium-триала:",
-            extra_blocks=_days_block(days_left) + _feature_list(tips_ru, accent="#10b981"),
-            button_text="Открыть AI-тренера",
-            button_url=app_url,
-            footer=f"Твой триал заканчивается через {days_left} дн.",
-            accent="#10b981",
-        )
-        await send_email(to_email, f"Успей попробовать всё — {APP_NAME}", html)
-
-
-async def send_trial_day13_email(
-    to_email: str, name: str, days_left: int, lang: str = "ru"
-) -> None:
-    """День 13: предупреждение — 1 день остался."""
+    """Чекпоинт 1 (~36ч, за ~12ч до конца): напоминание про ускоренный режим."""
     subs_url = f"{settings.APP_BASE_URL}/subscription"
-    what_lose_ru = [
-        "Безлимитный чат с AI-тренером (вернётся лимит 10/день)",
-        "Генерация планов тренировок",
-        "Детальная аналитика пробежек",
+    what_changes_ru = [
+        "AI-тренер: 50/час → 10 в день",
+        "Планы: 10/час → 1 в день (план на месяц станет доступен только в Premium)",
     ]
-    what_lose_en = [
-        "Unlimited AI coach chat (limit returns to 10/day)",
-        "Training plan generation",
-        "Detailed run analytics",
+    what_changes_en = [
+        "AI coach: 50/hour → 10/day",
+        "Plans: 10/hour → 1/day (monthly plan becomes Premium-only)",
     ]
     if lang == "en":
         html = _build_email_html(
-            heading=f"1 day left in your Premium trial, {name} ⚠️",
-            body="Tomorrow your trial ends. Here's what you'll lose access to:",
-            extra_blocks=_days_block_en(days_left, accent="#ef4444") + _feature_list(what_lose_en, accent="#ef4444"),
-            button_text="Keep Premium",
+            heading=f"Boosted mode is wrapping up soon, {name} ⏳",
+            body="Your account stays fully free after — limits just go back to normal:",
+            extra_blocks=_hours_block_en(hours_left) + _feature_list(what_changes_en, accent="#ef4444"),
+            button_text="See Premium",
             button_url=subs_url,
-            footer="No payment is required today — subscriptions open soon.",
+            footer="No payment needed — your account keeps working either way.",
             accent="#f59e0b",
         )
-        await send_email(to_email, f"⚠️ 1 day left in your trial — {APP_NAME}", html)
+        await send_email(to_email, f"⏳ Boosted mode ending soon — {APP_NAME}", html)
     else:
         html = _build_email_html(
-            heading=f"Остался 1 день Premium-триала, {name} ⚠️",
-            body="Завтра триал заканчивается. Вот что перестанет быть доступным:",
-            extra_blocks=_days_block(days_left, accent="#ef4444") + _feature_list(what_lose_ru, accent="#ef4444"),
-            button_text="Сохранить Premium",
+            heading=f"Ускоренный режим скоро закончится, {name} ⏳",
+            body="Аккаунт как был бесплатным, так и останется — просто лимиты вернутся к обычным:",
+            extra_blocks=_hours_block(hours_left) + _feature_list(what_changes_ru, accent="#ef4444"),
+            button_text="Посмотреть Premium",
             button_url=subs_url,
-            footer="Оплата пока не требуется — подписки скоро откроются.",
+            footer="Платить не обязательно — аккаунт продолжит работать в любом случае.",
             accent="#f59e0b",
         )
-        await send_email(to_email, f"⚠️ Остался 1 день триала — {APP_NAME}", html)
+        await send_email(to_email, f"⏳ Ускоренный режим скоро закончится — {APP_NAME}", html)
 
 
 async def send_trial_expired_email(
     to_email: str, name: str, lang: str = "ru"
 ) -> None:
-    """День 14: триал истёк."""
+    """Чекпоинт 2 (≥48ч): ускоренный режим закончился, аккаунт остаётся бесплатным."""
     subs_url = f"{settings.APP_BASE_URL}/subscription"
     if lang == "en":
         html = _build_email_html(
-            heading=f"Your Premium trial has ended, {name}",
+            heading=f"You're all set, {name} — your account is free",
             body=(
-                "Your 14-day trial is over. You're now on the Basic plan — "
-                "AI coach is limited to 10 messages/day.<br><br>"
-                "Subscribe to Premium to get back unlimited AI coaching, "
-                "training plan generation, and activity analysis."
+                "The 48-hour boosted test drive is over, but nothing is taken away: "
+                "your account stays fully free, with the AI coach at 10 messages/day "
+                "and 1 training plan/day.<br><br>"
+                "Want more room (or the monthly plan)? Premium is there when you want it — no rush."
             ),
-            button_text="Subscribe to Premium",
+            button_text="See Premium",
             button_url=subs_url,
-            footer="Thank you for trying AI RunningCoach. Keep running! 🏃",
+            footer="Thanks for trying AI RunningCoach. Keep running! 🏃",
             accent="#6b7280",
         )
-        await send_email(to_email, f"Your trial has ended — {APP_NAME}", html)
+        await send_email(to_email, f"Your account is free — {APP_NAME}", html)
     else:
         html = _build_email_html(
-            heading=f"Твой Premium-триал завершился, {name}",
+            heading=f"Всё в порядке, {name} — твой аккаунт бесплатный",
             body=(
-                "14 дней пробного периода истекли. Теперь ты на плане Basic — "
-                "AI-тренер ограничен 10 сообщениями в день.<br><br>"
-                "Подключи Premium, чтобы вернуть неограниченный чат с тренером, "
-                "генерацию планов и анализ тренировок."
+                "48-часовой ускоренный режим закончился, но ничего не отбирается: "
+                "аккаунт остаётся полностью бесплатным, с AI-тренером на 10 сообщений в день "
+                "и 1 планом тренировок в день.<br><br>"
+                "Захочется больше (или план на месяц) — Premium никуда не денется, спешить не нужно."
             ),
-            button_text="Подключить Premium",
+            button_text="Посмотреть Premium",
             button_url=subs_url,
             footer="Спасибо, что попробовал AI RunningCoach. Продолжай бегать! 🏃",
             accent="#6b7280",
         )
-        await send_email(to_email, f"Триал завершился — {APP_NAME}", html)
+        await send_email(to_email, f"Твой аккаунт бесплатный — {APP_NAME}", html)
 
 
 async def send_weekly_stats_email(

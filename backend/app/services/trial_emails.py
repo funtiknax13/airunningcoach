@@ -1,10 +1,12 @@
 """
 Фоновые задачи для email-цепочки Premium-триала.
 
-День  1 — приветствие + список возможностей
-День  5 — подсказки как использовать, напоминание об остатке
-День 13 — предупреждение: остался 1 день
-День 14 — триал истёк, переход на Basic
+Триал — 48 часов от регистрации (см. app/routers/auth.py). Три чекпоинта,
+не календарные дни (окно слишком короткое для дневной гранулярности):
+
+Чекпоинт 0 (~сразу после регистрации) — приветствие
+Чекпоинт 1 (~36 ч, за ~12 ч до конца) — напоминание, что триал скоро закончится
+Чекпоинт 2 (≥48 ч) — триал закончился, теперь на бесплатном (Basic) плане
 
 Планировщик запускается вместе с FastAPI (lifespan).
 """
@@ -17,9 +19,8 @@ from sqlalchemy.orm import Session
 from app.database import SessionLocal, engine
 from app.models import User, Activity, Workout
 from app.services.email import (
-    send_trial_day1_email,
-    send_trial_day5_email,
-    send_trial_day13_email,
+    send_trial_welcome_email,
+    send_trial_reminder_email,
     send_trial_expired_email,
     send_weekly_stats_email,
 )
@@ -32,48 +33,53 @@ scheduler = AsyncIOScheduler(timezone="UTC")
 _lock_conn = None
 _SCHED_LOCK_ID = 915_623  # произвольный уникальный ключ для pg_try_advisory_lock
 
+TRIAL_HOURS = 48
+REMINDER_AT_HOUR = 36  # ~12 ч до конца
 
-def _get_trial_day(user: User) -> int | None:
-    """Возвращает номер дня триала (1-based) или None если триал не активен."""
+
+def _get_trial_hours(user: User) -> float | None:
+    """Часы, прошедшие с регистрации, или None если нет даты регистрации."""
     if not user.created_at or not user.premium_until:
         return None
     created = user.created_at
     if created.tzinfo is None:
         created = created.replace(tzinfo=timezone.utc)
     delta = datetime.now(timezone.utc) - created
-    return delta.days + 1  # день 1 = первые 24 ч после регистрации
+    return delta.total_seconds() / 3600
 
 
 def _is_trial_user(user: User) -> bool:
-    """Пользователь на триале: premium_until установлен и ≤ 14 дней от регистрации."""
+    """Пользователь на триале: premium_until установлен и ~48 ч от регистрации
+    (не оплаченная подписка, у которой premium_until на другом расстоянии)."""
     if not user.premium_until or not user.created_at:
         return False
     created = user.created_at
     if created.tzinfo is None:
         created = created.replace(tzinfo=timezone.utc)
-    trial_end = created + timedelta(days=14)
+    trial_end = created + timedelta(hours=TRIAL_HOURS)
     until = user.premium_until
     if until.tzinfo is None:
         until = until.replace(tzinfo=timezone.utc)
-    # premium_until близко к trial_end → это триальный пользователь
-    return abs((until - trial_end).total_seconds()) < 86_400 * 2
+    # premium_until близко к trial_end → это триальный пользователь. Допуск —
+    # час (окно самого триала теперь всего 48ч, старый 2-дневный допуск отсюда
+    # перекрыл бы весь триал целиком).
+    return abs((until - trial_end).total_seconds()) < 3600
 
 
-def _days_left(user: User) -> int:
-    """Дней до конца триала."""
+def _hours_left(user: User) -> float:
+    """Часов до конца триала."""
     until = user.premium_until
     if not until:
         return 0
     if until.tzinfo is None:
         until = until.replace(tzinfo=timezone.utc)
-    return max(0, (until - datetime.now(timezone.utc)).days)
+    return max(0.0, (until - datetime.now(timezone.utc)).total_seconds() / 3600)
 
 
 async def _run_trial_emails() -> None:
-    """Запускается каждый час. Находит пользователей на нужном дне и отправляет письмо."""
+    """Запускается каждый час. Находит пользователей на нужном чекпоинте и отправляет письмо."""
     db: Session = SessionLocal()
     try:
-        now = datetime.now(timezone.utc)
         users = db.query(User).filter(
             User.is_verified == True,
             User.premium_until != None,
@@ -83,45 +89,44 @@ async def _run_trial_emails() -> None:
             if not _is_trial_user(user):
                 continue
 
-            day = _get_trial_day(user)
-            if day is None:
+            hours = _get_trial_hours(user)
+            if hours is None:
                 continue
+
+            # Наивысший чекпоинт, время которого уже прошло — если тик планировщика
+            # пропущен (например, рестарт сервера), сразу шлём актуальное письмо,
+            # а не пытаемся наверстать пропущенное промежуточное.
+            if hours >= TRIAL_HOURS:
+                stage = 2
+            elif hours >= REMINDER_AT_HOUR:
+                stage = 1
+            else:
+                stage = 0
 
             lang = "ru"  # TODO: хранить lang в профиле пользователя
-            left = _days_left(user)
 
-            # Не отправляем письмо, если для этого дня уже отправлено
-            if user.trial_last_email_day is not None and user.trial_last_email_day >= day:
+            # Не отправляем письмо, если для этого чекпоинта уже отправлено
+            if user.trial_last_email_stage is not None and user.trial_last_email_stage >= stage:
                 continue
 
-            target_day = None
             try:
-                if day == 1:
-                    await send_trial_day1_email(user.email, user.name, lang)
-                    logger.info("Trial day1 email → %s", user.email)
-                    target_day = 1
+                if stage == 0:
+                    await send_trial_welcome_email(user.email, user.name, lang)
+                    logger.info("Trial welcome email → %s", user.email)
 
-                elif day == 5:
-                    await send_trial_day5_email(user.email, user.name, left, lang)
-                    logger.info("Trial day5 email → %s", user.email)
-                    target_day = 5
+                elif stage == 1:
+                    await send_trial_reminder_email(user.email, user.name, _hours_left(user), lang)
+                    logger.info("Trial reminder email → %s", user.email)
 
-                elif day == 13:
-                    await send_trial_day13_email(user.email, user.name, left, lang)
-                    logger.info("Trial day13 email → %s", user.email)
-                    target_day = 13
-
-                elif day == 14:
+                elif stage == 2:
                     await send_trial_expired_email(user.email, user.name, lang)
                     logger.info("Trial expired email → %s", user.email)
-                    target_day = 14
 
-                if target_day is not None:
-                    user.trial_last_email_day = target_day
-                    db.commit()
+                user.trial_last_email_stage = stage
+                db.commit()
 
             except Exception as exc:
-                logger.error("Trial email failed for %s (day %d): %s", user.email, day, exc)
+                logger.error("Trial email failed for %s (stage %d): %s", user.email, stage, exc)
 
     finally:
         db.close()

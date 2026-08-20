@@ -10,7 +10,7 @@
             <div class="subs-plan-name">{{ isPremium ? 'Premium' : 'Basic' }}</div>
             <div class="subs-plan-sub" v-if="isPremium && premiumUntil">
               {{ t('subs.activeUntil') }} {{ formatDate(premiumUntil) }}
-              <span v-if="daysLeft !== null" class="subs-days-left">({{ t('subs.daysLeft', { n: daysLeft }) }})</span>
+              <span v-if="timeLeft" class="subs-days-left">({{ t('subs.daysLeft', { time: timeLeft }) }})</span>
             </div>
             <div class="subs-plan-sub" v-else-if="!isPremium">
               {{ t('subs.free') }}
@@ -89,6 +89,7 @@ import { useI18n } from 'vue-i18n'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import { useAuthStore } from '@/stores/auth'
 import { api } from '@/api/client'
+import { formatTimeLeft } from '@/utils/premium'
 
 const { t, locale } = useI18n()
 const auth = useAuthStore()
@@ -155,11 +156,7 @@ const isPremium = computed(() => {
 
 const premiumUntil = computed(() => auth.user?.premium_until ?? null)
 
-const daysLeft = computed(() => {
-  if (!premiumUntil.value) return null
-  const diff = new Date(premiumUntil.value).getTime() - Date.now()
-  return Math.max(0, Math.ceil(diff / 86_400_000))
-})
+const timeLeft = computed(() => formatTimeLeft(premiumUntil.value, locale.value === 'ru' ? 'ru' : 'en'))
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString(

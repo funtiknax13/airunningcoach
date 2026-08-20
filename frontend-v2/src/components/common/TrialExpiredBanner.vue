@@ -4,19 +4,19 @@
       <div v-if="show" class="trial-overlay" @click.self="dismiss">
         <div class="trial-modal">
           <div class="trial-modal-header">
-            <div class="trial-modal-icon">😢</div>
-            <h2 class="trial-modal-title">Пробный период закончился</h2>
-            <p class="trial-modal-sub">Ты переходишь на план <strong>Basic</strong></p>
+            <div class="trial-modal-icon">🙂</div>
+            <h2 class="trial-modal-title">Ускоренный режим закончился</h2>
+            <p class="trial-modal-sub">Аккаунт как был, так и остаётся <strong>бесплатным</strong></p>
           </div>
 
-          <div class="trial-lose-title">Что перестаёт быть доступным:</div>
+          <div class="trial-lose-title">Что меняется:</div>
           <ul class="trial-lose-list">
-            <li v-for="item in loseItems" :key="item">
-              <i class="fas fa-times"></i> {{ item }}
+            <li v-for="item in changedItems" :key="item">
+              <i class="fas fa-arrow-down"></i> {{ item }}
             </li>
           </ul>
 
-          <div class="trial-keep-title">Что остаётся бесплатно:</div>
+          <div class="trial-keep-title">Что остаётся как есть:</div>
           <ul class="trial-keep-list">
             <li v-for="item in keepItems" :key="item">
               <i class="fas fa-check"></i> {{ item }}
@@ -25,15 +25,15 @@
 
           <div class="trial-modal-actions">
             <RouterLink to="/subscription" class="btn btn-primary trial-btn-premium" @click="dismiss">
-              <i class="fas fa-crown"></i> Подробнее о Premium
+              <i class="fas fa-crown"></i> Посмотреть Premium
             </RouterLink>
             <button class="btn btn-ghost trial-btn-basic" @click="dismiss">
-              Продолжить на Basic
+              Продолжить бесплатно
             </button>
           </div>
 
           <p class="trial-modal-note">
-            Оплата скоро будет доступна. Следи за обновлениями!
+            Платить не обязательно — аккаунт продолжит работать в любом случае.
           </p>
         </div>
       </div>
@@ -75,16 +75,19 @@ function dismiss() {
   localStorage.setItem(DISMISSED_KEY, '1')
 }
 
-const loseItems = [
-  'Безлимитный чат с AI-тренером (лимит: 10 сообщений/день)',
-  'Генерация персональных планов тренировок',
-  'Детальная аналитика пробежек (сплиты, пульс, каденс)',
+// Честно: лимиты действительно снижаются, а план на месяц становится Premium-only
+// (единственный реальный feature-gate в продукте) — но чат и генерация планов
+// (недельных) остаются доступны, просто с обычными бесплатными лимитами, а не
+// «пропадают», как формулировка звучала раньше.
+const changedItems = [
+  'AI-тренер: 50 сообщений/час → 10 в день',
+  'Планы: 10/час → 1 в день, план на месяц — только в Premium',
 ]
 
 const keepItems = [
   'Запись всех пробежек и история активностей',
-  'Импорт GPX/FIT файлов',
+  'Импорт GPX/FIT файлов и разбор тренировок',
+  'AI-тренер и генерация недельного плана — бесплатно',
   'Цели и базовая статистика',
-  'AI-тренер: 10 сообщений в день',
 ]
 </script>

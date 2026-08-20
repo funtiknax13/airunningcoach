@@ -53,7 +53,7 @@ async def register(user_data: UserCreate, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail="Email уже зарегистрирован")
 
     token, expires = generate_verification_token(), verification_token_expiry()
-    trial_until = datetime.now(timezone.utc) + timedelta(days=14)
+    trial_until = datetime.now(timezone.utc) + timedelta(hours=48)
     db_user = User(
         email=user_data.email,
         password_hash=get_password_hash(user_data.password),
@@ -326,7 +326,7 @@ async def google_callback(code: str, db: Session = Depends(get_db)):
 
     if not user:
         # Создаём нового пользователя без пароля
-        trial_until = datetime.now(timezone.utc) + timedelta(days=14)
+        trial_until = datetime.now(timezone.utc) + timedelta(hours=48)
         user = User(
             email=email,
             password_hash="",          # Google-пользователи не входят по паролю
