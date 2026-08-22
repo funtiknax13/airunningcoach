@@ -1,7 +1,7 @@
 # app/routers/training.py
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
-from datetime import datetime
+from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 from typing import List
 
@@ -49,6 +49,7 @@ def get_workouts(
 async def generate_plan_ai(
     background_tasks: BackgroundTasks,
     weeks: int = Query(1, description="Горизонт плана: 1 (неделя), 4 (месяц)"),
+    include_today: bool = Query(False, description="Начать план с сегодняшнего дня, а не с завтра"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -56,7 +57,11 @@ async def generate_plan_ai(
 
     weeks: 1 — неделя (всем, синхронно), 4 — месяц (только Premium, в фоне кусками —
     см. run_plan_job; ответ {"status":"running"}, готовность опрашивается через
-    GET /plans/status)."""
+    GET /plans/status).
+
+    По умолчанию план начинается с завтра: модель не знает, сколько от сегодня уже
+    прошло, и может поставить полноценную тренировку на день, который наполовину
+    позади. include_today=true возвращает старое поведение (план с сегодня)."""
     if weeks not in WEEKS_ALLOWED:
         raise HTTPException(status_code=400, detail="weeks должен быть 1 или 4")
     # Месяц — только премиум. Проверяем ДО списания лимита.
@@ -75,7 +80,7 @@ async def generate_plan_ai(
         db.add(job)
         db.commit()
         db.refresh(job)
-        background_tasks.add_task(run_plan_job, current_user.id, weeks, job.id)
+        background_tasks.add_task(run_plan_job, current_user.id, weeks, job.id, include_today)
         return {"status": "running", "weeks": weeks}
 
     # ── Неделя: синхронно (быстро) ────────────────────────────────────────────
@@ -86,7 +91,7 @@ async def generate_plan_ai(
         .limit(30)
         .all()[::-1]
     )
-    workouts_data = await generate_training_plan(current_user, db, chat_history, days=days)
+    workouts_data = await generate_training_plan(current_user, db, chat_history, days=days, include_today=include_today)
 
     # "Сегодня" — по локальному времени бегуна, не по серверу (UTC): иначе граница
     # дня могла сдвинуться на сутки. planned_date — наивная колонка, поэтому tzinfo
@@ -96,6 +101,8 @@ async def generate_plan_ai(
     except Exception:
         now_local = datetime.now()
     start = now_local.replace(tzinfo=None)
+    if not include_today:
+        start += timedelta(days=1)
     replace_upcoming_workouts(current_user.id, db, workouts_data, start, horizon_days=days)
     db.commit()
     return {"status": "done", "weeks": weeks}

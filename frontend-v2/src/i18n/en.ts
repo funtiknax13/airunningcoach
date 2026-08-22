@@ -95,6 +95,7 @@ export default {
   },
   plan: {
     title: 'Training plan', generate: 'Generate plan', generating: 'Generating...',
+    includeToday: 'Start from today',
     empty: 'No active plan.',
     discipline: { run: 'Run', walk: 'Walk' },
     status: {

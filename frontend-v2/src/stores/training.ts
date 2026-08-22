@@ -44,10 +44,10 @@ export const useTrainingStore = defineStore('training', () => {
 
   // weeks: 1 (неделя, синхронно) | 4 (месяц) | 12 (3 месяца, в фоне). Месяц/3мес —
   // только Premium (бэкенд отдаст 403 — ловится в UI).
-  async function generate(weeks = 1) {
+  async function generate(weeks = 1, includeToday = false) {
     loading.value = true
     try {
-      const res = await trainingApi.generatePlan(weeks)
+      const res = await trainingApi.generatePlan(weeks, includeToday)
       if (res.status === 'running') { generating.value = true; ensurePoll() }
       else { await load() }
     } finally { loading.value = false }

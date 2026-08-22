@@ -86,7 +86,8 @@ export const trainingApi = {
   // weeks: 1 (неделя, всем, синхронно) | 4 (месяц) | 12 (3 месяца) — только Premium,
   // в фоне. Ответ: {status:'done'} (неделя готова) | {status:'running'} (длинный план
   // собирается в фоне — готовность опрашиваем через planStatus).
-  generatePlan: (weeks = 1)       => api.request<{ status: 'done' | 'running'; weeks: number }>(`/api/training/plans/generate?weeks=${weeks}`, 'POST'),
+  generatePlan: (weeks = 1, includeToday = false) =>
+    api.request<{ status: 'done' | 'running'; weeks: number }>(`/api/training/plans/generate?weeks=${weeks}&include_today=${includeToday}`, 'POST'),
   planStatus:   ()                => api.request<{ status: 'idle' | 'running' | 'done' | 'failed'; weeks?: number }>('/api/training/plans/status'),
   completeWorkout: (id: number, notes?: string) =>
     api.request<WorkoutWithAnalysis>(`/api/training/workouts/${id}/complete?notes=${notes ?? ''}`, 'PUT'),

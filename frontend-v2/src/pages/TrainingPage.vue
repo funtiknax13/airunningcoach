@@ -10,6 +10,10 @@
           {{ opt.label }}
         </button>
       </div>
+      <label class="plan-today-toggle">
+        <input type="checkbox" v-model="includeToday">
+        {{ t('plan.includeToday') }}
+      </label>
       <button class="btn btn-primary plan-gen" :disabled="store.loading || store.generating" @click="onGenerate">
         <i :class="(store.loading || store.generating) ? 'fas fa-spinner fa-spin' : 'fas fa-wand-magic-sparkles'"></i>
         {{ store.generating ? t('plan.horizon.preparing') : store.loading ? t('plan.generating') : t('plan.generate') }}
@@ -144,6 +148,7 @@ const isPremium = computed(() => {
 
 // ── Горизонты ─────────────────────────────────────────────────────────────
 const selectedWeeks = ref(1)
+const includeToday = ref(false)
 const horizons = computed(() => [
   { weeks: 1, label: t('plan.horizon.week'),  locked: false },
   { weeks: 4, label: t('plan.horizon.month'), locked: !isPremium.value },
@@ -162,7 +167,7 @@ async function pickHorizon(opt: { weeks: number; locked: boolean }) {
 
 async function onGenerate() {
   try {
-    await store.generate(selectedWeeks.value)
+    await store.generate(selectedWeeks.value, includeToday.value)
     goCurrentWeek()
   } catch (e: any) {
     // На всякий случай (клиентский гейт должен был не пустить): 403 от бэкенда
@@ -361,6 +366,11 @@ async function uncomplete(id: number) {
 .hseg.locked { color: var(--text-3); }
 .hseg-crown { font-size: 0.72rem; color: var(--brand); }
 .plan-gen { margin-left: auto; }
+.plan-today-toggle {
+  display: inline-flex; align-items: center; gap: 6px; cursor: pointer;
+  font-size: 0.84rem; color: var(--text-2); white-space: nowrap;
+}
+.plan-today-toggle input { accent-color: var(--brand); cursor: pointer; }
 .plan-preparing {
   display: flex; align-items: center; gap: 10px; margin-bottom: 16px;
   padding: 12px 16px; border-radius: 10px; font-size: 0.88rem; color: var(--text-2);

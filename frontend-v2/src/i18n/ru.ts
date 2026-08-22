@@ -95,6 +95,7 @@ export default {
   },
   plan: {
     title: 'План тренировок', generate: 'Создать план', generating: 'Генерирую...',
+    includeToday: 'Начать с сегодня',
     empty: 'Нет активного плана.',
     discipline: { run: 'Бег', walk: 'Ходьба' },
     status: {
