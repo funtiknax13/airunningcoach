@@ -87,6 +87,19 @@ def _compute_splits(points: list) -> list:
             km_dist = 0.0
             km_hrs  = []
 
+    # Хвостовой неполный км (напр. 4.99 км целиком = 4 полных + 0.99) — без этого
+    # последний отрезок трека выпадал из анализа целиком.
+    if km_dist > 0.02 and km_start_idx < len(points) - 1:
+        t_start = points[km_start_idx].get("time")
+        t_end   = points[-1].get("time")
+        if t_start and t_end:
+            pace = (t_end - t_start).total_seconds() / 60 / km_dist
+            splits.append({
+                "km":     km_num,
+                "pace":   round(pace, 2),
+                "avg_hr": round(sum(km_hrs)/len(km_hrs)) if km_hrs else None,
+            })
+
     return splits
 
 

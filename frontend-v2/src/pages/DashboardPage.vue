@@ -198,6 +198,7 @@ import { useActivitiesStore } from '@/stores/activities'
 import { useGoalsStore }      from '@/stores/goals'
 import { useInsightsStore }   from '@/stores/insights'
 import { activityIcon, activityLabel } from '@/utils/activity'
+import { fmtPace as formatPace, fmtPace as formatPaceNum } from '@/utils/activityNarrative'
 import { useTrainingStore }   from '@/stores/training'
 import { activitiesApi }      from '@/api'
 import type { GoalType, MonthlyStats } from '@/api/types'
@@ -252,15 +253,6 @@ const todayMonth = computed(() => {
   return months[new Date().getMonth()]
 })
 
-function formatPace(p?: number) {
-  if (!p) return '—'
-  const m = Math.floor(p); const s = Math.round((p-m)*60)
-  return `${m}:${String(s).padStart(2,'0')}`
-}
-function formatPaceNum(p: number) {
-  const m = Math.floor(p); const s = Math.round((p-m)*60)
-  return `${m}:${String(s).padStart(2,'0')}`
-}
 function formatTime(min?: number) {
   if (!min) return '—'
   const h = Math.floor(min/60); const m = Math.round(min%60)

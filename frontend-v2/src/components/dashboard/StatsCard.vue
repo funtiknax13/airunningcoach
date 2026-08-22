@@ -28,6 +28,7 @@
 
 <script setup lang="ts">
 import type { DashboardStats } from '@/api/types'
+import { fmtPace } from '@/utils/activityNarrative'
 defineProps<{ stats: DashboardStats | null | undefined }>()
 
 function formatTime(min?: number) {
@@ -36,7 +37,6 @@ function formatTime(min?: number) {
 }
 function formatPace(pace?: number) {
   if (!pace) return '—'
-  const m = Math.floor(pace); const s = Math.round((pace-m)*60)
-  return `${m}:${String(s).padStart(2,'0')} /km`
+  return `${fmtPace(pace)} /km`
 }
 </script>

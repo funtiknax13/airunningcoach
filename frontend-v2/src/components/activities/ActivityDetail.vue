@@ -121,6 +121,7 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 import { activitiesApi } from '@/api'
 import type { ActivityDetail, ActivitySplit } from '@/api/types'
+import { fmtPace } from '@/utils/activityNarrative'
 
 const props = defineProps<{ activityId: number }>()
 
@@ -134,11 +135,6 @@ async function load() {
   loading.value = true
   try { detail.value = await activitiesApi.detail(props.activityId) }
   finally { loading.value = false }
-}
-
-function fmtPace(p: number) {
-  const m = Math.floor(p); const s = Math.round((p - m) * 60)
-  return `${m}:${String(s).padStart(2, '0')}`
 }
 
 const hasAnyDetail = computed(() =>

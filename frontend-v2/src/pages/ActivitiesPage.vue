@@ -120,6 +120,7 @@ import { useDialog } from '@/composables/useDialog'
 import { activitiesApi } from '@/api'
 import { ApiError } from '@/api/client'
 import { activityIcon, activityLabel as sharedActivityLabel } from '@/utils/activity'
+import { fmtPace as formatPace } from '@/utils/activityNarrative'
 
 const { t, locale } = useI18n()
 const store     = useActivitiesStore()
@@ -214,10 +215,6 @@ function activityLabel(type: string): string {
   return sharedActivityLabel(type, locale.value)
 }
 
-function formatPace(p: number) {
-  const m = Math.floor(p); const s = Math.round((p - m) * 60)
-  return `${m}:${String(s).padStart(2, '0')}`
-}
 function formatDuration(min: number) {
   const h = Math.floor(min / 60); const m = Math.round(min % 60)
   return h > 0 ? `${h}h ${m}m` : `${m}m`

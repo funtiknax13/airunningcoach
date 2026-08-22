@@ -31,14 +31,11 @@
 
 <script setup lang="ts">
 import type { Activity } from '@/api/types'
+import { fmtPace as formatPace } from '@/utils/activityNarrative'
 
 defineProps<{ activity: Activity }>()
 defineEmits<{ (e: 'edit', id: number): void; (e: 'delete', id: number): void }>()
 
-function formatPace(pace: number): string {
-  const m = Math.floor(pace); const s = Math.round((pace - m) * 60)
-  return `${m}:${String(s).padStart(2, '0')}`
-}
 function formatDuration(min: number): string {
   const h = Math.floor(min / 60); const m = Math.round(min % 60)
   return h > 0 ? `${h}h ${m}m` : `${m}m`

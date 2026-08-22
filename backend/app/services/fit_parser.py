@@ -88,6 +88,7 @@ def _compute_splits(records: list) -> list:
     splits = []
     km_num, km_base_dist, km_base_time = 1, 0.0, None
     km_hrs = []
+    last_dist_km, last_ts = 0.0, None
 
     for r in records:
         dist = r.get("distance")
@@ -95,6 +96,7 @@ def _compute_splits(records: list) -> list:
         hr   = r.get("heart_rate")
         if dist is None: continue
         dist_km = dist / 1000
+        last_dist_km, last_ts = dist_km, ts
 
         if hr and hr > 0: km_hrs.append(hr)
         if km_base_time is None and ts: km_base_time = ts
@@ -111,6 +113,17 @@ def _compute_splits(records: list) -> list:
             km_base_dist = dist_km
             km_base_time = ts
             km_hrs = []
+
+    # Хвостовой неполный км (напр. 4.99 км целиком = 4 полных + 0.99) — без этого
+    # последний отрезок трека выпадал из анализа целиком.
+    if last_dist_km - km_base_dist > 0.02 and km_base_time and last_ts:
+        elapsed_min = (last_ts - km_base_time).total_seconds() / 60
+        seg_dist = last_dist_km - km_base_dist
+        splits.append({
+            "km":     km_num,
+            "pace":   round(elapsed_min / seg_dist, 2) if seg_dist > 0 else None,
+            "avg_hr": round(sum(km_hrs)/len(km_hrs)) if km_hrs else None,
+        })
 
     return splits
 

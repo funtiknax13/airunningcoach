@@ -120,6 +120,7 @@ import { useTrainingStore } from '@/stores/training'
 import { useAuthStore } from '@/stores/auth'
 import { useDialog } from '@/composables/useDialog'
 import type { Workout, WorkoutType, PlanStructure } from '@/api/types'
+import { fmtPace as formatPace } from '@/utils/activityNarrative'
 
 const { t, locale } = useI18n()
 const store  = useTrainingStore()
@@ -305,7 +306,6 @@ function isFuture(w: Workout) {
   const d = new Date(w.planned_date); d.setHours(0, 0, 0, 0)
   return d > today
 }
-function formatPace(p: number) { const m = Math.floor(p); const s = Math.round((p - m) * 60); return `${m}:${String(s).padStart(2, '0')}` }
 
 // Человекочитаемая раскладка структуры интервальной тренировки — чисто форматирование,
 // вся логика (что вообще предложить как интервалы) уже решена на бэкенде промптом.
