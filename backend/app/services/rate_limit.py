@@ -5,8 +5,15 @@ Rate limiting для AI-вызовов.
 Премиум аккаунт:   чат — 50/час,   план — 10/час
 
 Премиум активен если is_premium=True И (premium_until IS NULL ИЛИ premium_until > now()).
+
+Дневные лимиты (basic) сбрасываются по календарным суткам ПО ЛОКАЛЬНОМУ времени
+пользователя (user.timezone), а не скользящим 24-часовым окном — иначе "8 обращений
+вчера вечером + 2 сегодня утром" считались бы как 10 подряд и блокировали раньше,
+чем реально наступил новый день у пользователя. Часовые лимиты (premium) остаются
+скользящим окном — для "N в час" это ожидаемое поведение.
 """
 from datetime import datetime, timezone, timedelta
+from zoneinfo import ZoneInfo
 
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
@@ -48,11 +55,24 @@ def _tier(user: User, db: Session) -> str:
     return "premium" if _is_premium_active(user, db) else "basic"
 
 
+def _window_since(user: User, cfg: dict) -> datetime:
+    """Начало текущего окна лимита. Для дневных лимитов — полночь по локальному
+    времени пользователя (календарный день), для часовых — скользящее окно."""
+    if cfg["window"] != timedelta(hours=24):
+        return datetime.now(timezone.utc) - cfg["window"]
+    try:
+        tz = ZoneInfo(user.timezone) if user.timezone else timezone.utc
+    except Exception:
+        tz = timezone.utc
+    local_midnight = datetime.now(tz).replace(hour=0, minute=0, second=0, microsecond=0)
+    return local_midnight.astimezone(timezone.utc)
+
+
 def get_usage(user: User, action: str, db: Session) -> dict:
     """Возвращает текущее использование и лимит."""
     tier = _tier(user, db)
     cfg  = LIMITS[tier][action]
-    since = datetime.now(timezone.utc) - cfg["window"]
+    since = _window_since(user, cfg)
 
     used = (
         db.query(ApiUsage)
