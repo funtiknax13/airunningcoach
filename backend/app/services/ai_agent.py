@@ -107,9 +107,19 @@ def _client_for(p: dict) -> OpenAI:
 
 
 # Кулдаун упавшего провайдера — в памяти, свой на каждый воркер.
-_COOLDOWN_RATE = 900   # 429/лимит — надолго (у Groq дневной лимит токенов)
-_COOLDOWN_ERR = 60     # прочие сбои — коротко
+#
+# 429 у Groq почти всегда означает TPM/RPM-лимит (сбрасывается за секунды-десятки
+# секунд), а не дневной — но сам ответ Groq обычно прямо говорит, сколько ждать
+# ("...Please try again in 3.25s...", + заголовок Retry-After), так что достаём
+# реальное время оттуда вместо того, чтобы гадать. Дневной/месячный лимит
+# встречается редко и опознаётся по тексту ошибки — для него бэкофф подольше.
+_COOLDOWN_RATE_DEFAULT = 60    # 429 без опознанного времени ожидания — короткий бэкофф
+_COOLDOWN_RATE_DAILY   = 900   # 429 с явным упоминанием дневного/месячного лимита
+_COOLDOWN_ERR          = 60    # прочие сбои (не rate-limit) — коротко
 _cooldown_until: dict[str, float] = {}
+
+_RETRY_AFTER_RE = re.compile(r"try again in\s+([\d.]+)\s*s", re.IGNORECASE)
+_DAILY_LIMIT_RE = re.compile(r"per day|tokens per day|requests per day|\bTPD\b|\bRPD\b", re.IGNORECASE)
 
 
 def _in_cooldown(name: str) -> bool:
@@ -120,8 +130,33 @@ def _is_rate_limit(e: Exception) -> bool:
     return getattr(e, "status_code", None) == 429 or "RateLimit" in type(e).__name__ or " 429" in f" {e}"
 
 
+def _rate_limit_cooldown(e: Exception) -> float:
+    """Сколько ждать после 429. Порядок: заголовок Retry-After → "try again in Xs"
+    в тексте ошибки → явное упоминание дневного/месячного лимита (подольше) →
+    короткий дефолт (обычно это и есть TPM/RPM, а не дневной лимит)."""
+    response = getattr(e, "response", None)
+    header_val = response.headers.get("retry-after") if response is not None else None
+    if header_val:
+        try:
+            return max(1.0, float(header_val))
+        except ValueError:
+            pass
+    msg = str(e)
+    m = _RETRY_AFTER_RE.search(msg)
+    if m:
+        try:
+            return max(1.0, float(m.group(1)))
+        except ValueError:
+            pass
+    if _DAILY_LIMIT_RE.search(msg):
+        return _COOLDOWN_RATE_DAILY
+    return _COOLDOWN_RATE_DEFAULT
+
+
 def _set_cooldown(name: str, e: Exception) -> None:
-    _cooldown_until[name] = time.time() + (_COOLDOWN_RATE if _is_rate_limit(e) else _COOLDOWN_ERR)
+    cooldown = _rate_limit_cooldown(e) if _is_rate_limit(e) else _COOLDOWN_ERR
+    _cooldown_until[name] = time.time() + cooldown
+    logger.warning("Провайдер '%s' в кулдауне на %.0fс", name, cooldown)
 
 
 async def _acreate(client: OpenAI, **kwargs):
