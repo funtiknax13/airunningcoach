@@ -121,6 +121,11 @@ _cooldown_until: dict[str, float] = {}
 _RETRY_AFTER_RE = re.compile(r"try again in\s+([\d.]+)\s*s", re.IGNORECASE)
 _DAILY_LIMIT_RE = re.compile(r"per day|tokens per day|requests per day|\bTPD\b|\bRPD\b", re.IGNORECASE)
 
+# Урезанный контекст для Groq (8000 токенов/мин на бесплатном тарифе — полный
+# контекст активного пользователя туда не влезает одним запросом). См. chat_response().
+_GROQ_ACTIVITY_LIMIT = 15
+_GROQ_HISTORY_LIMIT  = 10
+
 
 def _in_cooldown(name: str) -> bool:
     return time.time() < _cooldown_until.get(name, 0.0)
@@ -183,14 +188,22 @@ def _chat_kwargs(p, messages, max_tokens, temperature, response_format):
 
 
 async def _chat(messages: list[dict], max_tokens: int, temperature: float,
-                response_format: dict | None = None):
+                response_format: dict | None = None, compact_messages: list[dict] | None = None):
     """Асинхронный чат-запрос с failover Groq→DeepSeek. При сбое провайдера — к
     следующему; упавший уходит в кулдаун. Все упали → пробрасываем (вызывающий
-    код уходит в свой stub)."""
+    код уходит в свой stub).
+
+    compact_messages: усечённый вариант messages (меньше история чата/тренировок) —
+    для Groq, у которого на бесплатном тарифе жёсткий потолок 8000 токенов/мин, и
+    полный контекст активного пользователя туда просто не влезает одним запросом
+    (уходит 413 Payload Too Large ещё до попытки обработки). DeepSeek получает
+    полный messages как обычно — сокращаем контекст только там, где это реально
+    вынужденно, а не для всех подряд."""
     last_exc: Exception | None = None
     for p in _ordered_providers():
+        use_messages = compact_messages if (p["name"] == "groq" and compact_messages is not None) else messages
         try:
-            return await _acreate(_client_for(p), **_chat_kwargs(p, messages, max_tokens, temperature, response_format))
+            return await _acreate(_client_for(p), **_chat_kwargs(p, use_messages, max_tokens, temperature, response_format))
         except Exception as e:
             last_exc = e
             _set_cooldown(p["name"], e)
@@ -213,8 +226,12 @@ def _chat_sync(messages: list[dict], max_tokens: int, temperature: float,
     raise last_exc if last_exc else RuntimeError("нет настроенных AI-провайдеров")
 
 
-def _build_user_context(user: User, db: Session) -> str:
-    """Собирает контекст пользователя в текстовый блок для системного промпта."""
+def _build_user_context(user: User, db: Session, activity_limit: int = 60) -> str:
+    """Собирает контекст пользователя в текстовый блок для системного промпта.
+
+    activity_limit: сколько последних тренировок включать в историю — по умолчанию
+    60, но для Groq (жёсткий потолок 8000 токенов/мин на бесплатном тарифе) вызывающий
+    код запрашивает урезанную версию, см. _chat()/chat_response()."""
     try:
         today = datetime.now(ZoneInfo(user.timezone)).date() if user.timezone else datetime.now().date()
     except Exception:
@@ -277,7 +294,7 @@ def _build_user_context(user: User, db: Session) -> str:
         db.query(Activity)
         .filter(Activity.user_id == user.id)
         .order_by(Activity.date.desc())
-        .limit(60)
+        .limit(activity_limit)
         .all()
     )
     _type_labels = {
@@ -374,7 +391,7 @@ def _build_user_context(user: User, db: Session) -> str:
     return "\n".join(lines)
 
 
-def _build_history(messages: list[ChatMessage]) -> list[dict]:
+def _build_history(messages: list[ChatMessage], limit: int = 20) -> list[dict]:
     """Конвертирует историю чата в формат OpenAI messages.
 
     Только сообщения ПОЛЬЗОВАТЕЛЯ помечаются датой, когда они были написаны — без
@@ -385,9 +402,11 @@ def _build_history(messages: list[ChatMessage]) -> list[dict]:
     а на следующем вызове сюда добавляется ещё один префикс поверх уже
     сгенерированного моделью, и дата дублируется с каждым ходом (было замечено
     в проде: "[05.07.2026] [05.07.2026] [05.07.2026] ...").
-    """
+
+    limit: по умолчанию 20 (~10 ходов), но для Groq (8000 токенов/мин на бесплатном
+    тарифе) вызывающий код запрашивает урезанную версию — см. chat_response()."""
     result = []
-    for m in messages[-20:]:  # последние 20 сообщений = ~контекст 10 ходов
+    for m in messages[-limit:]:
         role = "user" if m.role == "user" else "assistant"
         if role == "user" and m.created_at:
             content = f"[{m.created_at.strftime('%d.%m.%Y')}] {m.content}"
@@ -443,6 +462,16 @@ async def chat_response(
     messages += _build_history(history)
     messages.append({"role": "user", "content": user_message})
 
+    # Компактный вариант — специально для Groq (см. _chat()): полный context/history
+    # выше у активного пользователя легко уходит за 8000 токенов/мин (потолок Groq
+    # на бесплатном тарифе), запрос отклоняется целиком (413) ещё до обработки.
+    # DeepSeek получает messages целиком как обычно, если Groq не справился.
+    compact_context = _build_user_context(user, db, activity_limit=_GROQ_ACTIVITY_LIMIT)
+    compact_system  = f"{SYSTEM_PROMPT}\n{lang_instruction}\n\n{compact_context}{plan_status}"
+    compact_messages = [{"role": "system", "content": compact_system}]
+    compact_messages += _build_history(history, limit=_GROQ_HISTORY_LIMIT)
+    compact_messages.append({"role": "user", "content": user_message})
+
     # Отдаём соединение обратно в пул на время ожидания DeepSeek (до 45с) —
     # без этого оно простаивало бы занятым весь запрос, и под несколько
     # одновременных AI-запросов пул мог исчерпаться, тормозя обычные быстрые
@@ -453,7 +482,7 @@ async def chat_response(
     db.close()
 
     try:
-        resp = await _chat(messages=messages, max_tokens=800, temperature=0.7)
+        resp = await _chat(messages=messages, max_tokens=800, temperature=0.7, compact_messages=compact_messages)
         return _strip_date_prefix(resp.choices[0].message.content.strip())
     except Exception as e:
         logger.error("DeepSeek chat error: %s", e)
