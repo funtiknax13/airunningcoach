@@ -184,6 +184,13 @@ def _chat_kwargs(p, messages, max_tokens, temperature, response_format):
     kwargs = dict(model=p["model"], messages=messages, max_tokens=max_tokens, temperature=temperature)
     if response_format is not None:
         kwargs["response_format"] = response_format
+        if p["name"] == "groq":
+            # Groq-хостинг GPT-OSS в JSON-режиме иногда подмешивает reasoning-текст
+            # прямо в content — json.loads() на нашей стороне падает, а сам Groq
+            # отдаёт 400 json_validate_failed ещё до того, как ответ до нас доходит.
+            # include_reasoning не входит в типизированную сигнатуру openai-SDK,
+            # поэтому — через extra_body (см. docs Groq по GPT-OSS reasoning).
+            kwargs["extra_body"] = {"include_reasoning": False}
     return kwargs
 
 
