@@ -126,6 +126,7 @@ import { useGoalsStore } from '@/stores/goals'
 import { useTrainingStore } from '@/stores/training'
 import { useChatStore } from '@/stores/chat'
 import { useInsightsStore } from '@/stores/insights'
+import { getStoredUtm } from '@/utils/utm'
 
 const props = defineProps<{ initialScreen?: 'login'|'register'; canClose?: boolean; successMsg?: string }>()
 defineEmits(['close'])
@@ -223,7 +224,7 @@ async function register() {
       confirm_password: reg.value.confirm, name: reg.value.name,
       age: reg.value.age, weight: reg.value.weight, height: reg.value.height,
       lang: locale.value, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-      altcha: regAltcha.value })
+      altcha: regAltcha.value, ...getStoredUtm() })
     verifyText.value = `Письмо отправлено на ${reg.value.email}`
     screen.value = 'verify'
   } catch (e: any) { error.value = e.message }

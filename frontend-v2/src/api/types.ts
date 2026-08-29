@@ -10,6 +10,9 @@ export interface UserCreate {
   lang?: string
   timezone?: string
   altcha?: string
+  utm_source?: string
+  utm_medium?: string
+  utm_campaign?: string
 }
 
 export interface UserLogin {
@@ -382,4 +385,48 @@ export interface AdminSupportList {
   total: number
   page: number
   page_size: number
+}
+
+// ── Аналитика (Admin Tools) ──────────────────────────────────────────────────
+export interface AdminOverview {
+  total_users: number
+  verified_users: number
+  premium_active: number
+  signups_today: number
+  signups_7d: number
+  signups_30d: number
+  dau: number
+  wau: number
+  mau: number
+  revenue_30d_rub: number
+  revenue_total_rub: number
+}
+
+export interface AdminRegistrations {
+  series: { date: string; count: number }[]
+  by_source: { utm_source: string; count: number }[]
+}
+
+export interface AdminAiUsage {
+  series: { date: string; chat: number; plan: number; unique_users: number }[]
+}
+
+export interface AdminRetentionCohort {
+  cohort_week: string
+  size: number
+  retention: (number | null)[]
+}
+
+export interface AdminRetention {
+  cohorts: AdminRetentionCohort[]
+}
+
+export interface AdminFunnelStep {
+  step: string
+  count: number
+  pct_of_registered: number
+}
+
+export interface AdminFunnel {
+  steps: AdminFunnelStep[]
 }

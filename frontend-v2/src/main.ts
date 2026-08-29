@@ -5,6 +5,9 @@ import router from './router'
 import App from './App.vue'
 import 'altcha'   // регистрирует веб-компонент <altcha-widget> (капча)
 import './style.css'
+import { captureUtmFromUrl } from './utils/utm'
+
+captureUtmFromUrl()
 
 const app = createApp(App)
 app.use(createPinia())

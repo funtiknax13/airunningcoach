@@ -4,9 +4,14 @@
       <button v-if="selected" class="btn btn-secondary btn-sm" @click="closeThread">
         <i class="fas fa-arrow-left"></i> {{ t('admin.support.backList') }}
       </button>
-      <a v-else href="/sqladmin/" class="btn btn-secondary btn-sm">
-        <i class="fas fa-database"></i> {{ t('admin.support.sqlAdmin') }}
-      </a>
+      <template v-else>
+        <RouterLink to="/admin/analytics" class="btn btn-secondary btn-sm">
+          <i class="fas fa-chart-line"></i> {{ t('admin.analytics.navLabel') }}
+        </RouterLink>
+        <a href="/sqladmin/" class="btn btn-secondary btn-sm">
+          <i class="fas fa-database"></i> {{ t('admin.support.sqlAdmin') }}
+        </a>
+      </template>
     </template>
 
     <!-- ── Список тикетов ── -->
@@ -81,6 +86,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { RouterLink } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import { adminSupportApi } from '@/api'

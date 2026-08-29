@@ -34,6 +34,16 @@ class User(Base):
     training_days = Column(Integer, nullable=True)          # дней в неделю
     timezone = Column(String(50), nullable=True)             # IANA-имя, напр. Asia/Yekaterinburg — для локального времени в бейджах/статистике
     onboarding_completed = Column(Boolean, default=False, nullable=False, server_default='true')
+    # Обновляется в get_current_user (не чаще раза в LAST_ACTIVE_UPDATE_INTERVAL) —
+    # для DAU/WAU/MAU в админ-аналитике, без этого "активен" пришлось бы каждый
+    # раз выводить окольными путями через таблицы activities/chat_messages.
+    last_active_at = Column(DateTime(timezone=True), nullable=True)
+    # Откуда пришла регистрация — из UTM-меток в ссылке (?utm_source=blog&...),
+    # уже расставленных в CTA по блогу/тулзам, но раньше нигде не сохранявшихся.
+    # Пишутся один раз при регистрации, дальше не меняются.
+    utm_source   = Column(String(100), nullable=True)
+    utm_medium   = Column(String(100), nullable=True)
+    utm_campaign = Column(String(100), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 

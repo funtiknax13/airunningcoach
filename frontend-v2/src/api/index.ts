@@ -12,6 +12,11 @@ import type {
   SupportTicketSummary,
   SupportTicketDetail,
   AdminSupportList,
+  AdminOverview,
+  AdminRegistrations,
+  AdminAiUsage,
+  AdminRetention,
+  AdminFunnel,
 } from './types'
 
 // ── Auth ──────────────────────────────────────────────────────────────────
@@ -131,6 +136,15 @@ export const adminSupportApi = {
   toggleStatus: (id: number) =>
     api.request<SupportTicketDetail>(`/api/admin/support/${id}/status`, 'POST'),
   badgeCounts: () => api.request<{ tickets: number }>('/api/admin/support/badge-counts'),
+}
+
+// ── Аналитика (Admin Tools) ─────────────────────────────────────────────────
+export const adminAnalyticsApi = {
+  overview:      () => api.request<AdminOverview>('/api/admin/analytics/overview'),
+  registrations: (days = 30) => api.request<AdminRegistrations>(`/api/admin/analytics/registrations?days=${days}`),
+  aiUsage:       (days = 30) => api.request<AdminAiUsage>(`/api/admin/analytics/ai-usage?days=${days}`),
+  retention:     (weeksBack = 8) => api.request<AdminRetention>(`/api/admin/analytics/retention?weeks_back=${weeksBack}`),
+  funnel:        () => api.request<AdminFunnel>('/api/admin/analytics/funnel'),
 }
 
 // ── Push-уведомления ────────────────────────────────────────────────────────

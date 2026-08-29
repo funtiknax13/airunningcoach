@@ -16,6 +16,9 @@ class UserCreate(BaseModel):
     lang: Optional[str] = "ru"  # язык интерфейса: "ru" | "en"
     timezone: Optional[str] = None  # IANA-имя из браузера, напр. Asia/Yekaterinburg
     altcha: Optional[str] = None  # решение ALTCHA-капчи (base64)
+    utm_source: Optional[str] = Field(None, max_length=100)
+    utm_medium: Optional[str] = Field(None, max_length=100)
+    utm_campaign: Optional[str] = Field(None, max_length=100)
 
     @model_validator(mode="after")
     def passwords_match(self) -> "UserCreate":

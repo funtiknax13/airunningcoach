@@ -64,6 +64,7 @@ async def register(user_data: UserCreate, db: Session = Depends(get_db)):
         verification_token=token, verification_token_expires=expires,
         is_premium=True, premium_until=trial_until,
         onboarding_completed=False,
+        utm_source=user_data.utm_source, utm_medium=user_data.utm_medium, utm_campaign=user_data.utm_campaign,
     )
     db.add(db_user)
     db.commit()
