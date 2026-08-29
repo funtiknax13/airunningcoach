@@ -7,62 +7,17 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pathlib import Path
 
-from sqlalchemy import text
-from app.database import engine, Base
 from app.routers import auth, activities, goals, training, chat, ai_insights, payments, support, admin_support, admin_analytics, tools, push, achievements
 from app.core.config import settings
 from app.services.trial_emails import start_scheduler, stop_scheduler
 
-Base.metadata.create_all(bind=engine)
-
-def _fk_ondelete_sql(table: str, column: str, on_delete: str) -> str:
-    """DO-блок: находит текущее имя FK-constraint'а на table.column (создан
-    Base.metadata.create_all с дефолтным именем) и пересоздаёт с ON DELETE."""
-    return f"""
-    DO $$
-    DECLARE r RECORD;
-    BEGIN
-        FOR r IN
-            SELECT tc.constraint_name
-            FROM information_schema.table_constraints tc
-            JOIN information_schema.key_column_usage kcu
-              ON tc.constraint_name = kcu.constraint_name AND tc.table_schema = kcu.table_schema
-            WHERE tc.constraint_type = 'FOREIGN KEY'
-              AND tc.table_name = '{table}'
-              AND kcu.column_name = '{column}'
-        LOOP
-            EXECUTE format('ALTER TABLE {table} DROP CONSTRAINT %I', r.constraint_name);
-        END LOOP;
-        EXECUTE 'ALTER TABLE {table} ADD CONSTRAINT {table}_{column}_fkey FOREIGN KEY ({column}) REFERENCES activities(id) ON DELETE {on_delete}';
-    END $$;
-    """
-
-def _migrate():
-    """Добавляет новые колонки к существующим таблицам (идемпотентно)."""
-    migrations = [
-        "ALTER TABLE users ADD COLUMN IF NOT EXISTS fitness_level VARCHAR(20)",
-        "ALTER TABLE users ADD COLUMN IF NOT EXISTS running_goal VARCHAR(20)",
-        "ALTER TABLE users ADD COLUMN IF NOT EXISTS weekly_km FLOAT",
-        "ALTER TABLE users ADD COLUMN IF NOT EXISTS training_days INTEGER",
-        # server_default TRUE — существующие пользователи не попадают в онбординг
-        "ALTER TABLE users ADD COLUMN IF NOT EXISTS onboarding_completed BOOLEAN DEFAULT TRUE",
-        "ALTER TABLE users ADD COLUMN IF NOT EXISTS gender VARCHAR(10)",
-        "ALTER TABLE personal_records ADD COLUMN IF NOT EXISTS distance_km FLOAT",
-        "ALTER TABLE workouts ADD COLUMN IF NOT EXISTS activity_id INTEGER",
-        # activity_id FK-и изначально создались без ON DELETE — удаление пробежки,
-        # на которую ссылается тренировка/рекорд/достижение, падало с ForeignKeyViolation.
-        # Пересоздаём с ON DELETE SET NULL (история сохраняется) / CASCADE (рекорд
-        # пересчитывается в recompute_achievements сразу после удаления).
-        _fk_ondelete_sql("workouts", "activity_id", "SET NULL"),
-        _fk_ondelete_sql("personal_records", "activity_id", "CASCADE"),
-        _fk_ondelete_sql("user_achievements", "activity_id", "SET NULL"),
-    ]
-    with engine.connect() as conn:
-        for sql in migrations:
-            conn.execute(text(sql))
-        conn.commit()
-
-_migrate()
+# Схема БД теперь полностью под alembic (entrypoint.sh запускает `alembic upgrade
+# head` перед стартом uvicorn) — раньше здесь ещё были Base.metadata.create_all()
+# и хендролленный _migrate() с ручными ALTER TABLE, из-за чего часть таблиц
+# (personal_records, user_achievements, push_subscriptions) и колонок никогда не
+# попадала в alembic-историю и `alembic upgrade head` не мог поднять схему с нуля.
+# См. backend/alembic/versions/0017_untracked_schema.py — эта миграция подобрала
+# всё, что раньше делали create_all()/_migrate().
 
 
 @asynccontextmanager
@@ -79,10 +34,24 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# Реальный трафик приложения всегда same-origin (nginx отдаёт SPA+API с одного
+# домена в проде, Vite-прокси делает то же самое локально — см. vite.config.ts) —
+# браузер никогда не делает настоящий кросс-origin запрос к этому API. Поэтому
+# credentials (куки) не нужны вообще (auth — Bearer-токен в заголовке, не куки —
+# см. api/client.ts), и держать allow_origins=["*"] вместе с allow_credentials=True
+# было чистым риском без функциональной необходимости.
+_CORS_ORIGINS = list({
+    settings.APP_BASE_URL,
+    "https://airunningcoach.pro",
+    "https://www.airunningcoach.pro",
+    "http://localhost:5173",   # Vite dev server — прямые запросы мимо прокси
+    "http://localhost",
+})
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=_CORS_ORIGINS,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )

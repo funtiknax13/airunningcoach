@@ -90,7 +90,7 @@ async function open(id?: number) {
 }
 
 async function save() {
-  if (!form.value.date || !form.value.distance_km) { error.value = t('activities.errDateDist'); return }
+  if (!form.value.date || form.value.distance_km == null) { error.value = t('activities.errDateDist'); return }
   if (!durationMin.value || durationMin.value <= 0)  { error.value = t('activities.errTime'); return }
   saving.value = true; error.value = ''
   try {

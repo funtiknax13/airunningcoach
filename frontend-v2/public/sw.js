@@ -1,4 +1,8 @@
-const CACHE = 'runcoach-v1'
+// Плейсхолдер подставляется в dist/sw.js отдельным шагом после vite build — см.
+// package.json ("build") и scripts/inject-sw-version.mjs. Раньше здесь была
+// статичная строка, никогда не менявшаяся между деплоями, из-за чего activate()
+// ничего не чистил и старый CacheStorage жил вечно.
+const CACHE = 'runcoach-__SW_CACHE_VERSION__'
 const STATIC = ['/', '/dashboard', '/manifest.json', '/logo.png', '/favicon.ico']
 
 self.addEventListener('install', e => {
@@ -20,6 +24,18 @@ self.addEventListener('fetch', e => {
 
   // API-запросы — только сеть, без кеша
   if (url.pathname.startsWith('/api/')) return
+
+  // Навигации (сам SPA-документ) — только сеть, кеш лишь как офлайн-фоллбэк.
+  // JS/CSS с хэшем в имени безопасно отдавать из кеша (URL иммутабелен — при
+  // новой сборке будет уже другой файл), а вот HTML — нет: cache-first здесь
+  // означало, что вернувшийся после деплоя пользователь мгновенно получал
+  // старую страницу со ссылками на уже удалённые хэшированные файлы (404).
+  if (e.request.mode === 'navigate') {
+    e.respondWith(
+      fetch(e.request).catch(() => caches.match(e.request).then(c => c || caches.match('/')))
+    )
+    return
+  }
 
   e.respondWith(
     caches.match(e.request).then(cached => {

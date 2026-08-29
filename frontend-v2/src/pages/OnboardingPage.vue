@@ -95,6 +95,8 @@
         </div>
       </template>
 
+      <p v-if="error" class="onboarding-error">{{ error }}</p>
+
       <!-- Кнопки навигации -->
       <div class="nav-row">
         <button v-if="step > 1" class="btn-back" @click="step--">Назад</button>
@@ -120,6 +122,7 @@ const auth = useAuthStore()
 
 const step = ref(1)
 const saving = ref(false)
+const error = ref('')
 
 const form = ref({
   gender: '' as string,
@@ -176,6 +179,7 @@ async function next() {
     return
   }
   saving.value = true
+  error.value = ''
   try {
     await auth.updateProfile({
       gender: form.value.gender,
@@ -186,6 +190,8 @@ async function next() {
       onboarding_completed: true,
     })
     router.push('/dashboard')
+  } catch (e: any) {
+    error.value = e?.message || 'Не удалось сохранить профиль. Попробуйте ещё раз.'
   } finally {
     saving.value = false
   }
@@ -331,6 +337,13 @@ h1 {
   border-color: var(--accent, #6c63ff);
   background: rgba(108, 99, 255, 0.18);
   color: var(--text-primary, #fff);
+}
+
+.onboarding-error {
+  color: #dc2626;
+  font-size: 0.88rem;
+  margin: 4px 0 0;
+  text-align: center;
 }
 
 .nav-row {

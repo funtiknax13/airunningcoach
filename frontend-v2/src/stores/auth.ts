@@ -26,10 +26,15 @@ export const useAuthStore = defineStore('auth', () => {
   // до появления этого поля (у них timezone = null), и переезды/смену системной зоны.
   function syncTimezone() {
     if (!user.value) return
+    // Запрос не await'ится и не отменяется — если пользователь успеет разлогиниться
+    // (или залогиниться другим аккаунтом) до ответа, .then() ниже не должен
+    // затирать user.value чужими/устаревшими данными. Проверяем id на момент
+    // ответа, а не просто "залогинен ли кто-то вообще".
+    const forUserId = user.value.id
     const detected = Intl.DateTimeFormat().resolvedOptions().timeZone
     if (detected && detected !== user.value.timezone) {
       authApi.updateProfile({ timezone: detected })
-        .then(u => { user.value = u })
+        .then(u => { if (user.value?.id === forUserId) user.value = u })
         .catch(() => {})
     }
   }

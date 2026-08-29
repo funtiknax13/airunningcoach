@@ -11,7 +11,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 2
+          # Полная история — Detect backend changes ниже диффит против
+          # github.event.before, который на многокоммитном пуше может быть
+          # сколь угодно старым (fetch-depth: 2 сравнивало только с прошлым
+          # коммитом и на пуше из 2+ коммитов могло молча пропустить пересборку
+          # backend-образа, если backend/ менялся не в самом последнем коммите).
+          fetch-depth: 0
 
       - uses: actions/setup-node@v4
         with:
@@ -22,12 +27,36 @@ jobs:
       - name: Build frontend
         run: cd frontend-v2 && npm ci && npm run build
 
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'   # см. backend/Dockerfile
+
+      - name: Backend sanity check
+        run: |
+          cd backend
+          pip install -r requirements.txt
+          python -m py_compile $(find app -name "*.py")
+          # Реальный импорт FastAPI-приложения — ловит не только синтаксис, но и
+          # сломанные импорты/циклические зависимости/ошибки на уровне модуля
+          # (например, наш SECRET_KEY-валидатор). SQLite вместо Postgres — нужно
+          # только чтобы Settings() и импорт прошли, реальных запросов тут нет.
+          SECRET_KEY=ci-smoke-test-key-not-used-in-prod \
+          DATABASE_URL=sqlite:///./ci_smoke.db \
+            python -c "from app.main import app; print('Backend imports OK:', app.title)"
+
       - name: Detect backend changes
         id: changes
         run: |
-          git diff HEAD~1 HEAD --name-only | grep -q "^backend/" \
-            && echo "backend=true" >> $GITHUB_OUTPUT \
-            || echo "backend=false" >> $GITHUB_OUTPUT
+          BEFORE="${{ github.event.before }}"
+          # all-zero SHA = первый пуш новой ветки (нет валидного "before") —
+          # безопасный дефолт: считаем, что backend менялся, пересобираем.
+          if [ "$BEFORE" = "0000000000000000000000000000000000000000" ] || [ -z "$BEFORE" ]; then
+            echo "backend=true" >> $GITHUB_OUTPUT
+          else
+            git diff "$BEFORE" "${{ github.sha }}" --name-only | grep -q "^backend/" \
+              && echo "backend=true" >> $GITHUB_OUTPUT \
+              || echo "backend=false" >> $GITHUB_OUTPUT
+          fi
 
       - name: Setup SSH
         run: |
