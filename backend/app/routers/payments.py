@@ -96,7 +96,14 @@ async def create_payment(
 
 @router.post("/webhook")
 async def payment_webhook(request: Request, db: Session = Depends(get_db)):
-    """ЮКасса отправляет уведомления о смене статуса платежа."""
+    """ЮКасса отправляет уведомления о смене статуса платежа.
+
+    ЮКасса не подписывает уведомления — тело запроса может прислать кто угодно.
+    Поэтому тело используется только чтобы узнать yookassa_id; реальный статус и
+    metadata берём напрямую у ЮКассы через API (find_one, авторизовано нашим
+    секретным ключом) и активируем Premium только по этим, серверно проверенным,
+    данным. Раньше status/metadata брались прямо из тела запроса — подделав его,
+    можно было выдать себе Premium без оплаты."""
     body = await request.body()
 
     try:
@@ -104,29 +111,45 @@ async def payment_webhook(request: Request, db: Session = Depends(get_db)):
     except Exception:
         raise HTTPException(status_code=400, detail="Invalid JSON")
 
-    event_type = event.get("event")
     obj = event.get("object", {})
     yookassa_id = obj.get("id")
-    status = obj.get("status")
-
-    logger.info("YooKassa webhook: event=%s id=%s status=%s", event_type, yookassa_id, status)
-
-    if event_type != "payment.succeeded" or status != "succeeded":
+    if not yookassa_id:
         return {"status": "ignored"}
+
+    if not _yookassa_configured():
+        logger.error("YooKassa webhook received but YooKassa is not configured")
+        return {"status": "ignored"}
+
+    import yookassa
+    yookassa.Configuration.configure(
+        account_id=settings.YOOKASSA_SHOP_ID,
+        secret_key=settings.YOOKASSA_SECRET_KEY,
+    )
+    try:
+        yk_payment = yookassa.Payment.find_one(yookassa_id)
+    except Exception as e:
+        logger.warning("YooKassa webhook: failed to verify payment %s via API: %s", yookassa_id, e)
+        raise HTTPException(status_code=502, detail="Verification failed")
+
+    logger.info("YooKassa webhook: id=%s verified_status=%s", yookassa_id, yk_payment.status)
+
+    if yk_payment.status != "succeeded":
+        return {"status": "ignored"}
+
+    meta = yk_payment.metadata or {}
+    user_id = meta.get("user_id")
+    plan = meta.get("plan")
 
     # Находим платёж
     db_payment = db.query(Payment).filter(Payment.yookassa_id == yookassa_id).first()
     if not db_payment:
-        # Пробуем получить данные из метаданных вебхука
-        meta = obj.get("metadata", {})
-        user_id = meta.get("user_id")
-        plan = meta.get("plan")
-        if not user_id or not plan:
-            logger.warning("YooKassa webhook: payment %s not found in DB", yookassa_id)
+        if not user_id or plan not in PLANS:
+            logger.warning("YooKassa webhook: verified payment %s has no usable metadata", yookassa_id)
             return {"status": "not_found"}
 
-        # Создаём запись если пропустили (редкий кейс)
-        _, amount = PLANS.get(plan, (1, 0))
+        # Создаём запись если пропустили (редкий кейс) — amount/plan теперь из
+        # проверенного ответа ЮКассы, не из тела вебхука.
+        _, amount = PLANS[plan]
         db_payment = Payment(
             user_id=int(user_id),
             yookassa_id=yookassa_id,

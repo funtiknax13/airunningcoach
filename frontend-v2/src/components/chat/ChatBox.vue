@@ -34,19 +34,12 @@
 
 <script setup lang="ts">
 import { ref, watch, nextTick, onMounted } from 'vue'
-import { marked } from 'marked'
 import { useChatStore } from '@/stores/chat'
+import { renderMd } from '@/utils/markdown'
 
 const store  = useChatStore()
 const text   = ref('')
 const boxRef = ref<HTMLElement | null>(null)
-
-// Настраиваем marked: без лишних <p> переносов, безопасно
-marked.setOptions({ breaks: true, gfm: true })
-
-function renderMd(content: string): string {
-  return marked.parse(content) as string
-}
 
 async function send() {
   const msg = text.value.trim()

@@ -1,10 +1,13 @@
+from pydantic import field_validator
 from pydantic_settings import BaseSettings
 from typing import Optional
+
+_DEFAULT_SECRET_KEY = "your-secret-key-change-this-in-production"
 
 
 class Settings(BaseSettings):
     DATABASE_URL: str = "sqlite:///./running_coach.db"
-    SECRET_KEY: str = "your-secret-key-change-this-in-production"
+    SECRET_KEY: str = _DEFAULT_SECRET_KEY
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 43200  # 30 дней (10 дней = 14400)
 
@@ -52,6 +55,19 @@ class Settings(BaseSettings):
 
     # Ignored legacy keys
     GEMINI_API_KEY: str = ""
+
+    @field_validator("SECRET_KEY")
+    @classmethod
+    def _secret_key_must_be_overridden(cls, v: str) -> str:
+        # Дефолт публичный (в гите) — если он дошёл до прода, любой может подделать
+        # JWT на любого user_id, включая админов. Падаем при старте, а не молча
+        # работаем с небезопасным ключом.
+        if v == _DEFAULT_SECRET_KEY:
+            raise ValueError(
+                "SECRET_KEY не задан — используется публичный дефолт из репозитория. "
+                "Задайте реальный секрет в .env (SECRET_KEY=...) перед запуском."
+            )
+        return v
 
     class Config:
         env_file = ".env"

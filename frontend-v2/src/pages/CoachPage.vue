@@ -74,14 +74,12 @@
 <script setup lang="ts">
 import { ref, watch, nextTick, onMounted } from 'vue'
 import { RouterLink } from 'vue-router'
-import { marked } from 'marked'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import SkeletonLoader from '@/components/common/SkeletonLoader.vue'
 import RateLimitBadge from '@/components/common/RateLimitBadge.vue'
 import { useChatStore }     from '@/stores/chat'
 import { useInsightsStore } from '@/stores/insights'
-
-marked.setOptions({ breaks: true, gfm: true })
+import { renderMd } from '@/utils/markdown'
 
 const chatStore     = useChatStore()
 const insightsStore = useInsightsStore()
@@ -97,8 +95,6 @@ onMounted(async () => {
   // Инсайты (LLM) — в фоне, не блокируем показ чата
   insightsStore.load().catch(() => {})
 })
-
-function renderMd(content: string) { return marked.parse(content) as string }
 
 async function send() {
   const msg = text.value.trim()
