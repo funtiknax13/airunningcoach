@@ -15,7 +15,7 @@
           <i class="fas fa-shoe-prints" style="color:var(--brand)"></i>
           <span>{{ detail.avg_cadence }} <small>шаг/мин</small></span>
         </div>
-        <div v-if="detail.elevation_gain" class="act-dm">
+        <div v-if="detail.elevation_gain != null" class="act-dm">
           <i class="fas fa-mountain" style="color:#10b981"></i>
           <span>{{ detail.elevation_gain }} <small>м ↑</small></span>
         </div>
@@ -142,7 +142,7 @@ const hasAnyDetail = computed(() =>
     detail.value.laps?.length ||
     detail.value.splits?.length ||
     detail.value.max_heart_rate ||
-    detail.value.elevation_gain ||
+    detail.value.elevation_gain != null ||
     detail.value.notes
   )
 )

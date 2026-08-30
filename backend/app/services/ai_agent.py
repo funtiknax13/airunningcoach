@@ -132,7 +132,12 @@ def _in_cooldown(name: str) -> bool:
 
 
 def _is_rate_limit(e: Exception) -> bool:
-    return getattr(e, "status_code", None) == 429 or "RateLimit" in type(e).__name__ or " 429" in f" {e}"
+    """openai-python оборачивает 429 в RateLimitError с status_code=429 напрямую
+    (не под .response) — оба реальных пути уже надёжно покрыты этими двумя
+    проверками. Раньше был ещё фолбэк по подстроке `" 429" in f" {e}"` — убрал:
+    он ничего не покрывал сверх этих двух (для этого SDK), зато мог случайно
+    сработать на любой другой ошибке, где "429" просто встретилось в тексте."""
+    return getattr(e, "status_code", None) == 429 or "RateLimit" in type(e).__name__
 
 
 def _rate_limit_cooldown(e: Exception) -> float:

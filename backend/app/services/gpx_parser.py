@@ -76,10 +76,13 @@ def _compute_splits(points: list) -> list:
             t_start = points[km_start_idx].get("time")
             t_end   = p.get("time")
             if t_start and t_end:
-                pace = (t_end - t_start).total_seconds() / 60 / km_dist
+                # elapsed <= 0 — дублирующиеся/невозрастающие таймстампы в треке
+                # (плохой GPS-фикс); без проверки pace=0.0 выглядел бы как честный
+                # "0:00/км" (телепортация), а не как отсутствие данных.
+                elapsed_min = (t_end - t_start).total_seconds() / 60
                 splits.append({
                     "km":     km_num,
-                    "pace":   round(pace, 2),
+                    "pace":   round(elapsed_min / km_dist, 2) if elapsed_min > 0 else None,
                     "avg_hr": round(sum(km_hrs)/len(km_hrs)) if km_hrs else None,
                 })
             km_num    += 1
@@ -93,10 +96,10 @@ def _compute_splits(points: list) -> list:
         t_start = points[km_start_idx].get("time")
         t_end   = points[-1].get("time")
         if t_start and t_end:
-            pace = (t_end - t_start).total_seconds() / 60 / km_dist
+            elapsed_min = (t_end - t_start).total_seconds() / 60
             splits.append({
                 "km":     km_num,
-                "pace":   round(pace, 2),
+                "pace":   round(elapsed_min / km_dist, 2) if elapsed_min > 0 else None,
                 "avg_hr": round(sum(km_hrs)/len(km_hrs)) if km_hrs else None,
             })
 

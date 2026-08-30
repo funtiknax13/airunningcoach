@@ -106,7 +106,10 @@ def _compute_splits(records: list) -> list:
             seg_dist = dist_km - km_base_dist
             splits.append({
                 "km":     km_num,
-                "pace":   round(elapsed_min / seg_dist, 2) if seg_dist > 0 else None,
+                # seg_dist > 0 гарантирован условием запуска блока — реальная защита
+                # нужна от elapsed_min <= 0 (дублирующиеся/невозрастающие таймстампы),
+                # без неё pace=0.0 выглядел бы как честный "0:00/км".
+                "pace":   round(elapsed_min / seg_dist, 2) if elapsed_min > 0 and seg_dist > 0 else None,
                 "avg_hr": round(sum(km_hrs)/len(km_hrs)) if km_hrs else None,
             })
             km_num    += 1
@@ -121,7 +124,7 @@ def _compute_splits(records: list) -> list:
         seg_dist = last_dist_km - km_base_dist
         splits.append({
             "km":     km_num,
-            "pace":   round(elapsed_min / seg_dist, 2) if seg_dist > 0 else None,
+            "pace":   round(elapsed_min / seg_dist, 2) if elapsed_min > 0 and seg_dist > 0 else None,
             "avg_hr": round(sum(km_hrs)/len(km_hrs)) if km_hrs else None,
         })
 
@@ -220,7 +223,7 @@ def parse_fit(content: bytes) -> dict:
             "num":     i + 1,
             "dist_km": round(dist, 3),
             "dur_min": round(dur, 2),
-            "pace":    round(dur / dist, 2) if dist > 0 else None,
+            "pace":    round(dur / dist, 2) if dur > 0 and dist > 0 else None,
             "avg_hr":  lap.get("avg_heart_rate"),
             "max_hr":  lap.get("max_heart_rate"),
         })

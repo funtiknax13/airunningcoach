@@ -110,10 +110,18 @@ async def handle_webhook(request: Request, db: Session = Depends(get_db)):
                 recompute_achievements(user.id, db)
             return {"status": "updated" if aspect_type == "update" else "already_exists"}
 
-        # New activity — check time-based duplicate
+        # New activity — check time-based duplicate. Цель дедупа — не завести вторую
+        # запись для активности, которую пользователь уже залогировал вручную (с
+        # часов/приложения) ДО того, как досихронизировался Strava. Поэтому матчим
+        # только на ещё НЕ привязанную к Strava запись (strava_id IS NULL) и того же
+        # типа — иначе брик-тренировка (плавание+вело в течение минуты) или два
+        # синхронизирующихся девайса могли переписать strava_id у чужой, уже верно
+        # привязанной активности, и новая тренировка потерялась бы.
         act = Activity(user_id=user.id, **data)
         dup = db.query(Activity).filter(
             Activity.user_id == user.id,
+            Activity.strava_id.is_(None),
+            Activity.activity_type == data.get("activity_type"),
             Activity.date >= data["date"] - timedelta(minutes=1),
             Activity.date <= data["date"] + timedelta(minutes=1),
         ).first()
