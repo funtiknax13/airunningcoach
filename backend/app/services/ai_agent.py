@@ -23,6 +23,7 @@ from app.core.config import settings
 from app.database import SessionLocal
 from app.models import User, Activity, Goal, Workout, ChatMessage, PlanJob
 from app.services.workout_verification import STATUS_LABELS
+from app.services.rate_limit import _is_premium_active
 
 logger = logging.getLogger(__name__)
 
@@ -48,9 +49,10 @@ SYSTEM_PROMPT = """\
 - Давай **один конкретный совет** за раз, не расписывай всё сразу
 - Markdown — только когда реально помогает (список шагов, сравнение), не для красоты
 - Если пробежек нет — задавай уточняющие вопросы (1-2 за раз), не составляй план вслепую
-- Про пересборку плана — смотри блок «ПЛАН ТОЛЬКО ЧТО ПЕРЕСОБРАН» / «ПЛАН НЕ ПЕРЕСОБИРАЛСЯ» \
-  в конце контекста ниже и следуй ему буквально. Никогда не утверждай, что обновила план, \
-  если это не подтверждено этим блоком — ты не можешь изменить план просто фактом ответа.
+- Про пересборку плана — в переписке будет блок «ПЛАН ТОЛЬКО ЧТО ПЕРЕСОБРАН» / «ПЛАН НЕ \
+  ПЕРЕСОБИРАЛСЯ», перед последним сообщением пользователя — следуй ему буквально. Никогда не \
+  утверждай, что обновила план, если это не подтверждено этим блоком — ты не можешь изменить \
+  план просто фактом ответа.
 - При болях — рекомендуй врача. Никогда не ставь диагнозов.
 - Отвечай на языке пользователя (указан ниже).
 
@@ -178,10 +180,18 @@ async def _acreate(client: OpenAI, **kwargs):
     return await asyncio.to_thread(client.chat.completions.create, **kwargs)
 
 
-def _ordered_providers() -> list[dict]:
+def _ordered_providers(prefer: str | None = None) -> list[dict]:
     """Провайдеры по приоритету; в кулдауне — в самый конец (пробуем как крайний
-    вариант, а не пропускаем совсем, чтобы не остаться без ответа)."""
+    вариант, а не пропускаем совсем, чтобы не остаться без ответа).
+
+    prefer: имя провайдера, который должен идти первым для ЭТОГО конкретного
+    запроса (см. chat_response — Premium получает полный контекст напрямую в
+    DeepSeek, Basic идёт в Groq и на DeepSeek падает только при сбое). Кулдаун
+    всё равно приоритетнее prefer — упавший недавно провайдер не станет первым
+    только потому, что его предпочли."""
     ps = _providers()
+    if prefer:
+        ps = sorted(ps, key=lambda p: 0 if p["name"] == prefer else 1)
     return [p for p in ps if not _in_cooldown(p["name"])] + [p for p in ps if _in_cooldown(p["name"])]
 
 
@@ -200,10 +210,11 @@ def _chat_kwargs(p, messages, max_tokens, temperature, response_format):
 
 
 async def _chat(messages: list[dict], max_tokens: int, temperature: float,
-                response_format: dict | None = None, compact_messages: list[dict] | None = None):
-    """Асинхронный чат-запрос с failover Groq→DeepSeek. При сбое провайдера — к
-    следующему; упавший уходит в кулдаун. Все упали → пробрасываем (вызывающий
-    код уходит в свой stub).
+                response_format: dict | None = None, compact_messages: list[dict] | None = None,
+                prefer: str | None = None):
+    """Асинхронный чат-запрос с failover. Порядок провайдеров — см. _ordered_providers
+    (prefer). При сбое провайдера — к следующему; упавший уходит в кулдаун. Все
+    упали → пробрасываем (вызывающий код уходит в свой stub).
 
     compact_messages: усечённый вариант messages (меньше история чата/тренировок) —
     для Groq, у которого на бесплатном тарифе жёсткий потолок 8000 токенов/мин, и
@@ -212,7 +223,7 @@ async def _chat(messages: list[dict], max_tokens: int, temperature: float,
     полный messages как обычно — сокращаем контекст только там, где это реально
     вынужденно, а не для всех подряд."""
     last_exc: Exception | None = None
-    for p in _ordered_providers():
+    for p in _ordered_providers(prefer):
         use_messages = compact_messages if (p["name"] == "groq" and compact_messages is not None) else messages
         try:
             return await _acreate(_client_for(p), **_chat_kwargs(p, use_messages, max_tokens, temperature, response_format))
@@ -459,30 +470,47 @@ async def chat_response(
         return _stub_chat(user_message, user)
 
     lang_instruction = "Respond in English." if lang == "en" else "Отвечай на русском языке."
-    context = _build_user_context(user, db)
     plan_status = (
-        "\n\n=== ПЛАН ТОЛЬКО ЧТО ПЕРЕСОБРАН ===\nПлан уже пересчитан и сохранён прямо перед этим ответом — "
+        "=== ПЛАН ТОЛЬКО ЧТО ПЕРЕСОБРАН ===\nПлан уже пересчитан и сохранён прямо перед этим ответом — "
         "можешь уверенно сказать, что он обновлён и появится во вкладке «Тренировки»."
         if plan_just_regenerated else
-        "\n\n=== ПЛАН НЕ ПЕРЕСОБИРАЛСЯ В ЭТОМ СООБЩЕНИИ ===\nЕсли похоже, что пользователь просит "
+        "=== ПЛАН НЕ ПЕРЕСОБИРАЛСЯ В ЭТОМ СООБЩЕНИИ ===\nЕсли похоже, что пользователь просит "
         "изменить план — НЕ утверждай, что уже изменила его: это не так. Прямо скажи, что для "
         "пересборки нужна явная фраза («обнови план», «пересобери план», «составь план» и т.п.) "
         "или кнопка «Создать план» на вкладке «Тренировки»."
     )
-    system  = f"{SYSTEM_PROMPT}\n{lang_instruction}\n\n{context}{plan_status}"
+    # plan_status идёт ПЕРЕД user_message в исходящем payload (а не хранимой истории —
+    # только для этого запроса к модели, как и датовые метки в _build_history ниже),
+    # а НЕ внутри system: он меняется от сообщения к сообщению, а SYSTEM_PROMPT+context —
+    # нет (в пределах календарного дня и без новых тренировок/целей). Если приклеить его
+    # в конец system, каждое сообщение рвёт DeepSeek-кэш на самом дорогом, самом большом
+    # куске промпта — на дешёвом хвосте после user-сообщения кэш и так не работает.
+    outgoing_user_message = f"{plan_status}\n\n{user_message}"
+
+    context = _build_user_context(user, db)
+    system  = f"{SYSTEM_PROMPT}\n{lang_instruction}\n\n{context}"
     messages = [{"role": "system", "content": system}]
     messages += _build_history(history)
-    messages.append({"role": "user", "content": user_message})
+    messages.append({"role": "user", "content": outgoing_user_message})
 
     # Компактный вариант — специально для Groq (см. _chat()): полный context/history
     # выше у активного пользователя легко уходит за 8000 токенов/мин (потолок Groq
     # на бесплатном тарифе), запрос отклоняется целиком (413) ещё до обработки.
     # DeepSeek получает messages целиком как обычно, если Groq не справился.
     compact_context = _build_user_context(user, db, activity_limit=_GROQ_ACTIVITY_LIMIT)
-    compact_system  = f"{SYSTEM_PROMPT}\n{lang_instruction}\n\n{compact_context}{plan_status}"
+    compact_system  = f"{SYSTEM_PROMPT}\n{lang_instruction}\n\n{compact_context}"
     compact_messages = [{"role": "system", "content": compact_system}]
     compact_messages += _build_history(history, limit=_GROQ_HISTORY_LIMIT)
-    compact_messages.append({"role": "user", "content": user_message})
+    compact_messages.append({"role": "user", "content": outgoing_user_message})
+
+    # Premium — сразу в DeepSeek с полным контекстом (см. messages выше), Basic —
+    # в Groq с урезанным (compact_messages); сбой первого провайдера всё равно
+    # уходит на второй (см. _ordered_providers/prefer) — это не "либо-либо", а
+    # приоритет с graceful fallback в обе стороны. db не передаём — не нужен
+    # ленивый сброс истёкшего флага здесь (db.close() ниже всё равно откатит
+    # незакоммиченный flush), нужен только сам факт для выбора провайдера.
+    premium = _is_premium_active(user)
+    prefer = "deepseek" if premium else "groq"
 
     # Отдаём соединение обратно в пул на время ожидания DeepSeek (до 45с) —
     # без этого оно простаивало бы занятым весь запрос, и под несколько
@@ -494,7 +522,8 @@ async def chat_response(
     db.close()
 
     try:
-        resp = await _chat(messages=messages, max_tokens=800, temperature=0.7, compact_messages=compact_messages)
+        resp = await _chat(messages=messages, max_tokens=800, temperature=0.7,
+                            compact_messages=compact_messages, prefer=prefer)
         return _strip_date_prefix(resp.choices[0].message.content.strip())
     except Exception as e:
         logger.error("DeepSeek chat error: %s", e)
