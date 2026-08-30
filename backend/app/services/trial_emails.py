@@ -12,6 +12,7 @@
 """
 import logging
 from datetime import datetime, timezone, timedelta
+from zoneinfo import ZoneInfo
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from sqlalchemy.orm import Session
@@ -156,11 +157,21 @@ async def _run_weekly_stats() -> None:
                     Activity.date >= week_start,
                 ).all()
 
-                # Тренировки на следующие 7 дней
+                # Тренировки на следующие 7 дней. planned_date — наивная локальная
+                # дата бегуна, а now/next_week_end — aware UTC, поэтому переводим
+                # границы окна в локальную зону пользователя перед сравнением
+                # (иначе список "предстоящих" теряет/дублирует записи у не-UTC).
+                try:
+                    tz = ZoneInfo(user.timezone) if user.timezone else timezone.utc
+                except Exception:
+                    tz = timezone.utc
+                local_now = now.astimezone(tz).replace(tzinfo=None)
+                local_next_week_end = next_week_end.astimezone(tz).replace(tzinfo=None)
+
                 workouts = db.query(Workout).filter(
                     Workout.user_id == user.id,
-                    Workout.planned_date >= now,
-                    Workout.planned_date <= next_week_end,
+                    Workout.planned_date >= local_now,
+                    Workout.planned_date <= local_next_week_end,
                     Workout.completion_status == "none",
                 ).order_by(Workout.planned_date).all()
 

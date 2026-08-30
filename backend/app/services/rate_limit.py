@@ -16,9 +16,16 @@ from datetime import datetime, timezone, timedelta
 from zoneinfo import ZoneInfo
 
 from fastapi import HTTPException
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.models import User, ApiUsage
+
+# Ключи для pg_advisory_xact_lock в check_and_record — фиксированные (не hash()),
+# т.к. uvicorn поднимает несколько воркеров с независимым PYTHONHASHSEED: hash()
+# одной и той же строки в разных процессах даёт разные числа, и лок перестал бы
+# реально сериализовать конкурентные запросы одного пользователя между воркерами.
+_ACTION_LOCK_KEY = {"chat": 1, "plan": 2}
 
 # ── Лимиты ────────────────────────────────────────────────────────────────────
 
@@ -92,7 +99,19 @@ def get_usage(user: User, action: str, db: Session) -> dict:
 
 
 def check_and_record(user: User, action: str, db: Session) -> None:
-    """Проверяет лимит и записывает использование. Бросает 429 если лимит исчерпан."""
+    """Проверяет лимит и записывает использование. Бросает 429 если лимит исчерпан.
+
+    check (SELECT COUNT) и record (INSERT) без блокировки — гонка: два
+    параллельных запроса одного пользователя могут оба пройти проверку до того,
+    как кто-то из них зафиксирует свою запись, и вместе пробить лимит на 1.
+    pg_advisory_xact_lock на (user_id, action) сериализует конкурентные запросы
+    одного пользователя и снимается сам в конце транзакции (commit ниже, либо
+    rollback при исключении — session.close() в get_db() гарантирует это)."""
+    db.execute(
+        text("SELECT pg_advisory_xact_lock(:user_id, :action_key)"),
+        {"user_id": user.id, "action_key": _ACTION_LOCK_KEY[action]},
+    )
+
     info = get_usage(user, action, db)
 
     if info["used"] >= info["limit"]:

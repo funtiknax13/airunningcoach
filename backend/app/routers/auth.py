@@ -105,20 +105,36 @@ class ResendVerificationRequest(BaseModel):
 async def resend_verification(body: ResendVerificationRequest, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == body.email).first()
     # Если пароль передан — проверяем (защита от отправки на чужой адрес)
+    owns_account = False
     if body.password:
         if not user or not verify_password(body.password, user.password_hash):
             raise HTTPException(status_code=401, detail="Неверный email или пароль")
+        owns_account = True
     elif not user:
         return {"message": "Если такой email зарегистрирован, письмо будет отправлено."}
     if user.is_verified:
         raise HTTPException(status_code=400, detail="Email уже подтверждён")
 
-    user.verification_token = generate_verification_token()
-    user.verification_token_expires = verification_token_expiry()
-    db.commit()
+    expires = user.verification_token_expires
+    if expires and expires.tzinfo is None:
+        expires = expires.replace(tzinfo=timezone.utc)
+    token_still_valid = bool(user.verification_token and expires and datetime.now(timezone.utc) < expires)
+
+    # Без пароля (анонимный вызов зная только email) НЕ инвалидируем уже выданную
+    # и ещё не истёкшую ссылку — иначе зная чужой email можно сорвать верификацию,
+    # которую жертва вот-вот откроет (грифинг). Просто пересылаем ту же ссылку;
+    # новый токен выдаём только если старого нет или он реально истёк. С паролем
+    # (доказанное владение аккаунтом) — как раньше, всегда новый токен.
+    if not owns_account and token_still_valid:
+        token = user.verification_token
+    else:
+        token = generate_verification_token()
+        user.verification_token = token
+        user.verification_token_expires = verification_token_expiry()
+        db.commit()
 
     try:
-        await send_verification_email(user.email, user.name, user.verification_token)
+        await send_verification_email(user.email, user.name, token)
     except Exception as exc:
         logger.error("Resend verification failed: %s", exc)
         raise HTTPException(status_code=500, detail="Не удалось отправить письмо.")

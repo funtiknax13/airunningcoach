@@ -26,7 +26,7 @@ const router = createRouter({
 
 router.beforeEach(async (to) => {
   const auth = useAuthStore()
-  if (!auth.user) {
+  if (!auth.user || auth.isStale()) {
     await auth.loadMe().catch(() => {})
   }
   // Авторизованных пользователей с главной → на дашборд

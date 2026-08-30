@@ -90,7 +90,12 @@ async function save() {
       goal_type: form.value.goal_type,
       target_distance_km: form.value.target_distance_km,
       target_time_min: targetTimeMin.value,
-      target_date: form.value.target_date ? new Date(form.value.target_date).toISOString() : null,
+      // Backend хранит target_date как наивную календарную дату (без времени/зоны —
+      // см. Goal.target_date: Column(DateTime) без timezone=True), а input[type=date]
+      // и так уже отдаёт "YYYY-MM-DD". new Date(...).toISOString() тут был лишним и
+      // вредным шагом: парсит строку как UTC-полночь, и для пользователей западнее
+      // UTC при отображении в локальном времени дата уезжала на день назад.
+      target_date: form.value.target_date || null,
       description: form.value.description || null,
     }
     if (editId.value) await store.update(editId.value, data)

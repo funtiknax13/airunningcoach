@@ -132,6 +132,30 @@ async def fetch_single_activity(access_token: str, strava_activity_id: int) -> O
     return resp.json()
 
 
+async def activity_still_exists(access_token: str, strava_activity_id: int) -> Optional[bool]:
+    """True/False если удалось однозначно узнать у Strava, существует ли активность
+    ещё. Используется вебхуком для проверки delete-событий перед удалением у себя
+    (сам вебхук ничем не подписан — см. strava_webhook.py). None — не удалось
+    определить (сеть/5xx); вызывающий код должен трактовать это консервативно,
+    то есть НЕ удалять."""
+    try:
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(
+                f"{STRAVA_API_BASE}/activities/{strava_activity_id}",
+                headers={"Authorization": f"Bearer {access_token}"},
+                timeout=30,
+            )
+    except httpx.RequestError as e:
+        logger.error("Strava activity_still_exists network error for %d: %s", strava_activity_id, e)
+        return None
+    if resp.status_code == 404:
+        return False
+    if resp.status_code == 200:
+        return True
+    logger.error("Strava activity_still_exists unexpected status %d for %d", resp.status_code, strava_activity_id)
+    return None
+
+
 def strava_activity_to_dict(a: dict) -> dict:
     """Конвертирует Strava summary activity в наш формат."""
     moving_sec  = a.get("moving_time") or a.get("elapsed_time") or 0

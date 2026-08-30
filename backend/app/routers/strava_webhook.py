@@ -8,7 +8,9 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.database import get_db
 from app.models import User, Activity
-from app.services.strava import refresh_token_if_needed, fetch_single_activity, strava_activity_to_dict
+from app.services.strava import (
+    refresh_token_if_needed, fetch_single_activity, strava_activity_to_dict, activity_still_exists,
+)
 from app.services.insights_cache import invalidate_insights_cache
 from app.services.achievements import recompute_achievements
 
@@ -51,6 +53,27 @@ async def handle_webhook(request: Request, db: Session = Depends(get_db)):
     strava_id_str = str(object_id)
 
     if aspect_type == "delete":
+        # Вебхук ничем не подписан — POST может прислать кто угодно, зная
+        # owner_id (публичный Strava athlete ID) и object_id. Прежде чем удалять
+        # у себя, проверяем через авторизованный Strava API (токен ЭТОГО
+        # пользователя, а не что-то из тела запроса), что активность правда
+        # удалена. Не удалось подтвердить (нет токена / сеть / всё ещё
+        # существует) — не удаляем: неподтверждённое delete-событие не должно
+        # стирать данные.
+        access_token = await refresh_token_if_needed(user)
+        if not access_token:
+            logger.warning("Strava webhook: delete event for user %s but no token to verify", user.id)
+            return {"status": "no_token"}
+        db.commit()  # save refreshed token
+
+        still_exists = await activity_still_exists(access_token, object_id)
+        if still_exists is not False:
+            logger.warning(
+                "Strava webhook: delete event for strava_id=%s could not be confirmed (exists=%s) — ignoring",
+                strava_id_str, still_exists,
+            )
+            return {"status": "delete_unconfirmed"}
+
         db.query(Activity).filter(
             Activity.user_id == user.id,
             Activity.strava_id == strava_id_str,

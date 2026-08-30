@@ -10,6 +10,15 @@
 IP, редиректы не поддерживаются (сервисы часов, которые мы проверяли, отдают
 файл напрямую), размер ответа ограничен потоково — Content-Length заголовку
 не доверяем, злоумышленный сервер может его не прислать или соврать.
+
+DNS pinning: hostname резолвится и проверяется РОВНО ОДИН РАЗ в
+_validate_external_url, и реальный запрос идёт на этот же зафиксированный IP
+(через extensions={"sni_hostname": ...} httpcore подставляет hostname только
+в TLS SNI/проверку сертификата, host header — тоже original hostname). Без
+этого между проверкой и запросом атакующий, контролирующий DNS своего домена,
+мог бы поменять A-запись на внутренний адрес (DNS rebinding) — валидация бы
+прошла по первому резолву, а реальный httpx-запрос резолвил бы заново и попал
+уже на внутренний сервис.
 """
 import ipaddress
 import socket
@@ -21,7 +30,9 @@ MAX_IMPORT_BYTES = 20 * 1024 * 1024  # 20 МБ с большим запасом 
 FETCH_TIMEOUT = httpx.Timeout(15.0, connect=10.0)
 
 
-def _validate_external_url(url: str) -> None:
+def _validate_external_url(url: str) -> str:
+    """Валидирует ссылку и возвращает IP, на который реально пойдёт запрос
+    (см. DNS pinning в докстринге модуля)."""
     parsed = httpx.URL(url)
     if parsed.scheme != "https":
         raise HTTPException(status_code=400, detail="Ссылка должна начинаться с https://")
@@ -35,6 +46,7 @@ def _validate_external_url(url: str) -> None:
     except socket.gaierror:
         raise HTTPException(status_code=400, detail="Не удалось разрешить адрес по ссылке")
 
+    pinned_ip: str | None = None
     for *_, sockaddr in addrinfos:
         ip = ipaddress.ip_address(sockaddr[0])
         if (
@@ -46,15 +58,30 @@ def _validate_external_url(url: str) -> None:
             or ip.is_unspecified
         ):
             raise HTTPException(status_code=400, detail="Ссылка на этот адрес запрещена")
+        if pinned_ip is None:
+            pinned_ip = sockaddr[0]
+
+    if pinned_ip is None:
+        raise HTTPException(status_code=400, detail="Не удалось разрешить адрес по ссылке")
+    return pinned_ip
 
 
 async def fetch_external_workout_file(url: str) -> tuple[bytes, str, str]:
     """Скачивает файл тренировки по внешней ссылке. Возвращает (содержимое, content-type, content-disposition)."""
-    _validate_external_url(url)
+    pinned_ip = _validate_external_url(url)
+    parsed = httpx.URL(url)
+    hostname = parsed.host
+    pinned_url = parsed.copy_with(host=pinned_ip)
 
     async with httpx.AsyncClient(follow_redirects=False, timeout=FETCH_TIMEOUT) as client:
+        request = client.build_request(
+            "GET", pinned_url,
+            headers={"Host": hostname},
+            extensions={"sni_hostname": hostname},
+        )
         try:
-            async with client.stream("GET", url) as resp:
+            resp = await client.send(request, stream=True)
+            try:
                 if resp.is_redirect:
                     raise HTTPException(
                         status_code=400,
@@ -76,6 +103,8 @@ async def fetch_external_workout_file(url: str) -> tuple[bytes, str, str]:
                     if total > MAX_IMPORT_BYTES:
                         raise HTTPException(status_code=400, detail="Файл слишком большой")
                     chunks.append(chunk)
+            finally:
+                await resp.aclose()
         except httpx.RequestError:
             raise HTTPException(status_code=400, detail="Не удалось скачать файл по ссылке")
 

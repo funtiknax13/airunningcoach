@@ -8,6 +8,7 @@ from datetime import datetime, timezone, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
@@ -139,6 +140,13 @@ async def payment_webhook(request: Request, db: Session = Depends(get_db)):
     meta = yk_payment.metadata or {}
     user_id = meta.get("user_id")
     plan = meta.get("plan")
+
+    # ЮКасса ретраит недоставленные вебхуки — два одновременных ретрая одного и
+    # того же события без блокировки могли бы оба пройти проверку "ещё не
+    # обработано" и оба продлить Premium (last-write-wins вместо идемпотентности).
+    # Advisory-лок на yookassa_id сериализует конкурентные обработки одного и
+    # того же события; снимается сам в конце транзакции (commit ниже).
+    db.execute(text("SELECT pg_advisory_xact_lock(hashtext(:yookassa_id))"), {"yookassa_id": yookassa_id})
 
     # Находим платёж
     db_payment = db.query(Payment).filter(Payment.yookassa_id == yookassa_id).first()

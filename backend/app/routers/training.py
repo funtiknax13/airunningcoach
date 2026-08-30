@@ -148,7 +148,7 @@ def complete_workout(
     if workout.workout_type == "rest":
         raise HTTPException(status_code=400, detail="День отдыха не требует подтверждения")
 
-    activity = find_matching_activity_for_workout(workout, current_user.id, db)
+    activity = find_matching_activity_for_workout(workout, current_user.id, db, current_user.timezone)
     apply_verdict(workout, activity)
     if notes:
         workout.notes_after = notes

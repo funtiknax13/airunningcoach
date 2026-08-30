@@ -5,15 +5,28 @@ import { api, isAuthenticated, ApiError } from '@/api/client'
 import { clearCache } from '@/utils/cache'
 import type { UserResponse, UserUpdate, PasswordChange } from '@/api/types'
 
+// Сколько держим auth.user как "свежий" без повторного запроса /auth/me.
+// Роутер-гвард дёргает loadMe() заново, если с последнего успешного вызова
+// прошло больше этого — иначе протухший/отозванный JWT не ловился бы, пока
+// какой-то другой запрос случайно не словит 401 (вкладка выглядит залогиненной
+// сколь угодно долго после истечения токена).
+const AUTH_STALE_MS = 5 * 60 * 1000
+
 export const useAuthStore = defineStore('auth', () => {
   const user = ref<UserResponse | null>(null)
   const loggedIn = ref(isAuthenticated())
+  let lastLoadedAt = 0
+
+  function isStale() {
+    return Date.now() - lastLoadedAt > AUTH_STALE_MS
+  }
 
   async function loadMe() {
     if (!isAuthenticated()) return
     try {
       user.value = await authApi.me()
       loggedIn.value = true
+      lastLoadedAt = Date.now()
       syncTimezone()
     } catch (e) {
       // Разлогиниваем ТОЛЬКО при реальном 401 (токен невалиден).
@@ -62,5 +75,5 @@ export const useAuthStore = defineStore('auth', () => {
 
   const token = { value: api.getToken() }
 
-  return { user, loggedIn, token, loadMe, login, logout, updateProfile, changePassword }
+  return { user, loggedIn, token, loadMe, login, logout, updateProfile, changePassword, isStale }
 })

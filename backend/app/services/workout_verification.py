@@ -4,7 +4,7 @@
 Допуск — относительный (% от плановой цели), а не абсолютный: план на 5 км
 и план на 30 км должны прощать разное абсолютное отклонение.
 """
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
 from sqlalchemy.orm import Session
@@ -135,13 +135,25 @@ def find_matching_workout_for_activity(
     return workout
 
 
-def find_matching_activity_for_workout(workout: Workout, user_id: int, db: Session) -> Activity | None:
-    """Тренировка → лучшая (ближе всего к плану) пробежка в пределах ±1 дня от planned_date."""
+def find_matching_activity_for_workout(
+    workout: Workout, user_id: int, db: Session, tz_name: str | None = None,
+) -> Activity | None:
+    """Тренировка → лучшая (ближе всего к плану) пробежка в пределах ±1 дня от planned_date.
+
+    planned_date — наивная календарная дата по местному времени бегуна, а
+    Activity.date — aware UTC, поэтому окно строим в локальной зоне пользователя
+    и переводим в UTC перед сравнением (тот же принцип, что в
+    find_matching_workout_for_activity выше)."""
     if not workout.planned_date:
         return None
 
-    window_start = workout.planned_date - timedelta(days=1)
-    window_end = workout.planned_date + timedelta(days=1)
+    try:
+        tz = ZoneInfo(tz_name) if tz_name else timezone.utc
+    except Exception:
+        tz = timezone.utc
+
+    window_start = (workout.planned_date - timedelta(days=1)).replace(tzinfo=tz).astimezone(timezone.utc)
+    window_end = (workout.planned_date + timedelta(days=1)).replace(tzinfo=tz).astimezone(timezone.utc)
     candidates = (
         db.query(Activity)
         .filter(

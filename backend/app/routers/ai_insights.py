@@ -1,7 +1,7 @@
 # app/routers/ai_insights.py
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from app.database import get_db
 from app.models import User, Activity, Goal
@@ -23,7 +23,7 @@ async def get_ai_dashboard(
         return cached
 
     # ── Кеш устарел или отсутствует — считаем заново ────────────
-    since = datetime.now() - timedelta(days=30)
+    since = datetime.now(timezone.utc) - timedelta(days=30)
     activities = db.query(Activity).filter(
         Activity.user_id == current_user.id,
         Activity.date >= since,

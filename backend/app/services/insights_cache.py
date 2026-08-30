@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.models import InsightsCache
 
-CACHE_TTL = timedelta(hours=24)
+CACHE_TTL = timedelta(hours=2)
 
 
 def get_cached_insights(user_id: int, db: Session) -> dict | None:
