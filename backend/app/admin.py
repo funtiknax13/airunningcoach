@@ -7,7 +7,7 @@ from sqlalchemy import select
 from app.database import engine, SessionLocal
 from app.models import (
     User, Activity, Goal, Workout, ChatMessage, PersonalRecord,
-    PushSubscription, UserAchievement, SupportTicket, SupportMessage,
+    PushSubscription, UserAchievement, SupportTicket, SupportMessage, Payment,
 )
 from app.auth import verify_password, create_access_token, decode_token
 
@@ -240,6 +240,28 @@ class SupportMessageAdmin(ModelView, model=SupportMessage):
     page_size = 50
 
 
+class PaymentAdmin(ModelView, model=Payment):
+    name = "Платёж"
+    name_plural = "Платежи"
+    icon = "fa-solid fa-ruble-sign"
+
+    column_list = [Payment.id, Payment.user, Payment.plan, Payment.amount,
+                   Payment.status, Payment.yookassa_id, Payment.created_at, Payment.paid_at]
+    column_searchable_list = [Payment.yookassa_id]
+    column_sortable_list = [Payment.id, Payment.created_at, Payment.paid_at, Payment.amount]
+    column_labels = {
+        "id": "ID", "user": "Пользователь", "yookassa_id": "ID в ЮКассе",
+        "plan": "Тариф", "amount": "Сумма (руб)", "status": "Статус",
+        "created_at": "Создан", "paid_at": "Оплачен",
+    }
+    # Записи — только след реальных платежей ЮКассы; ручное создание/правка
+    # статуса здесь ничего не начислит (логика начисления Premium — только
+    # в payments.py webhook/verify), поэтому не даём вводить в заблуждение.
+    can_create = False
+    can_edit = False
+    page_size = 25
+
+
 # ── Фабрика ───────────────────────────────────────────────────────────────────
 
 def create_admin(app) -> Admin:
@@ -255,7 +277,7 @@ def create_admin(app) -> Admin:
         base_url="/sqladmin",
     )
     for view in [UserAdmin, ActivityAdmin, GoalAdmin,
-                 WorkoutAdmin, ChatMessageAdmin,
+                 WorkoutAdmin, ChatMessageAdmin, PaymentAdmin,
                  PersonalRecordAdmin, UserAchievementAdmin, PushSubscriptionAdmin,
                  SupportTicketAdmin, SupportMessageAdmin]:
         admin.add_view(view)
