@@ -222,6 +222,26 @@ async def _run_weekly_stats() -> None:
         db.close()
 
 
+async def _run_premium_expiry_sweep() -> None:
+    """Каждые 6 часов: сбрасывает is_premium/premium_until у тех, у кого срок уже
+    истёк. Доступ это не меняет — rate_limit._is_premium_active() уже сам считает
+    таких пользователей Basic лениво, при первой же проверке лимита. Это только
+    гигиена данных в покое: без неё is_premium остаётся True в БД (и в sqladmin)
+    до тех пор, пока пользователь сам не обратится к чату/плану — вводит в
+    заблуждение при ручном просмотре таблицы пользователей."""
+    db: Session = SessionLocal()
+    try:
+        now = datetime.now(timezone.utc)
+        db.query(User).filter(
+            User.is_premium == True,
+            User.premium_until != None,
+            User.premium_until <= now,
+        ).update({"is_premium": False, "premium_until": None}, synchronize_session=False)
+        db.commit()
+    finally:
+        db.close()
+
+
 async def _run_payment_reconciliation() -> None:
     """Каждые 15 минут: сверяет зависшие pending-платежи напрямую с ЮКассой.
 
@@ -340,6 +360,15 @@ def start_scheduler() -> None:
         id="payment_reconciliation",
         replace_existing=True,
         next_run_time=datetime.now(timezone.utc) + timedelta(seconds=60),
+    )
+    # Сброс просроченного Premium в БД — см. _run_premium_expiry_sweep
+    scheduler.add_job(
+        _run_premium_expiry_sweep,
+        trigger="interval",
+        hours=6,
+        id="premium_expiry_sweep",
+        replace_existing=True,
+        next_run_time=datetime.now(timezone.utc) + timedelta(seconds=90),
     )
     scheduler.start()
     logger.info("Trial email scheduler started")

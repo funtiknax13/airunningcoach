@@ -73,6 +73,8 @@ export default {
     alreadyPremium: 'Premium активен',
     extendBtn: 'Продлить Premium',
     paymentDesc: 'Безопасная оплата через ЮКассу. Visa, Mastercard, СБП, ЮMoney.',
+    supportNote: 'Если что-то пошло не так с оплатой —',
+    supportLink: 'напишите в поддержку',
     payError: 'Не удалось создать платёж. Попробуйте позже.',
     successTitle: 'Оплата прошла успешно!',
     successDesc: 'Premium активирован. Наслаждайтесь неограниченным доступом к AI-тренеру.',

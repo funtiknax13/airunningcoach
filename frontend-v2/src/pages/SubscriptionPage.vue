@@ -71,6 +71,10 @@
             {{ paying ? t('subs.paying') : isPremium ? t('subs.extendBtn') : t('subs.buyBtn') }}
           </button>
           <p class="subs-payment-desc">{{ t('subs.paymentDesc') }}</p>
+          <p class="subs-payment-desc">
+            {{ t('subs.supportNote') }}
+            <RouterLink to="/support">{{ t('subs.supportLink') }}</RouterLink>
+          </p>
 
           <!-- ИНН самозанятого -->
           <div class="subs-inn">

@@ -74,6 +74,8 @@ export default {
     alreadyPremium: 'Premium is active',
     extendBtn: 'Extend Premium',
     paymentDesc: 'Secure payment via YooKassa. Visa, Mastercard, SBP, YooMoney.',
+    supportNote: 'If something went wrong with your payment —',
+    supportLink: 'contact support',
     payError: 'Could not create payment. Please try again later.',
     successTitle: 'Payment successful!',
     successDesc: 'Premium is now active. Enjoy unlimited access to your AI coach.',
