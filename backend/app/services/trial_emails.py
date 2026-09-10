@@ -18,7 +18,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from sqlalchemy.orm import Session
 
 from app.database import SessionLocal, engine
-from app.models import User, Activity, Workout
+from app.models import User, Activity, Workout, Payment
 from app.services.email import (
     send_trial_welcome_email,
     send_trial_reminder_email,
@@ -222,6 +222,68 @@ async def _run_weekly_stats() -> None:
         db.close()
 
 
+async def _run_payment_reconciliation() -> None:
+    """Каждые 15 минут: сверяет зависшие pending-платежи напрямую с ЮКассой.
+
+    Единственный штатный путь, который сам себя чинит, — /payments/verify — привязан
+    к сессии плательщика и срабатывает только если он вернётся на страницу оплаты.
+    Если вебхук не дошёл (сеть, временный сбой) и пользователь не вернулся — платёж
+    так и висит pending навсегда, а деньги списаны. Отсюда и был найден зависший
+    платёж без выданного Premium (расследование см. историю — вебхук не долетел,
+    точную причину установить не удалось, т.к. логи бэкенда не пережили деплой).
+    """
+    from app.core.config import settings
+    from app.routers.payments import _yookassa_configured, activate_premium
+
+    if not _yookassa_configured():
+        return
+
+    db: Session = SessionLocal()
+    try:
+        # Младше 15 минут — ещё в пределах нормальной доставки вебхука, не дёргаем
+        # ЮКассу зря. Старше 7 дней — почти наверняка брошенный чекаут, который
+        # никогда не станет succeeded; не имеет смысла сверять его бесконечно.
+        now = datetime.now(timezone.utc)
+        pending = db.query(Payment).filter(
+            Payment.status == "pending",
+            Payment.yookassa_id != "pending",
+            Payment.created_at <= now - timedelta(minutes=15),
+            Payment.created_at >= now - timedelta(days=7),
+        ).all()
+        if not pending:
+            return
+
+        import yookassa
+        yookassa.Configuration.configure(
+            account_id=settings.YOOKASSA_SHOP_ID,
+            secret_key=settings.YOOKASSA_SECRET_KEY,
+        )
+
+        for db_payment in pending:
+            try:
+                yk_payment = yookassa.Payment.find_one(db_payment.yookassa_id)
+            except Exception as exc:
+                logger.warning("Payment reconciliation: verify failed for %s: %s", db_payment.yookassa_id, exc)
+                continue
+
+            if yk_payment.status == "succeeded":
+                db_payment.status = "succeeded"
+                db_payment.paid_at = datetime.now(timezone.utc)
+                user = db.query(User).filter(User.id == db_payment.user_id).first()
+                if user:
+                    activate_premium(db_payment, user)
+                db.commit()
+                logger.warning(
+                    "Payment reconciliation: recovered stuck payment %s (user_id=%s) — webhook never arrived",
+                    db_payment.yookassa_id, db_payment.user_id,
+                )
+            elif yk_payment.status == "canceled":
+                db_payment.status = "cancelled"
+                db.commit()
+    finally:
+        db.close()
+
+
 def _try_acquire_lock() -> bool:
     """Берёт advisory-lock Postgres. True — этот воркер ведущий (запускает планировщик).
 
@@ -268,6 +330,16 @@ def start_scheduler() -> None:
         minute=0,
         id="weekly_stats",
         replace_existing=True,
+    )
+    # Сверка зависших pending-платежей с ЮКассой — подстраховка на случай
+    # недоставленного вебхука (см. _run_payment_reconciliation)
+    scheduler.add_job(
+        _run_payment_reconciliation,
+        trigger="interval",
+        minutes=15,
+        id="payment_reconciliation",
+        replace_existing=True,
+        next_run_time=datetime.now(timezone.utc) + timedelta(seconds=60),
     )
     scheduler.start()
     logger.info("Trial email scheduler started")

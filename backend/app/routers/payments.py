@@ -35,6 +35,28 @@ def _yookassa_configured() -> bool:
     return bool(settings.YOOKASSA_SHOP_ID and settings.YOOKASSA_SECRET_KEY)
 
 
+def activate_premium(db_payment: Payment, user: User) -> None:
+    """Продлевает Premium пользователю по успешному платежу. Не коммитит —
+    решение о транзакции остаётся за вызывающим кодом. Используется из вебхука,
+    /verify и фоновой сверки pending-платежей (app/services/trial_emails.py)."""
+    months, _ = PLANS[db_payment.plan]
+    now = datetime.now(timezone.utc)
+
+    # Продлеваем от текущей даты окончания, если Premium ещё активен
+    base = user.premium_until
+    if base and base.tzinfo is None:
+        base = base.replace(tzinfo=timezone.utc)
+    if not base or base < now:
+        base = now
+
+    user.is_premium = True
+    user.premium_until = base + timedelta(days=months * 30)
+    logger.info(
+        "Premium activated: user_id=%s plan=%s until=%s",
+        user.id, db_payment.plan, user.premium_until,
+    )
+
+
 @router.post("/create")
 async def create_payment(
     body: CreatePaymentRequest,
@@ -177,22 +199,7 @@ async def payment_webhook(request: Request, db: Session = Depends(get_db)):
     # Активируем Premium
     user = db.query(User).filter(User.id == db_payment.user_id).first()
     if user:
-        months, _ = PLANS[db_payment.plan]
-        now = datetime.now(timezone.utc)
-
-        # Продлеваем от текущей даты окончания, если Premium ещё активен
-        base = user.premium_until
-        if base and base.tzinfo is None:
-            base = base.replace(tzinfo=timezone.utc)
-        if not base or base < now:
-            base = now
-
-        user.is_premium = True
-        user.premium_until = base + timedelta(days=months * 30)
-        logger.info(
-            "Premium activated: user_id=%s plan=%s until=%s",
-            user.id, db_payment.plan, user.premium_until,
-        )
+        activate_premium(db_payment, user)
 
     db.commit()
     return {"status": "ok"}
@@ -241,16 +248,7 @@ async def verify_payment(
 
         user = db.query(User).filter(User.id == current_user.id).first()
         if user:
-            months, _ = PLANS[db_payment.plan]
-            now = datetime.now(timezone.utc)
-            base = user.premium_until
-            if base and base.tzinfo is None:
-                base = base.replace(tzinfo=timezone.utc)
-            if not base or base < now:
-                base = now
-            user.is_premium = True
-            user.premium_until = base + timedelta(days=months * 30)
-            logger.info("Premium activated via verify: user_id=%s until=%s", user.id, user.premium_until)
+            activate_premium(db_payment, user)
 
         db.commit()
 
