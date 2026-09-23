@@ -777,6 +777,74 @@ def _validate_plan_structure(ps) -> Optional[dict]:
     return ps
 
 
+def _training_days_limits(training_days: int | None) -> tuple[int, int] | None:
+    """(мин, макс) тренировочных дней в неделю по выбору пользователя в профиле.
+    «5+ дней» в интерфейсе хранится как 5 — трактуем как 5-6 (минимум 1 день отдыха)."""
+    if not training_days:
+        return None
+    if training_days >= 5:
+        return (5, 6)
+    return (training_days, training_days)
+
+
+def _training_days_rule(training_days: int | None) -> str:
+    """Жёсткое правило по частоте для промпта плана. Одной строки в профиле
+    («Дней для тренировок: 4») модель не хватало — без явной инструкции она рисовала
+    типичные 5-6 дней. Соблюдение дополнительно принудительно проверяется кодом
+    (_cap_training_days), промпт лишь снижает число «исправлений»."""
+    limits = _training_days_limits(training_days)
+    if not limits:
+        return ""
+    lo, hi = limits
+    count = f"ровно {lo}" if lo == hi else f"{lo}-{hi}"
+    return (
+        f"\nЖЁСТКОЕ ПРАВИЛО ПО ЧАСТОТЕ: в каждой календарной неделе (Пн-Вс) — {count} "
+        f"тренировочных дней, все остальные дни — workout_type \"rest\". Пользователь сам "
+        f"выбрал эту частоту в профиле, превышать её нельзя. Длинная пробежка входит в это "
+        f"число. В неполной неделе в начале или конце плана — пропорционально меньше."
+    )
+
+
+# Что снимать первым, если тренировочных дней в неделе больше лимита: сначала самые
+# лёгкие/малоценные, длинную и качественные (интервалы/темп) стараемся сохранить.
+_DROP_ORDER = {"recovery": 0, "easy": 1, "tempo": 2, "interval": 3, "long": 4}
+
+
+def _cap_training_days(workouts_data: list[dict], start_date: datetime,
+                       training_days: int | None) -> list[dict]:
+    """Ограничивает число тренировочных (не rest) дней в каждой календарной неделе
+    Пн-Вс до лимита пользователя: лишние превращаются в отдых. Модель может не
+    послушаться промпта, поэтому лимит гарантируется кодом. Недостающие дни НЕ
+    добавляем — придумывать тренировки в коде было бы хуже, чем недобор.
+    Элемент i = день start_date + i дней (как в replace_upcoming_workouts)."""
+    limits = _training_days_limits(training_days)
+    if not limits:
+        return workouts_data
+    max_days = limits[1]
+    out = [dict(w) for w in workouts_data]
+
+    weeks: dict = {}
+    for i in range(len(out)):
+        d = (start_date + timedelta(days=i)).date()
+        weeks.setdefault(d - timedelta(days=d.weekday()), []).append(i)
+
+    for monday, idxs in weeks.items():
+        # неполная неделя на краях плана — пропорциональный лимит (округление вверх)
+        cap = max_days if len(idxs) == 7 else -(-max_days * len(idxs) // 7)
+        active = [i for i in idxs if out[i].get("workout_type", "easy") != "rest"]
+        extra = len(active) - cap
+        if extra <= 0:
+            continue
+        active.sort(key=lambda i: (_DROP_ORDER.get(out[i].get("workout_type"), 1),
+                                   out[i].get("distance_km") or 0))
+        for i in active[:extra]:
+            out[i] = {"workout_type": "rest", "description": "Отдых",
+                      "distance_km": None, "target_pace_min_km": None, "plan_structure": None}
+        logger.info("Plan cap: неделя с %s — %d тренировочных дней сверх лимита %d превращены в отдых",
+                    monday, extra, cap)
+    return out
+
+
 def replace_upcoming_workouts(
     user_id: int, db: Session, workouts_data: list[dict], start: datetime,
     horizon_days: int = 7,
@@ -800,6 +868,13 @@ def replace_upcoming_workouts(
 
     start_date = start.replace(hour=0, minute=0, second=0, microsecond=0)
     end_date = start_date + timedelta(days=horizon_days)
+
+    # Лимит частоты из профиля гарантируем здесь — это единственная точка записи
+    # плана в БД (недельный, месячный по кускам и план из чата).
+    owner = db.get(User, user_id)
+    workouts_data = _cap_training_days(
+        workouts_data[:horizon_days], start_date, owner.training_days if owner else None,
+    )
 
     existing = db.query(Workout).filter(
         Workout.user_id == user_id,
@@ -902,6 +977,7 @@ async def _gen_plan_chunk(
     context: str, chat_context: str, total_weeks: int,
     week_from: int, week_to: int, start_index: int, n: int,
     prev_tail: list[dict], stub_week: list[dict], chunk_start_date: datetime,
+    days_rule: str = "",
 ) -> list[dict]:
     """Один быстрый вызов DeepSeek на кусок плана (n дней недель week_from..week_to).
 
@@ -926,7 +1002,7 @@ async def _gen_plan_chunk(
 наращивай недельный объём не быстрее ~10% и откатывай в разгрузочные недели, 1 длинная \
 пробежка в неделю с плавным ростом, правило 80/20, подводка (taper) перед целевым стартом.
 Сейчас верни ТОЛЬКО дни для недель {week_from}–{week_to} этого блока — ровно {n} объектов \
-ПО ПОРЯДКУ (элемент 0 = {chunk_start_str}, ..., {n - 1} = последний день куска). {prev_txt}
+ПО ПОРЯДКУ (элемент 0 = {chunk_start_str}, ..., {n - 1} = последний день куска). {prev_txt}{days_rule}
 
 {_plan_item_schema("коротко 3-8 слов")}
 
@@ -953,6 +1029,7 @@ async def _gen_plan_chunk(
 
 async def generate_plan_chunked(
     context: str, chat_context: str, stub_week: list[dict], days: int, start_date: datetime,
+    days_rule: str = "",
 ) -> list[dict]:
     """Собирает длинный план из 2-недельных кусков (каждый — быстрый вызов в пределах
     таймаута). Возвращает ровно `days` дней по порядку. Без БД — только awaits."""
@@ -966,6 +1043,7 @@ async def generate_plan_chunked(
         chunk = await _gen_plan_chunk(
             context, chat_context, total_weeks, week_from, week_to,
             len(out), n, out[-3:], stub_week, start_date + timedelta(days=len(out)),
+            days_rule,
         )
         out.extend(chunk[:n])
     return out[:days]
@@ -991,6 +1069,7 @@ async def run_plan_job(user_id: int, weeks: int, job_id: int, include_today: boo
             .order_by(ChatMessage.created_at.desc()).limit(30).all()[::-1]
         )
         chat_context = _plan_chat_prefs(chat_history)
+        days_rule = _training_days_rule(user.training_days)
         stub_week = _stub_plan(user, db, 7)
         try:
             now_local = datetime.now(ZoneInfo(user.timezone)) if user.timezone else datetime.now()
@@ -1003,7 +1082,7 @@ async def run_plan_job(user_id: int, weeks: int, job_id: int, include_today: boo
         db.close()   # отпускаем соединение на время генерации
 
     try:
-        workouts_data = await generate_plan_chunked(context, chat_context, stub_week, days, start)
+        workouts_data = await generate_plan_chunked(context, chat_context, stub_week, days, start, days_rule)
         db = SessionLocal()
         try:
             replace_upcoming_workouts(user_id, db, workouts_data, start, horizon_days=days)
@@ -1072,7 +1151,7 @@ async def generate_training_plan(
 
 {_plan_item_schema(desc_rule)}
 
-Учитывай цели спортсмена, его текущий уровень и принцип 80/20. {periodization}
+Учитывай цели спортсмена, его текущий уровень и принцип 80/20. {periodization}{_training_days_rule(user.training_days)}
 Только JSON, без пояснений."""
 
     # См. комментарий в chat_response — освобождаем соединение на время ожидания
