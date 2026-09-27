@@ -1,18 +1,18 @@
 # app/routers/training.py
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
-from datetime import datetime, timedelta
-from zoneinfo import ZoneInfo
 from typing import List
 
 from app.database import get_db
-from app.models import User, Workout, ChatMessage, PlanJob
-from app.schemas import WorkoutResponse, WorkoutWithAnalysis
+from app.models import User, Workout, PlanJob
+from app.schemas import WorkoutResponse, WorkoutWithAnalysis, WorkoutFeedback
 from app.dependencies import get_current_user
 from app.services.ai_agent import (
-    generate_training_plan, analyze_workout_completion, replace_upcoming_workouts, run_plan_job,
+    analyze_workout_completion, replace_upcoming_workouts, run_plan_job,
+    generate_plan_outcome, load_chat_history, _plan_start,
 )
-from app.services.rate_limit import check_and_record, _is_premium_active
+from app.services import plan_service
+from app.services.rate_limit import check_and_record, refund_last_usage, _is_premium_active
 from app.services.workout_verification import find_matching_activity_for_workout, apply_verdict
 
 router = APIRouter(prefix="/training", tags=["training"])
@@ -84,28 +84,17 @@ async def generate_plan_ai(
         return {"status": "running", "weeks": weeks}
 
     # ── Неделя: синхронно (быстро) ────────────────────────────────────────────
-    chat_history = (
-        db.query(ChatMessage)
-        .filter(ChatMessage.user_id == current_user.id)
-        .order_by(ChatMessage.created_at.desc())
-        .limit(30)
-        .all()[::-1]
-    )
-    workouts_data = await generate_training_plan(current_user, db, chat_history, days=days, include_today=include_today)
-
     # "Сегодня" — по локальному времени бегуна, не по серверу (UTC): иначе граница
-    # дня могла сдвинуться на сутки. planned_date — наивная колонка, поэтому tzinfo
-    # снимаем ПОСЛЕ вычисления правильного локального момента.
-    try:
-        now_local = datetime.now(ZoneInfo(current_user.timezone)) if current_user.timezone else datetime.now()
-    except Exception:
-        now_local = datetime.now()
-    start = now_local.replace(tzinfo=None)
-    if not include_today:
-        start += timedelta(days=1)
-    replace_upcoming_workouts(current_user.id, db, workouts_data, start, horizon_days=days)
+    # дня могла сдвинуться на сутки (см. _plan_start).
+    chat_history = load_chat_history(db, current_user.id)
+    start = _plan_start(current_user, include_today)
+    outcome = await generate_plan_outcome(current_user, db, chat_history, days, start)
+    replace_upcoming_workouts(current_user.id, db, outcome.workouts, start, horizon_days=days)
+    if outcome.source != "ai":
+        # план построил алгоритм, а не ИИ — попытка не сгорает (токены провайдера не тратились)
+        refund_last_usage(db, current_user.id, "plan")
     db.commit()
-    return {"status": "done", "weeks": weeks}
+    return {"status": "done", "weeks": weeks, "source": outcome.source, "reason": outcome.reason}
 
 
 @router.get("/plans/status")
@@ -124,7 +113,34 @@ def plan_status(
     )
     if not job:
         return {"status": "idle"}
-    return {"status": job.status, "weeks": job.weeks}
+    return {"status": job.status, "weeks": job.weeks, "error": job.error}
+
+
+@router.get("/zones")
+def get_zones(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Зоны темпа/пульса пользователя (оценка) и статус данных: нужны ли ему данные
+    для точного плана (окно «Нужны данные» перед генерацией)."""
+    return plan_service.zones_payload(current_user, db)
+
+
+@router.post("/workouts/{workout_id}/feedback")
+def workout_feedback(
+    workout_id: int,
+    body: WorkoutFeedback,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Как далась тренировка: easy | ok | hard. Учитывается при следующей генерации плана."""
+    workout = db.query(Workout).filter(
+        Workout.id == workout_id, Workout.user_id == current_user.id).first()
+    if not workout:
+        raise HTTPException(status_code=404, detail="Workout not found")
+    workout.rpe = body.rpe
+    db.commit()
+    return {"rpe": workout.rpe}
 
 
 @router.put("/workouts/{workout_id}/complete", response_model=WorkoutWithAnalysis)
@@ -147,6 +163,11 @@ def complete_workout(
         raise HTTPException(status_code=404, detail="Workout not found")
     if workout.workout_type == "rest":
         raise HTTPException(status_code=400, detail="День отдыха не требует подтверждения")
+
+    # Числа тренировки по актуальным зонам на момент выполнения: после вердикта они
+    # больше не пересчитываются (выполненные хранят снимок).
+    zones, _ = plan_service.zones_for_user(current_user, db)
+    plan_service.refresh_workout(workout, zones)
 
     activity = find_matching_activity_for_workout(workout, current_user.id, db, current_user.timezone)
     apply_verdict(workout, activity)

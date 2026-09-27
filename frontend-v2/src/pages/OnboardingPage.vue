@@ -95,6 +95,16 @@
         </div>
       </template>
 
+      <template v-if="step === 4">
+        <div class="field-group">
+          <label>Ваш комфортный темп, мин/км <span class="opt">(необязательно)</span></label>
+          <input v-model="form.easy_pace" class="onb-input" type="text" inputmode="numeric" placeholder="например, 7:30">
+          <label>Максимальный пульс <span class="opt">(необязательно)</span></label>
+          <input v-model.number="form.max_hr" class="onb-input" type="number" min="120" max="230" placeholder="например, 185">
+          <p class="onb-hint">Если не знаете — оставьте пустым: темп и пульс уточнятся по вашим пробежкам. Пробежки можно загрузить позже в разделе «План».</p>
+        </div>
+      </template>
+
       <p v-if="error" class="onboarding-error">{{ error }}</p>
 
       <!-- Кнопки навигации -->
@@ -116,6 +126,7 @@
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { parsePace } from '@/utils/time'
 
 const router = useRouter()
 const auth = useAuthStore()
@@ -130,6 +141,8 @@ const form = ref({
   running_goal: '' as string,
   weekly_km: null as number | null,
   training_days: null as number | null,
+  easy_pace: '' as string,
+  max_hr: null as number | null,
 })
 
 const genderOptions = [
@@ -178,6 +191,9 @@ async function next() {
     step.value++
     return
   }
+  const paceText = form.value.easy_pace.trim()
+  const pace = paceText ? parsePace(paceText) : null
+  if (paceText && pace == null) { error.value = 'Темп указан неверно, пример: 7:30'; return }
   saving.value = true
   error.value = ''
   try {
@@ -187,6 +203,8 @@ async function next() {
       running_goal: form.value.running_goal,
       weekly_km: form.value.weekly_km,
       training_days: form.value.training_days,
+      easy_pace_min_km: pace,
+      max_hr: form.value.max_hr || null,
       onboarding_completed: true,
     })
     router.push('/dashboard')
@@ -298,6 +316,14 @@ h1 {
   font-size: 13px;
   color: var(--text-muted, #888);
 }
+
+.onb-input {
+  width: 100%; margin: 6px 0 14px; padding: 11px 14px; border-radius: 10px; font: inherit; font-size: 0.95rem;
+  color: var(--text-primary, #fff); background: var(--bg-primary, #0f0f13); border: 1px solid var(--border-color, #2a2a3a);
+}
+.onb-input:focus { outline: none; border-color: var(--brand, #f85c1e); }
+.opt { font-weight: 400; opacity: 0.6; font-size: 0.85em; }
+.onb-hint { margin: 0; font-size: 0.8rem; line-height: 1.45; opacity: 0.65; }
 
 .field-group {
   margin-bottom: 24px;

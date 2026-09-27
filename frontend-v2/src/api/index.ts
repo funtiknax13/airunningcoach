@@ -3,7 +3,7 @@ import type {
   UserCreate, UserLogin, Token, UserResponse, UserUpdate, PasswordChange,
   Activity, ActivityDetail, ActivityCreate, ActivityUpdate, ActivityWithAnalysis,
   Goal, GoalCreate, GoalUpdate,
-  Workout, WorkoutWithAnalysis,
+  Workout, WorkoutWithAnalysis, PlanSource, Rpe, ZonesPayload,
   ChatMessage,
   DashboardInsights,
   MonthlyStats,
@@ -92,8 +92,11 @@ export const trainingApi = {
   // в фоне. Ответ: {status:'done'} (неделя готова) | {status:'running'} (длинный план
   // собирается в фоне — готовность опрашиваем через planStatus).
   generatePlan: (weeks = 1, includeToday = false) =>
-    api.request<{ status: 'done' | 'running'; weeks: number }>(`/api/training/plans/generate?weeks=${weeks}&include_today=${includeToday}`, 'POST'),
-  planStatus:   ()                => api.request<{ status: 'idle' | 'running' | 'done' | 'failed'; weeks?: number }>('/api/training/plans/status'),
+    api.request<{ status: 'done' | 'running'; weeks: number; source?: PlanSource; reason?: string | null }>(`/api/training/plans/generate?weeks=${weeks}&include_today=${includeToday}`, 'POST'),
+  planStatus:   ()                => api.request<{ status: 'idle' | 'running' | 'done' | 'failed'; weeks?: number; error?: string | null }>('/api/training/plans/status'),
+  zones:        ()                => api.request<ZonesPayload>('/api/training/zones'),
+  feedback:     (id: number, rpe: Rpe) =>
+    api.request<{ rpe: Rpe }>(`/api/training/workouts/${id}/feedback`, 'POST', { rpe }),
   completeWorkout: (id: number, notes?: string) =>
     api.request<WorkoutWithAnalysis>(`/api/training/workouts/${id}/complete?notes=${notes ?? ''}`, 'PUT'),
   uncompleteWorkout: (id: number) =>

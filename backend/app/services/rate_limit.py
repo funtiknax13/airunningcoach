@@ -98,6 +98,22 @@ def get_usage(user: User, action: str, db: Session) -> dict:
     }
 
 
+def refund_last_usage(db: Session, user_id: int, action: str) -> bool:
+    """Возвращает попытку: удаляет самую свежую запись использования (например, если
+    вместо ИИ план построил алгоритм — токены провайдера не тратились). Коммитит."""
+    row = (
+        db.query(ApiUsage)
+        .filter(ApiUsage.user_id == user_id, ApiUsage.action == action)
+        .order_by(ApiUsage.id.desc())
+        .first()
+    )
+    if row is None:
+        return False
+    db.delete(row)
+    db.commit()
+    return True
+
+
 def check_and_record(user: User, action: str, db: Session) -> None:
     """Проверяет лимит и записывает использование. Бросает 429 если лимит исчерпан.
 
@@ -107,10 +123,11 @@ def check_and_record(user: User, action: str, db: Session) -> None:
     pg_advisory_xact_lock на (user_id, action) сериализует конкурентные запросы
     одного пользователя и снимается сам в конце транзакции (commit ниже, либо
     rollback при исключении — session.close() в get_db() гарантирует это)."""
-    db.execute(
-        text("SELECT pg_advisory_xact_lock(:user_id, :action_key)"),
-        {"user_id": user.id, "action_key": _ACTION_LOCK_KEY[action]},
-    )
+    if db.get_bind().dialect.name == "postgresql":     # в SQLite (локальная разработка) локов нет
+        db.execute(
+            text("SELECT pg_advisory_xact_lock(:user_id, :action_key)"),
+            {"user_id": user.id, "action_key": _ACTION_LOCK_KEY[action]},
+        )
 
     info = get_usage(user, action, db)
 

@@ -11,6 +11,7 @@ from app.models import User, Activity
 from app.schemas import ActivityCreate, ActivityResponse, ActivityUpdate
 from app.dependencies import get_current_user
 from app.services.insights_cache import invalidate_insights_cache
+from app.services.plan_service import refresh_after_change
 from app.services.achievements import recompute_achievements
 from app.services.gpx_parser import parse_gpx
 from app.services.fit_parser import parse_fit
@@ -86,6 +87,7 @@ def create_activity(
         notes=activity.notes,
         activity_type=activity.activity_type,
         source=activity.source,
+        effort=activity.effort,
     )
     db.add(db_activity)
     db.flush()
@@ -95,6 +97,7 @@ def create_activity(
 
     invalidate_insights_cache(current_user.id, db)
     _safe_recompute_achievements(current_user.id, db)
+    refresh_after_change(current_user, db)   # зоны могли измениться — пересчитываем числа будущих тренировок
 
     # Автоанализ для сегодняшних/вчерашних тренировок — уходит в фон (реальный
     # сетевой вызов DeepSeek, может занять несколько секунд), не держим ответ клиенту.
@@ -171,6 +174,7 @@ def _save_imported_activity(
 
     invalidate_insights_cache(current_user.id, db)
     _safe_recompute_achievements(current_user.id, db)
+    refresh_after_change(current_user, db)   # зоны могли измениться — пересчитываем числа будущих тренировок
 
     # Автоанализ для сегодняшних/вчерашних тренировок — в фон (см. create_activity)
     act_date = _local_date(db_activity.date, current_user) if hasattr(db_activity.date, 'date') else db_activity.date
@@ -363,6 +367,7 @@ def update_activity(
 
     invalidate_insights_cache(current_user.id, db)
     _safe_recompute_achievements(current_user.id, db)
+    refresh_after_change(current_user, db)   # зоны могли измениться — пересчитываем числа будущих тренировок
 
     return activity
 
@@ -383,5 +388,6 @@ def delete_activity(
 
     invalidate_insights_cache(current_user.id, db)
     _safe_recompute_achievements(current_user.id, db)
+    refresh_after_change(current_user, db)   # зоны могли измениться — пересчитываем числа будущих тренировок
 
     return {"message": "Activity deleted"}

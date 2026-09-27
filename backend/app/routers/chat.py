@@ -7,9 +7,12 @@ from app.database import get_db
 from app.models import User, ChatMessage
 from app.schemas import AIChatRequest, ChatMessageResponse
 from app.dependencies import get_current_user
-from app.services.ai_agent import chat_response, build_and_save_plan
+from datetime import datetime, timezone
+
+from app.services import chat_prefs
+from app.services.ai_agent import chat_response, build_and_save_plan, _UNAVAILABLE_MSG
 from app.services.insights_cache import invalidate_insights_cache
-from app.services.rate_limit import check_and_record
+from app.services.rate_limit import check_and_record, refund_last_usage
 
 _PLAN_TRIGGERS_EN = [
     "create plan", "generate plan", "make plan", "build plan",
@@ -63,6 +66,12 @@ async def chat_with_ai(
     db.add(user_msg)
     db.commit()
 
+    # Пожелания к плану из этого сообщения («хочу 5 раз в неделю», «длинную в воскресенье»).
+    # Действуют до пересмотра профиля пользователем; при расхождении с профилем тренер
+    # допишет совет обновить профиль (см. ниже).
+    wishes = chat_prefs.apply_chat_message(db, current_user.id, request.message)
+    profile_days = current_user.training_days
+
     # Загружаем историю для контекста (последние 20 сообщений)
     history = (
         db.query(ChatMessage)
@@ -79,7 +88,9 @@ async def chat_with_ai(
     if plan_requested:
         try:
             check_and_record(current_user, "plan", db)
-            await build_and_save_plan(current_user, db)
+            outcome = await build_and_save_plan(current_user, db)
+            if outcome.source != "ai":
+                refund_last_usage(db, current_user.id, "plan")   # ИИ не тратился — попытка не сгорает
         except Exception:
             plan_requested = False  # rate limit hit или ошибка — не меняем context_type
 
@@ -88,6 +99,20 @@ async def chat_with_ai(
         request.message, current_user, db, history,
         lang=request.lang or "ru", plan_just_regenerated=plan_requested,
     )
+
+    # Подсказка про профиль не зависит от ИИ: пожелание уже сохранено кодом.
+    hint = None
+    if wishes.get("training_days"):
+        hint = chat_prefs.training_days_hint(profile_days, wishes["training_days"], request.lang or "ru")
+
+    if ai_text == _UNAVAILABLE_MSG:
+        # Сбой ИИ — не сохраняем это в историю как «совет тренера» и не списываем попытку.
+        refund_last_usage(db, current_user.id, "chat")
+        return ChatMessage(id=0, user_id=current_user.id, role="ai", content=ai_text + (hint or ""),
+                           context_type=request.context_type, created_at=datetime.now(timezone.utc))
+
+    if hint:
+        ai_text += hint
 
     # Сохраняем ответ AI
     context = "plan_generated" if plan_requested else request.context_type

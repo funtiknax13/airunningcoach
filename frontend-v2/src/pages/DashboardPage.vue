@@ -149,14 +149,7 @@
                 {{ $t(`plan.type.${todayWorkout.workout_type}`) }}
               </span>
               <div class="workout-text">{{ todayWorkout.description }}</div>
-              <div class="workout-chips">
-                <span v-if="todayWorkout.distance_km" class="workout-chip">
-                  📏 {{ todayWorkout.distance_km }} km
-                </span>
-                <span v-if="todayWorkout.target_pace_min_km" class="workout-chip">
-                  ⏱ {{ formatPaceNum(todayWorkout.target_pace_min_km) }}/km
-                </span>
-              </div>
+              <WorkoutMeta :workout="todayWorkout" compact />
             </div>
             <div class="workout-action">
               <span v-if="todayWorkout.completion_status === 'completed'" class="badge badge-done">✓</span>
@@ -198,7 +191,8 @@ import { useActivitiesStore } from '@/stores/activities'
 import { useGoalsStore }      from '@/stores/goals'
 import { useInsightsStore }   from '@/stores/insights'
 import { activityIcon, activityLabel } from '@/utils/activity'
-import { fmtPace as formatPace, fmtPace as formatPaceNum } from '@/utils/activityNarrative'
+import { fmtPace as formatPace } from '@/utils/activityNarrative'
+import WorkoutMeta from '@/components/training/WorkoutMeta.vue'
 import { useTrainingStore }   from '@/stores/training'
 import { activitiesApi }      from '@/api'
 import type { GoalType, MonthlyStats } from '@/api/types'

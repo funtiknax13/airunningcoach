@@ -89,6 +89,26 @@
                 @click="training.training_days = o.value">{{ o.label }}</button>
       </div>
 
+      <label class="modal-label pm-zones-title">{{ $t('profile.trZonesTitle') }}</label>
+      <div class="pm-row">
+        <div>
+          <label class="pm-sub">{{ $t('profile.trMaxHr') }}</label>
+          <input type="number" min="120" max="230" class="modal-input" v-model.number="training.max_hr">
+        </div>
+        <div>
+          <label class="pm-sub">{{ $t('profile.trRestHr') }}</label>
+          <input type="number" min="30" max="110" class="modal-input" v-model.number="training.rest_hr">
+        </div>
+      </div>
+      <label class="pm-sub">{{ $t('profile.trEasyPace') }}</label>
+      <input type="text" inputmode="numeric" class="modal-input" placeholder="7:30" v-model="training.easy_pace">
+      <label class="pm-sub">{{ $t('profile.trRace') }}</label>
+      <div class="pm-row">
+        <input type="number" step="0.01" min="0.8" class="modal-input" :placeholder="$t('profile.trRaceDist')" v-model.number="training.race_distance_km">
+        <input type="text" inputmode="numeric" class="modal-input" :placeholder="$t('profile.trRaceTime')" v-model="training.race_time">
+      </div>
+      <p class="pm-hint"><i class="fas fa-circle-info"></i> {{ $t('profile.trZonesHint') }}</p>
+
       <div v-if="trainingError" class="auth-error">{{ trainingError }}</div>
       <div class="modal-buttons">
         <button class="btn-primary" @click="saveTraining" :disabled="savingTraining">{{ $t('profile.save') }}</button>
@@ -117,6 +137,7 @@ import BaseModal from '@/components/common/BaseModal.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useI18n } from 'vue-i18n'
 import { usePush } from '@/composables/usePush'
+import { parseDuration, parsePace, paceToInput, durationToInput } from '@/utils/time'
 
 const { t }   = useI18n()
 const auth    = useAuthStore()
@@ -129,7 +150,9 @@ const push = usePush()
 
 const info = ref({ name: '', age: null as number|null, weight: null as number|null, height: null as number|null, gender: '' as string })
 const training = ref({ fitness_level: '' as string, running_goal: '' as string,
-                       weekly_km: null as number|null, training_days: null as number|null })
+                       weekly_km: null as number|null, training_days: null as number|null,
+                       max_hr: null as number|null, rest_hr: null as number|null,
+                       easy_pace: '' as string, race_distance_km: null as number|null, race_time: '' as string })
 const pw   = ref({ current: '', new_: '', confirm: '' })
 
 // Те же варианты, что и в онбординге — их использует AI-тренер в планах и советах.
@@ -159,7 +182,11 @@ function open() {
                  weight: auth.user?.weight ?? null, height: auth.user?.height ?? null,
                  gender: auth.user?.gender ?? '' }
   training.value = { fitness_level: auth.user?.fitness_level ?? '', running_goal: auth.user?.running_goal ?? '',
-                     weekly_km: auth.user?.weekly_km ?? null, training_days: auth.user?.training_days ?? null }
+                     weekly_km: auth.user?.weekly_km ?? null, training_days: auth.user?.training_days ?? null,
+                     max_hr: auth.user?.max_hr ?? null, rest_hr: auth.user?.rest_hr ?? null,
+                     easy_pace: paceToInput(auth.user?.easy_pace_min_km),
+                     race_distance_km: auth.user?.race_distance_km ?? null,
+                     race_time: durationToInput(auth.user?.race_time_min) }
   pw.value = { current: '', new_: '', confirm: '' }
   show.value = true
   push.checkStatus()
@@ -185,12 +212,27 @@ async function saveInfo() {
 async function saveTraining() {
   savingTraining.value = true; trainingError.value = ''
   try {
-    await auth.updateProfile({
-      fitness_level: training.value.fitness_level || undefined,
-      running_goal:  training.value.running_goal || undefined,
-      weekly_km:     training.value.weekly_km,
-      training_days: training.value.training_days,
-    })
+    const tr = training.value
+    const easyPace = tr.easy_pace.trim() ? parsePace(tr.easy_pace) : null
+    if (tr.easy_pace.trim() && easyPace == null) { trainingError.value = t('profile.errPace'); return }
+    const raceMin = tr.race_time.trim() ? parseDuration(tr.race_time) : null
+    if ((tr.race_time.trim() && raceMin == null) || (!!tr.race_distance_km !== !!raceMin)) {
+      trainingError.value = t('profile.errTime'); return
+    }
+    const payload: Record<string, unknown> = {
+      fitness_level: tr.fitness_level || undefined,
+      running_goal:  tr.running_goal || undefined,
+      weekly_km:     tr.weekly_km,
+      max_hr: tr.max_hr || null,
+      rest_hr: tr.rest_hr || null,
+      easy_pace_min_km: easyPace,
+      race_distance_km: raceMin ? tr.race_distance_km : null,
+      race_time_min: raceMin ? Math.round(raceMin * 100) / 100 : null,
+    }
+    // Число дней шлём, только если пользователь его изменил: сохранение training_days
+    // считается «пересмотром профиля» и отменяет пожелание из чата (см. chat_prefs).
+    if (tr.training_days !== (auth.user?.training_days ?? null)) payload.training_days = tr.training_days
+    await auth.updateProfile(payload)
     show.value = false
     toast(t('profile.updated'))
   } catch (e: any) { trainingError.value = e.message }
@@ -228,6 +270,9 @@ defineExpose({ open })
 }
 .pm-chip:hover { border-color: var(--border-2); color: var(--text); }
 .pm-chip.active { background: var(--brand); border-color: var(--brand); color: #fff; }
+.pm-zones-title { margin-top: 16px; }
+.pm-sub { display: block; font-size: 0.78rem; color: var(--text-2); margin: 8px 0 0; }
+.pm-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .pm-hint { margin-top: 12px; font-size: 0.78rem; color: var(--text-3); display: flex; align-items: center; gap: 6px; }
 .pm-hint i { color: var(--brand); }
 </style>

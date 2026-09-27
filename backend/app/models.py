@@ -32,7 +32,14 @@ class User(Base):
     running_goal = Column(String(20), nullable=True)        # 5k | 10k | half_marathon | marathon | fitness
     weekly_km = Column(Float, nullable=True)                # текущий объём км/нед
     training_days = Column(Integer, nullable=True)          # дней в неделю
-    timezone = Column(String(50), nullable=True)             # IANA-имя, напр. Asia/Yekaterinburg — для локального времени в бейджах/статистике
+    # Необязательные данные для зон темпа/пульса (см. app/services/zones.py). Всё, что
+    # не задано, оценивается по истории пробежек либо остаётся неизвестным.
+    max_hr = Column(Integer, nullable=True)                 # максимальный пульс, уд/мин
+    rest_hr = Column(Integer, nullable=True)                # пульс покоя, уд/мин
+    easy_pace_min_km = Column(Float, nullable=True)         # «мой лёгкий (разговорный) темп», мин/км
+    race_distance_km = Column(Float, nullable=True)         # недавний результат: дистанция...
+    race_time_min = Column(Float, nullable=True)            # ...и время (мин)
+    timezone = Column(String(50), nullable=True)            # IANA-имя, напр. Asia/Yekaterinburg — для локального времени в бейджах/статистике
     onboarding_completed = Column(Boolean, default=False, nullable=False, server_default='true')
     # Обновляется в get_current_user (не чаще раза в LAST_ACTIVE_UPDATE_INTERVAL) —
     # для DAU/WAU/MAU в админ-аналитике, без этого "активен" пришлось бы каждый
@@ -75,6 +82,9 @@ class Activity(Base):
     notes          = Column(Text)               # заметки
     activity_type  = Column(String(50), default="run")   # run, ride, walk, hike, swim, strength, workout, other
     source         = Column(String(50), default="manual")  # manual, gpx, fit
+    # Усилие, которое пользователь указал сам: easy (лёгкий бег) | hard (на пределе).
+    # Нужно для оценки зон темпа по одной пробежке (см. app/services/zones.py).
+    effort         = Column(String(10), nullable=True)
     # Детальные данные (хранятся как JSON)
     laps         = Column(JSON, nullable=True)  # [{num,dist_km,dur_min,pace,avg_hr,max_hr}]
     splits       = Column(JSON, nullable=True)  # [{km,pace,avg_hr}]  – по километрам
@@ -132,6 +142,10 @@ class Workout(Base):
     # таких дней, у остальных (easy/long/recovery/rest) остаётся null: {warmup_km,
     # main: [{reps, distance_m, target_pace_min_km, recovery_m, recovery_pace_min_km}], cooldown_km}
     plan_structure = Column(JSON, nullable=True)
+    # ai | rules — кто составил план (rules — алгоритм без ИИ, например при недоступности
+    # провайдеров); null у планов, созданных до появления поля.
+    plan_source = Column(String(10), nullable=True)
+    rpe = Column(String(10), nullable=True)                  # easy | ok | hard — оценка пользователя после выполнения
     planned_date      = Column(DateTime, nullable=True)       # конкретная дата тренировки — единственный якорь
     completed         = Column(Boolean, default=False)
     completion_status = Column(String(20), default="none")  # none | completed | approximate | unconfirmed
@@ -331,3 +345,19 @@ class PlanJob(Base):
 
     def __str__(self):
         return f"PlanJob #{self.id} {self.weeks}w [{self.status}]"
+
+class PlanPreference(Base):
+    """Пожелания к плану, которые пользователь высказал в чате с тренером.
+
+    Действуют, пока пользователь сам не пересмотрит профиль: сохранение
+    training_days в профиле сбрасывает training_days отсюда (см. routers/auth.py).
+    long_run_day (0=Пн..6=Вс) в профиле пока нет — живёт только здесь."""
+    __tablename__ = "plan_preferences"
+
+    id            = Column(Integer, primary_key=True, index=True)
+    user_id       = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, unique=True, index=True)
+    training_days = Column(Integer, nullable=True)
+    long_run_day  = Column(Integer, nullable=True)
+    updated_at    = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    user = relationship("User")

@@ -1,7 +1,7 @@
 # app/schemas.py
 from pydantic import BaseModel, EmailStr, Field, model_validator
 from datetime import datetime
-from typing import Optional, List, Any
+from typing import Optional, List, Any, Literal
 
 
 # Auth schemas
@@ -58,6 +58,11 @@ class UserResponse(BaseModel):
     running_goal: Optional[str]
     weekly_km: Optional[float]
     training_days: Optional[int]
+    max_hr: Optional[int] = None
+    rest_hr: Optional[int] = None
+    easy_pace_min_km: Optional[float] = None
+    race_distance_km: Optional[float] = None
+    race_time_min: Optional[float] = None
     timezone: Optional[str]
     onboarding_completed: bool
     created_at: datetime
@@ -76,7 +81,12 @@ class UserUpdate(BaseModel):
     fitness_level: Optional[str] = None
     running_goal: Optional[str] = None
     weekly_km: Optional[float] = None
-    training_days: Optional[int] = None
+    training_days: Optional[int] = Field(None, ge=1, le=7)
+    max_hr: Optional[int] = Field(None, ge=120, le=230)
+    rest_hr: Optional[int] = Field(None, ge=30, le=110)
+    easy_pace_min_km: Optional[float] = Field(None, ge=3.0, le=14.0)
+    race_distance_km: Optional[float] = Field(None, gt=0.5, le=100)
+    race_time_min: Optional[float] = Field(None, gt=1, le=1500)
     onboarding_completed: Optional[bool] = None
 
 
@@ -119,6 +129,7 @@ class ActivityCreate(BaseModel):
     notes: Optional[str] = None
     activity_type: str = "run"
     source: str = "manual"
+    effort: Optional[Literal["easy", "hard"]] = None
 
 
 class ActivityResponse(BaseModel):
@@ -136,6 +147,7 @@ class ActivityResponse(BaseModel):
     notes: Optional[str]
     activity_type: str = "run"
     source: str
+    effort: Optional[str] = None
     laps:   Optional[Any]
     splits: Optional[Any]
     created_at: datetime
@@ -161,6 +173,7 @@ class ActivityUpdate(BaseModel):
     calories: Optional[int] = None
     notes: Optional[str] = None
     activity_type: Optional[str] = None
+    effort: Optional[Literal["easy", "hard"]] = None
 
 
 # Goal schemas
@@ -212,9 +225,15 @@ class WorkoutResponse(BaseModel):
     activity_id: Optional[int]
     notes_after: Optional[str]
     plan_structure: Optional[Any] = None
+    plan_source: Optional[str] = None
+    rpe: Optional[str] = None
 
     class Config:
         from_attributes = True
+
+
+class WorkoutFeedback(BaseModel):
+    rpe: Literal["easy", "ok", "hard"]
 
 
 class WorkoutWithAnalysis(WorkoutResponse):

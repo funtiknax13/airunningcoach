@@ -25,6 +25,13 @@
       <span>{{ t('plan.horizon.preparingNote') }}</span>
     </div>
 
+    <div v-if="store.planFailed" class="plan-notice plan-notice--error">
+      <i class="fas fa-triangle-exclamation"></i>
+      <span>{{ t('plan.notice.failed') }}<RouterLink to="/support">{{ t('plan.notice.support') }}</RouterLink>.</span>
+    </div>
+
+    <PlanDataModal v-model="showData" @proceed="doGenerate" />
+
     <SkeletonLoader v-if="store.loadingPlan && !store.all.length" type="workout-list" :count="6" />
 
     <template v-else>
@@ -56,6 +63,22 @@
           <span class="wk-prog-txt">{{ viewWeek.doneCount }}/{{ viewWeek.count }}</span>
         </div>
 
+        <div v-if="showRulesNotice" class="plan-notice">
+          <i class="fas fa-gears"></i>
+          <span>{{ t('plan.notice.rules') }}</span>
+          <button class="plan-notice-btn" :disabled="store.loading || store.generating" @click="onGenerate">
+            {{ t('plan.notice.regen') }}
+          </button>
+        </div>
+        <div v-else-if="showAlgoNotice" class="plan-notice">
+          <i class="fas fa-person-walking"></i>
+          <span>{{ t('plan.notice.algo') }}</span>
+        </div>
+        <div v-if="showEstimateNotice" class="plan-notice plan-notice--soft">
+          <i class="fas fa-circle-info"></i>
+          <span>{{ t('plan.notice.estimate') }}</span>
+        </div>
+
         <ul v-if="viewWeek.days.length" class="agw">
           <li v-for="w in viewWeek.days" :key="w.id" class="agw-row"
             :class="[`t-${w.workout_type}`, `s-${statusOfW(w)}`, { 'is-today': isTodayW(w), 'is-rest': isRest(w.workout_type) }]">
@@ -70,13 +93,19 @@
                 <span v-if="!isRest(w.workout_type)" class="workout-type-badge" :class="`badge-type-${w.workout_type}`">
                   {{ t(`plan.type.${w.workout_type}`) }}
                 </span>
+                <span v-if="cardRules(w)" class="agw-src" :title="t('plan.notice.rules')">{{ t('plan.notice.rulesBadge') }}</span>
               </div>
               <p v-if="w.description" class="agw-desc">{{ w.description }}</p>
-              <div v-if="w.distance_km || w.target_pace_min_km" class="agw-chips">
-                <span v-if="w.distance_km" class="workout-chip">📏 {{ w.distance_km }} {{ ruEn('км', 'km') }}</span>
-                <span v-if="w.target_pace_min_km" class="workout-chip">⏱ {{ formatPace(w.target_pace_min_km) }}/{{ ruEn('км', 'km') }}</span>
+              <WorkoutMeta :workout="w" />
+              <div v-if="isDone(w) && !isRest(w.workout_type)" class="agw-rpe">
+                <template v-if="!w.rpe">
+                  <span class="agw-rpe-title">{{ t('plan.rpe.title') }}</span>
+                  <button v-for="r in RPES" :key="r" class="agw-rpe-btn" @click="store.sendFeedback(w.id, r)">
+                    {{ t(`plan.rpe.${r}`) }}
+                  </button>
+                </template>
+                <span v-else class="agw-rpe-title">{{ t('plan.rpe.title') }} <b>{{ t(`plan.rpe.${w.rpe}`) }}</b></span>
               </div>
-              <p v-if="w.plan_structure" class="agw-structure">{{ formatPlanStructure(w.plan_structure) }}</p>
             </div>
             <div class="agw-action">
               <span v-if="isRest(w.workout_type)" class="badge badge-rest">
@@ -120,11 +149,13 @@ import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import SkeletonLoader from '@/components/common/SkeletonLoader.vue'
+import WorkoutMeta from '@/components/training/WorkoutMeta.vue'
+import PlanDataModal from '@/components/training/PlanDataModal.vue'
 import { useTrainingStore } from '@/stores/training'
 import { useAuthStore } from '@/stores/auth'
 import { useDialog } from '@/composables/useDialog'
-import type { Workout, WorkoutType, PlanStructure } from '@/api/types'
-import { fmtPace as formatPace } from '@/utils/activityNarrative'
+import type { Workout, WorkoutType, Rpe } from '@/api/types'
+import { isV2 } from '@/utils/plan'
 
 const { t, locale } = useI18n()
 const store  = useTrainingStore()
@@ -165,7 +196,21 @@ async function pickHorizon(opt: { weeks: number; locked: boolean }) {
   selectedWeeks.value = opt.weeks
 }
 
+// Перед генерацией: если данных о темпе мало — предлагаем добавить (можно пропустить).
+const showData = ref(false)
+let askedForData = false
 async function onGenerate() {
+  if (!askedForData) {
+    try {
+      const z = await store.loadZones()
+      if (z.data_status.needs_data) { askedForData = true; showData.value = true; return }
+    } catch { /* не блокируем генерацию, если зоны не получилось загрузить */ }
+  }
+  await doGenerate()
+}
+
+async function doGenerate() {
+  askedForData = true
   try {
     await store.generate(selectedWeeks.value, includeToday.value)
     goCurrentWeek()
@@ -285,7 +330,14 @@ function isRest(type: WorkoutType) { return !RUNNING.includes(type) }
 function isDone(w: Workout) { return w.completion_status === 'completed' || w.completion_status === 'approximate' }
 // Ходьба определяется по описанию (модель пишет «ходьба» для восстановительных/
 // коленных дней) — отдельного поля дисциплины в плане нет.
-function isWalk(w: Workout) { return /ходьб|walk/i.test(w.description || '') }
+function isWalk(w: Workout) {
+  // В формате отрезков ходьба — только если ВСЕ отрезки ходьба (бег/ходьба у новичка — это бег).
+  if (isV2(w.plan_structure)) {
+    const segs = w.plan_structure.resolved.segments
+    return segs.length > 0 && segs.every(s => s.kind === 'walk')
+  }
+  return /ходьб|walk/i.test(w.description || '')
+}
 function disciplineIcon(w: Workout) {
   if (w.workout_type === 'rest') return 'fa-bed'
   return isWalk(w) ? 'fa-person-walking' : 'fa-person-running'
@@ -312,23 +364,20 @@ function isFuture(w: Workout) {
   return d > today
 }
 
-// Человекочитаемая раскладка структуры интервальной тренировки — чисто форматирование,
-// вся логика (что вообще предложить как интервалы) уже решена на бэкенде промптом.
-function formatPlanStructure(ps: PlanStructure): string {
-  const parts: string[] = []
-  if (ps.warmup_km) parts.push(ruEn(`разминка ${ps.warmup_km} км`, `${ps.warmup_km}km warmup`))
-  for (const b of ps.main) {
-    let s = `${b.reps}× ${b.distance_m}м`
-    if (b.target_pace_min_km) s += ` @${formatPace(b.target_pace_min_km)}/${ruEn('км', 'km')}`
-    if (b.recovery_m) {
-      s += ruEn(`, отдых ${b.recovery_m}м`, `, ${b.recovery_m}m rest`)
-      if (b.recovery_pace_min_km) s += ` @${formatPace(b.recovery_pace_min_km)}/${ruEn('км', 'km')}`
-    }
-    parts.push(s)
-  }
-  if (ps.cooldown_km) parts.push(ruEn(`заминка ${ps.cooldown_km} км`, `${ps.cooldown_km}km cooldown`))
-  return parts.join(' · ')
-}
+// Как далась тренировка (легко / нормально / тяжело) — учитывается в следующем плане.
+const RPES: Rpe[] = ['easy', 'ok', 'hard']
+
+// Пометки о происхождении и точности плана для выбранной недели.
+// Плашка на всю неделю — только если ВСЕ её тренировки построены алгоритмом. Если неделя
+// смешанная (например, свежий недельный план от ИИ + хвост старого месячного плана по
+// правилам), помечаем отдельные карточки, а не всю неделю.
+const activeDays = computed(() => viewWeek.value.days.filter(w => !isRest(w.workout_type)))
+const allFrom = (src: string) => activeDays.value.length > 0 && activeDays.value.every(w => w.plan_source === src)
+const showRulesNotice = computed(() => allFrom('rules'))
+const showAlgoNotice = computed(() => allFrom('algo'))
+const cardRules = (w: Workout) => !showRulesNotice.value && !isRest(w.workout_type) && w.plan_source === 'rules'
+const showEstimateNotice = computed(() => viewWeek.value.days.some(
+  w => !isRest(w.workout_type) && isV2(w.plan_structure) && w.plan_structure.resolved.estimated))
 
 // ── Действия ──────────────────────────────────────────────────────────────
 async function complete(id: number) {
@@ -435,8 +484,36 @@ async function uncomplete(id: number) {
 .agw-top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .agw-label { font-weight: 700; font-size: 0.92rem; }
 .agw-desc { margin: 4px 0 0; font-size: 0.84rem; line-height: 1.45; color: var(--text-2); }
-.agw-structure { margin: 4px 0 0; font-size: 0.78rem; line-height: 1.4; color: var(--text-3); }
-.agw-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+
+.agw-rpe { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.agw-rpe-title { font-size: 0.76rem; color: var(--text-3); margin-right: 2px; }
+.agw-rpe-title b { color: var(--text-2); }
+.agw-rpe-btn {
+  border: 1px solid var(--border); background: var(--surface); color: var(--text-2); cursor: pointer;
+  border-radius: 99px; padding: 4px 11px; font: inherit; font-size: 0.76rem; font-weight: 600;
+}
+.agw-rpe-btn:hover { border-color: var(--brand); color: var(--text); }
+
+/* Пометки о плане */
+.agw-src {
+  font-size: 0.68rem; font-weight: 700; padding: 2px 8px; border-radius: 99px; white-space: nowrap;
+  color: var(--text-3); border: 1px solid var(--border); background: var(--surface-2);
+}
+.plan-notice {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 12px 0 0;
+  padding: 10px 14px; border-radius: 10px; font-size: 0.82rem; line-height: 1.45; color: var(--text-2);
+  background: rgba(248, 92, 30, 0.08); border: 1px solid color-mix(in srgb, var(--brand) 25%, var(--border));
+}
+.plan-notice i { color: var(--brand); }
+.plan-notice--soft { background: var(--surface-2); border-color: var(--border); }
+.plan-notice--error { margin-bottom: 16px; background: var(--red-dim); border-color: color-mix(in srgb, var(--red) 35%, var(--border)); }
+.plan-notice--error i { color: var(--red); }
+.plan-notice a { color: var(--brand); font-weight: 600; }
+.plan-notice-btn {
+  margin-left: auto; border: 1px solid var(--brand); background: transparent; color: var(--brand);
+  border-radius: 8px; padding: 5px 12px; font: inherit; font-size: 0.78rem; font-weight: 700; cursor: pointer;
+}
+.plan-notice-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .agw-action { flex: none; display: flex; align-items: center; gap: 8px; padding-top: 2px; }
 

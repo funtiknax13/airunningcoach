@@ -42,6 +42,11 @@ export interface UserResponse {
   running_goal: string | null
   weekly_km: number | null
   training_days: number | null
+  max_hr: number | null
+  rest_hr: number | null
+  easy_pace_min_km: number | null
+  race_distance_km: number | null
+  race_time_min: number | null
   timezone: string | null
   onboarding_completed: boolean
   created_at: string
@@ -71,6 +76,11 @@ export interface UserUpdate {
   running_goal?: string | null
   weekly_km?: number | null
   training_days?: number | null
+  max_hr?: number | null
+  rest_hr?: number | null
+  easy_pace_min_km?: number | null
+  race_distance_km?: number | null
+  race_time_min?: number | null
   timezone?: string | null
   onboarding_completed?: boolean
 }
@@ -91,6 +101,7 @@ export interface ActivityCreate {
   notes?: string | null
   activity_type?: string
   source?: string
+  effort?: 'easy' | 'hard' | null
 }
 
 export interface ActivityUpdate {
@@ -100,6 +111,7 @@ export interface ActivityUpdate {
   avg_heart_rate?: number | null
   notes?: string | null
   activity_type?: string
+  effort?: 'easy' | 'hard' | null
 }
 
 export interface ActivityLap {
@@ -142,6 +154,7 @@ export interface Activity {
   notes: string | null
   activity_type: string
   source: string
+  effort?: 'easy' | 'hard' | null
   laps: ActivityLap[] | null
   splits: ActivitySplit[] | null
   created_at: string
@@ -250,6 +263,45 @@ export interface PlanStructure {
   cooldown_km: number | null
 }
 
+// ── Формат отрезков (plan_structure.version === 2) ─────────────────────────
+export type ZoneKey = 'recovery' | 'easy' | 'long' | 'tempo' | 'interval'
+export type SegmentKind = 'run' | 'warmup' | 'cooldown' | 'steady' | 'intervals' | 'run_walk' | 'walk'
+export type PlanSource = 'ai' | 'rules' | 'algo'
+export type Rpe = 'easy' | 'ok' | 'hard'
+
+export interface ResolvedSegment {
+  kind: SegmentKind
+  zone?: ZoneKey
+  distance_km: number | null
+  duration_min: number | null
+  pace: [number, number] | null          // [быстрее, медленнее] мин/км
+  hr: [number, number] | null
+  reps?: number
+  distance_m?: number
+  duration_s?: number
+  run_s?: number
+  walk_s?: number
+  recovery?: { distance_m?: number; duration_s?: number; zone: ZoneKey }
+  recovery_pace?: [number, number] | null
+}
+
+export interface WorkoutResolved {
+  segments: ResolvedSegment[]
+  distance_km: number | null
+  duration_min: number | null
+  avg_pace: number | null
+  pace_confidence: 'high' | 'medium' | 'low' | 'none'
+  hr_confidence: 'high' | 'medium' | 'low' | 'none'
+  estimated: boolean
+}
+
+export interface PlanStructureV2 {
+  version: 2
+  segments: unknown[]
+  resolved: WorkoutResolved
+  comment: string | null
+}
+
 export interface Workout {
   id: number
   day_of_week: number
@@ -263,7 +315,28 @@ export interface Workout {
   completion_status: CompletionStatus
   activity_id: number | null
   notes_after: string | null
-  plan_structure: PlanStructure | null
+  plan_structure: PlanStructure | PlanStructureV2 | null
+  plan_source?: PlanSource | null
+  rpe?: Rpe | null
+}
+
+export interface ZonesInfo {
+  easy_pace: number | null
+  pace: Record<ZoneKey, [number, number] | null>
+  pace_source: 'result' | 'history_effort' | 'history' | 'profile' | 'none'
+  pace_confidence: 'high' | 'medium' | 'low' | 'none'
+  hr: Record<ZoneKey, [number, number] | null>
+  hr_source: 'profile' | 'history' | 'age' | 'none'
+  hr_confidence: 'high' | 'medium' | 'low' | 'none'
+  hr_method: 'karvonen' | 'max' | 'none'
+  max_hr: number | null
+  rest_hr: number | null
+}
+
+export interface ZonesPayload {
+  zones: ZonesInfo
+  data_status: { needs_data: boolean; recent_runs: number; last_run_days_ago: number | null; pace_confidence: string }
+  training_days: number | null
 }
 
 export interface WorkoutWithAnalysis extends Workout {

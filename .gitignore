@@ -18,3 +18,6 @@ nginx/nginx-local.conf
 # Claude Code — локальные настройки и токены
 .claude/
 .mcp.json
+
+# Локальные dev-секреты (ключи ИИ для проверки плана)
+backend/scripts/dev_env.local.sh

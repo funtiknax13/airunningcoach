@@ -31,6 +31,15 @@ def _deviation(actual: float | None, target: float | None) -> float:
     return abs(actual - target) / target
 
 
+def _duration_deviation(activity: Activity, workout: Workout) -> float:
+    """Тренировка «по времени» (программа для начинающих: бег/ходьба) — в плане нет ни
+    дистанции, ни темпа, поэтому сверяем длительность. Без этого засчитывалась любая
+    пробежка (10 минут вместо 28 считались выполненной)."""
+    if workout.distance_km or not workout.duration_min:
+        return 0.0
+    return _deviation(activity.duration_min, workout.duration_min)
+
+
 def _interval_deviation(activity: Activity, workout: Workout) -> float:
     """Доп. отклонение по СТРУКТУРЕ интервалов — сколько повторов реально было и в
     каком темпе, а не только суммарная дистанция/темп всей тренировки (можно
@@ -52,16 +61,29 @@ def _interval_deviation(activity: Activity, workout: Workout) -> float:
     if not intervals or intervals.get("kind") != "intervals":
         return 0.0
 
-    main = plan.get("main") or []
-    planned_reps = sum(b.get("reps") or 0 for b in main if isinstance(b, dict))
-    if planned_reps <= 0:
-        return 0.0
-    # Темп повторов плана — средний по блокам, взвешенный по числу повторов в блоке.
-    weighted_pace = sum(
-        (b.get("reps") or 0) * (b.get("target_pace_min_km") or 0)
-        for b in main if isinstance(b, dict)
-    )
-    planned_pace = weighted_pace / planned_reps if planned_reps else None
+    if plan.get("version") == 2:
+        # Формат отрезков: повторы и диапазоны темпа берём из посчитанного по зонам
+        # снимка (resolved); нет темпа (зоны неизвестны) — сверяем только число повторов.
+        segs = [b for b in ((plan.get("resolved") or {}).get("segments") or [])
+                if isinstance(b, dict) and b.get("kind") == "intervals"]
+        planned_reps = sum(b.get("reps") or 0 for b in segs)
+        if planned_reps <= 0:
+            return 0.0
+        weighted = [((b["pace"][0] + b["pace"][1]) / 2, b.get("reps") or 0)
+                    for b in segs if b.get("pace")]
+        total_reps = sum(r for _, r in weighted)
+        planned_pace = sum(p * r for p, r in weighted) / total_reps if total_reps else None
+    else:
+        main = plan.get("main") or []
+        planned_reps = sum(b.get("reps") or 0 for b in main if isinstance(b, dict))
+        if planned_reps <= 0:
+            return 0.0
+        # Темп повторов плана — средний по блокам, взвешенный по числу повторов в блоке.
+        weighted_pace = sum(
+            (b.get("reps") or 0) * (b.get("target_pace_min_km") or 0)
+            for b in main if isinstance(b, dict)
+        )
+        planned_pace = weighted_pace / planned_reps if planned_reps else None
 
     actual_reps = intervals.get("reps") or []
     actual_pace = (
@@ -82,6 +104,7 @@ def verdict_for(activity: Activity | None, workout: Workout) -> str:
     worst = max(
         _deviation(activity.distance_km, workout.distance_km),
         _deviation(activity.pace_min_per_km, workout.target_pace_min_km),
+        _duration_deviation(activity, workout),
         _interval_deviation(activity, workout),
     )
     if worst <= DEVIATION_OK:
@@ -172,6 +195,7 @@ def find_matching_activity_for_workout(
         key=lambda a: (
             _deviation(a.distance_km, workout.distance_km)
             + _deviation(a.pace_min_per_km, workout.target_pace_min_km)
+            + _duration_deviation(a, workout)
         ),
     )
 

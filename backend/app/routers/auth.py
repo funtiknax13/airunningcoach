@@ -23,6 +23,7 @@ from app.auth import (
 )
 from app.services.email import send_verification_email, send_password_reset_email
 from app.services.rate_limit import get_usage, _is_premium_active
+from app.services import chat_prefs, plan_service
 from app.services import altcha
 from app.core.config import settings
 
@@ -184,6 +185,8 @@ def get_limits(
     }
 
 
+_ZONE_FIELDS = {"max_hr", "rest_hr", "easy_pace_min_km", "race_distance_km", "race_time_min", "age"}
+
 _RUNNING_GOAL_TO_GOAL_TYPE = {
     "5k":            "5k",
     "10k":           "10k",
@@ -201,6 +204,11 @@ def update_profile(
     for field, value in payload.items():
         setattr(current_user, field, value)
 
+    # Пользователь сам пересмотрел число дней в профиле — пожелание из чата больше не
+    # перебивает профиль (см. services/chat_prefs.py).
+    if "training_days" in payload:
+        chat_prefs.clear_training_days(db, current_user.id)
+
     # При завершении онбординга автоматически создаём цель (если есть running_goal и ещё нет такой цели)
     completing_onboarding = payload.get("onboarding_completed") is True
     running_goal = payload.get("running_goal") or current_user.running_goal
@@ -217,6 +225,8 @@ def update_profile(
 
     db.commit()
     db.refresh(current_user)
+    if payload.keys() & _ZONE_FIELDS:
+        plan_service.refresh_after_change(current_user, db)   # числа будущих тренировок по новым зонам
     return current_user
 
 

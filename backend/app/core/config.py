@@ -44,6 +44,21 @@ class Settings(BaseSettings):
     DEEPSEEK_MODEL: str = "deepseek-chat"
     DEEPSEEK_BASE_URL: str = "https://api.deepseek.com"
 
+    # Gemini через OpenAI-совместимый эндпоинт Google — третий провайдер (после Groq и
+    # DeepSeek). Включён, если задан GEMINI_API_KEY; модель настраивается переменной.
+    # Любой OpenAI-совместимый провайдер (прокси/роутер): включён, если заданы ключ и
+    # base_url. При наличии идёт ПЕРВЫМ — удобно для проверки без лимитов бесплатных тарифов.
+    CUSTOM_AI_API_KEY: str = ""
+    CUSTOM_AI_BASE_URL: str = ""
+    CUSTOM_AI_MODEL: str = ""
+
+    GEMINI_API_KEY: str = ""
+    GEMINI_MODEL: str = "gemini-3.6-flash"
+    # Gemini 3.x — «думающая» модель: без ограничения рассуждение съедает max_tokens и
+    # ответ обрывается до JSON. none/minimal/low/medium/high; пусто = не передавать.
+    GEMINI_REASONING_EFFORT: str = "low"
+    GEMINI_BASE_URL: str = "https://generativelanguage.googleapis.com/v1beta/openai/"
+
     # Google OAuth
     GOOGLE_CLIENT_ID: str = ""
     GOOGLE_CLIENT_SECRET: str = ""
@@ -52,9 +67,6 @@ class Settings(BaseSettings):
     YOOKASSA_SHOP_ID: str = ""
     YOOKASSA_SECRET_KEY: str = ""
     YOOKASSA_RETURN_URL: str = "https://airunningcoach.pro/payment/success"
-
-    # Ignored legacy keys
-    GEMINI_API_KEY: str = ""
 
     @field_validator("SECRET_KEY")
     @classmethod
