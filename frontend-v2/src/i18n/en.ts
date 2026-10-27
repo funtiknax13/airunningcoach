@@ -167,6 +167,10 @@ export default {
     error: '😞 Error. Please try again.',
     typing: 'Typing...',
     planReady: 'Open training plan →',
+    confirmWeek: 'Yes, rebuild the plan',
+    confirmMonth: 'Rebuild for a month',
+    confirming: 'Applying...',
+    confirmError: "Couldn't apply the plan. Please try again.",
   },
   profile: {
     tabInfo: 'Profile', tabTraining: 'Training', tabPassword: 'Password',

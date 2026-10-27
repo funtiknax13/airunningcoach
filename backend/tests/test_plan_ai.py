@@ -142,7 +142,9 @@ def test_beginner_is_algorithmic_by_design_without_calling_ai():
     assert out.source == "algo" and out.reason == "beginner" and not chat.calls
 
 
-def test_ai_plan_is_clamped_to_training_days_and_volume():
+def test_ai_plan_days_clamped_but_volume_trusted():
+    # Число дней — контракт, код его поправит; объём недели — больше не клипаем
+    # постфактум (превью в чате должно совпадать с тем, что реально сохранится).
     overloaded = [day("easy", run_seg(15)), day("easy", run_seg(15)), day("easy", run_seg(15)),
                   day("easy", run_seg(15)), day("easy", run_seg(15)), day("long", run_seg(30, "long")),
                   day("easy", run_seg(15))]
@@ -152,15 +154,22 @@ def test_ai_plan_is_clamped_to_training_days_and_volume():
     active = [w for w in out.workouts if w["workout_type"] != "rest"]
     assert len(active) == 4                              # 7 дней -> ровно 4
     total = sum(w["distance_km"] for w in active)
-    cap = pl.week_target_km(r, 0, datetime(2026, 9, 28).date()) * pl.WEEK_CAP_TOLERANCE
-    assert total <= cap + 2.0
+    assert total == pytest.approx(75.0)                  # не урезан до недельной цели
 
 
-def test_quality_removed_when_zones_unknown():
+def test_zones_unknown_prompt_asks_ai_to_skip_quality():
+    r = req_for(zones=build_zones(make_user(), [], NOW))
+    prompt = ai.build_prompt(r, "CTX", "", 0, 7, [])
+    assert "пока НЕ ставь" in prompt
+
+
+def test_quality_in_ai_output_is_trusted_not_stripped():
+    # Раньше sanitize_quality снимал tempo/interval постфактум, если зоны неизвестны;
+    # теперь доверяем ИИ (промпт уже попросил их не ставить — см. тест выше).
     r = req_for(zones=build_zones(make_user(), [], NOW))
     out = gen(r, FakeChat(good_week()))
     assert out.source == "ai"
-    assert not {w["workout_type"] for w in out.workouts} & {"tempo", "interval"}
+    assert {w["workout_type"] for w in out.workouts} & {"tempo", "interval"}
 
 
 def test_month_plan_is_chunked_and_assembled():
@@ -182,5 +191,5 @@ def test_month_falls_back_wholly_if_any_chunk_fails():
 def test_prompt_gives_volume_target_long_range_and_quality_hint():
     r = req_for(start=MONDAY, history_avg_km=17.0, history_runs_4w=8, longest_run_km=10.0)
     prompt = ai.build_prompt(r, "CTX", "", 0, 7, [])
-    assert "недельный объём около" in prompt and "длинная 7–" in prompt
+    assert "недельный объём — ориентир" in prompt and "длинная ориентировочно 7–" in prompt
     assert "качественная тренировка недели" in prompt

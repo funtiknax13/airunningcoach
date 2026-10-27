@@ -53,10 +53,10 @@ SYSTEM_PROMPT = """\
 - Markdown — только когда реально помогает (список шагов, сравнение), не для красоты
 - Если пробежек нет — задавай уточняющие вопросы (1-2 за раз), не составляй план вслепую
 - Если данных о темпе/пульсе бегуна нет — НЕ выдумывай числа: скажи, чего не хватает, \n  и задай 1-2 коротких вопроса (например, какой у него комфортный темп на км). Темпы и \n  пульс называй только те, что указаны в блоке «ЗОНЫ» контекста.
-- Про пересборку плана — в переписке будет блок «ПЛАН ТОЛЬКО ЧТО ПЕРЕСОБРАН» / «ПЛАН НЕ \
-  ПЕРЕСОБИРАЛСЯ», перед последним сообщением пользователя — следуй ему буквально. Никогда не \
-  утверждай, что обновила план, если это не подтверждено этим блоком — ты не можешь изменить \
-  план просто фактом ответа.
+- Про план — в переписке будет блок «ЧЕРНОВИК ПЛАНА ГОТОВ, НО НЕ СОХРАНЁН» / «ПЛАН НЕ \
+  ПЕРЕСОБИРАЛСЯ», перед последним сообщением пользователя — следуй ему буквально. Черновик — \
+  это ПРЕДЛОЖЕНИЕ, а не готовый план: его применяет пользователь кнопкой, не твой ответ. \
+  Никогда не говори, что план уже обновлён/сохранён, если это не так.
 - При болях — рекомендуй врача. Никогда не ставь диагнозов.
 - Отвечай на языке пользователя (указан ниже).
 
@@ -510,24 +510,26 @@ async def chat_response(
     db: Session,
     history: list[ChatMessage],
     lang: str = "ru",
-    plan_just_regenerated: bool = False,
+    plan_draft_summary: Optional[str] = None,
 ) -> str:
     """Генерирует ответ тренера на сообщение пользователя.
 
-    plan_just_regenerated: True, если ДО этого вызова план уже реально пересобран
-    и сохранён (см. chat.py — проверка и пересборка происходят раньше, чем этот
-    ответ генерируется). Без этого модель по своей собственной оценке "пользователь
-    просит план" утверждала "план обновлён", даже когда код это не подтверждал
-    (отдельная, гораздо более грубая проверка по ключевым словам) — реального
-    обновления не происходило, а пользователь читал ложное подтверждение."""
+    plan_draft_summary: если ДО этого вызова подготовлен черновик плана (см. chat.py —
+    prepare_plan_draft вызывается раньше, чем этот ответ), сюда передаётся его
+    краткое содержание по дням. Черновик ещё НЕ сохранён — его применяет отдельное
+    подтверждение (кнопка в чате, POST /chat/plans/confirm). Раньше модель по своей
+    собственной оценке "пользователь просит план" сразу утверждала "план обновлён" —
+    теперь она описывает черновик и просит подтвердить, а не выдаёт его за готовый."""
     if _STUB_MODE:
         return _UNAVAILABLE_MSG
 
     lang_instruction = "Respond in English." if lang == "en" else "Отвечай на русском языке."
     plan_status = (
-        "=== ПЛАН ТОЛЬКО ЧТО ПЕРЕСОБРАН ===\nПлан уже пересчитан и сохранён прямо перед этим ответом — "
-        "можешь уверенно сказать, что он обновлён и появится во вкладке «Тренировки»."
-        if plan_just_regenerated else
+        f"=== ЧЕРНОВИК ПЛАНА ГОТОВ, НО НЕ СОХРАНЁН ===\nВот что получилось на неделю:\n"
+        f"{plan_draft_summary}\nОпиши это бегуну своими словами (не просто списком) и явно "
+        "скажи, что для применения нужно подтвердить кнопкой под этим сообщением — план "
+        "ещё не сохранён, ты не можешь утверждать, что он уже обновлён."
+        if plan_draft_summary else
         "=== ПЛАН НЕ ПЕРЕСОБИРАЛСЯ В ЭТОМ СООБЩЕНИИ ===\nЕсли похоже, что пользователь просит "
         "изменить план — НЕ утверждай, что уже изменила его: это не так. Прямо скажи, что для "
         "пересборки нужна явная фраза («обнови план», «пересобери план», «составь план» и т.п.) "
@@ -960,14 +962,49 @@ async def generate_plan_outcome(
     )
 
 
-async def build_and_save_plan(user: User, db: Session) -> "plan_ai.PlanOutcome":
-    """Генерирует недельный план и сохраняет в БД. Используется из чата."""
+_WD_SHORT = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"]
+
+
+def _draft_summary_text(workouts: list[dict], start: datetime) -> str:
+    """Короткая раскладка черновика по дням недели — грунтовка для ответа тренера
+    (chat_response), без лишнего вызова ИИ: сам черновик уже готов, нужно только
+    по-человечески его описать."""
+    lines = []
+    for i, w in enumerate(workouts[:7]):
+        wd = _WD_SHORT[(start + timedelta(days=i)).weekday()]
+        wtype = w.get("workout_type", "rest")
+        if wtype == "rest":
+            lines.append(f"{wd}: отдых")
+            continue
+        amount = (f"{w['distance_km']} км" if w.get("distance_km")
+                  else f"{w['duration_min']:.0f} мин" if w.get("duration_min") else "")
+        lines.append(f"{wd}: {wtype} {amount}".rstrip())
+    return "\n".join(lines)
+
+
+async def prepare_plan_draft(user: User, db: Session) -> dict:
+    """Готовит план на неделю, но НЕ пишет в БД — черновик для предложения в чате
+    (см. routers/chat.py). Подтверждение (POST /chat/plans/confirm, confirm_plan_draft
+    ниже) сохраняет РОВНО этот черновик, не генерируя план заново: иначе превью в
+    чате и итоговый план могли бы разойтись, даже без изменений кодового клипа —
+    просто от случайности повторного ответа ИИ."""
     chat_history = load_chat_history(db, user.id)
     start = _plan_start(user)
-    outcome = await generate_plan_outcome(user, db, chat_history, 7, start)
-    replace_upcoming_workouts(user.id, db, outcome.workouts, start)
-    db.commit()
-    return outcome
+    days = 7
+    outcome = await generate_plan_outcome(user, db, chat_history, days, start)
+    return {
+        "workouts": outcome.workouts,
+        "start": start.isoformat(),
+        "days": days,
+        "source": outcome.source,
+        "summary": _draft_summary_text(outcome.workouts, start),
+    }
+
+
+def confirm_plan_draft(user: User, db: Session, draft: dict) -> None:
+    """Сохраняет черновик из ChatMessage.plan_draft как реальный план. Не коммитит."""
+    start = datetime.fromisoformat(draft["start"])
+    replace_upcoming_workouts(user.id, db, draft["workouts"], start, horizon_days=draft.get("days", 7))
 
 
 async def run_plan_job(user_id: int, weeks: int, job_id: int, include_today: bool = False) -> None:

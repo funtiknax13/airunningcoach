@@ -111,6 +111,8 @@ export const chatApi = {
       { message, context_type: 'general', lang }),
   unreadCount: () => api.request<{ count: number }>('/api/chat/unread-count'),
   markRead:    () => api.request<{ count: number }>('/api/chat/mark-read', 'POST'),
+  confirmPlan: (messageId: number, lang = 'ru') =>
+    api.request<ChatMessage>('/api/chat/plans/confirm', 'POST', { message_id: messageId, lang }),
 }
 
 // ── Insights ──────────────────────────────────────────────────────────────

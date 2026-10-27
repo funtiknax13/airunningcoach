@@ -345,11 +345,33 @@ export interface WorkoutWithAnalysis extends Workout {
 }
 
 // ── Chat ──────────────────────────────────────────────────────────────────
+// Черновик плана, предложенный тренером в чате (context_type === 'plan_proposal') —
+// то же самое, что сохранится, если подтвердить (POST /chat/plans/confirm): не
+// превью «похожего» плана, а ровно тот результат.
+export interface PlanDraftWorkout {
+  workout_type: WorkoutType
+  description: string
+  distance_km: number | null
+  duration_min: number | null
+  target_pace_min_km: number | null
+  plan_structure: PlanStructure | PlanStructureV2 | null
+  plan_source?: PlanSource | null
+}
+
+export interface PlanDraft {
+  workouts: PlanDraftWorkout[]
+  start: string
+  days: number
+  source: PlanSource
+  summary: string
+}
+
 export interface ChatMessage {
   id: number
   role: 'user' | 'ai' | 'system'
   content: string
   context_type: string | null
+  plan_draft?: PlanDraft | null
   created_at: string
 }
 

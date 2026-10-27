@@ -21,6 +21,10 @@ from app.services.zones import Zones, recent_runs
 
 LEVEL_DEFAULT_KM = {"beginner": 8.0, "intermediate": 15.0, "advanced": 25.0}   # допущение: км/нед без данных
 LEVEL_LONG_CAP = {"beginner": 5.0, "intermediate": 10.0, "advanced": 16.0}      # допущение: потолок длинной без данных
+# Допущение: типичный ДОСТАТОЧНЫЙ объём под дистанцию (не цель для роста, а потолок —
+# выше него растить объём просто незачем, если бегун и так закрывает дистанцию).
+GOAL_VOLUME_CEILING_KM = {"5k": 35.0, "10k": 45.0, "half_marathon": 65.0, "marathon": 85.0}
+NO_GOAL_GROWTH_CAP = 1.15     # без цели по дистанции ("fitness"/не указана) рост не разгоняем
 GROWTH = 1.08                 # рост недельного объёма (≤ ~10%)
 DELOAD_FACTOR = 0.75          # каждая 4-я календарная неделя плана легче
 WEEK_CAP_TOLERANCE = 1.10     # допуск сверх целевого объёма при проверке плана ИИ
@@ -145,12 +149,26 @@ def calendar_weeks(req: PlanRequest) -> list[dict]:
     return [{"monday": m, "indices": idx} for m, idx in weeks.items()]
 
 
+def _growth_cap_km(req: PlanRequest, base: float) -> float:
+    """Потолок, выше которого расти незачем: конкретная дистанция-цель — типичный
+    достаточный объём под неё (не план, а предохранитель от бесконечного роста,
+    если бегун уже и так хорошо тренируется); без дистанционной цели ("fitness"
+    или не указана) — рост сдержанный, держимся близко к тому, что человек уже
+    бежит. Никогда не опускает цель ниже текущего объёма (base) — уже хорошие
+    тренировки не откатываем."""
+    ceiling = GOAL_VOLUME_CEILING_KM.get(req.goal)
+    if ceiling is not None:
+        return max(base, ceiling)
+    return base * NO_GOAL_GROWTH_CAP
+
+
 def week_target_km(req: PlanRequest, w: int, monday: date) -> float:
     base = baseline_km(req)
-    target = base * (GROWTH ** w)
+    cap = _growth_cap_km(req, base)
+    target = min(base * (GROWTH ** w), cap)
     # разгрузка каждой 4-й недели: 3 недели рост, потом откат
     if (w + 1) % 4 == 0:
-        target = base * (GROWTH ** (w - 1)) * DELOAD_FACTOR
+        target = min(base * (GROWTH ** (w - 1)), cap) * DELOAD_FACTOR
     if req.goal_date:
         delta = (req.goal_date - monday).days
         if 0 <= delta <= 6:

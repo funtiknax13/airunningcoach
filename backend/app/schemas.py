@@ -255,6 +255,7 @@ class ChatMessageResponse(BaseModel):
     role: str
     content: str
     context_type: Optional[str]
+    plan_draft: Optional[Any] = None
     created_at: datetime
 
     class Config:
@@ -265,6 +266,11 @@ class ChatMessageResponse(BaseModel):
 class AIChatRequest(BaseModel):
     message: str
     context_type: Optional[str] = "general"
+    lang: Optional[str] = "ru"
+
+
+class ConfirmPlanDraftRequest(BaseModel):
+    message_id: int
     lang: Optional[str] = "ru"
 
 

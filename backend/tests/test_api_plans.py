@@ -153,7 +153,7 @@ def test_feedback_endpoint_saves_rpe(client, db):
 def test_chat_wish_is_saved_hint_appended_and_profile_edit_resets_it(client, db, monkeypatch):
     user = make_db_user(db, training_days=3)
 
-    async def fake_reply(message, user, db_, history, lang="ru", plan_just_regenerated=False):
+    async def fake_reply(message, user, db_, history, lang="ru", plan_draft_summary=None):
         return "Хорошо, записал."
 
     monkeypatch.setattr("app.routers.chat.chat_response", fake_reply)
@@ -189,6 +189,83 @@ def test_no_hint_when_chat_wish_matches_profile(client, db, monkeypatch):
     r = client.post("/api/chat/message", headers=auth(user),
                     json={"message": "Хочу 4 раза в неделю"})
     assert r.json()["content"] == "Ок."
+
+
+def _fake_draft(start):
+    workouts = []
+    for i in range(7):
+        if i % 2 == 0:
+            workouts.append({"workout_type": "easy", "description": "desc", "distance_km": 5.0,
+                              "duration_min": 35.0, "target_pace_min_km": 7.0,
+                              "plan_structure": None, "plan_source": "ai"})
+        else:
+            workouts.append({"workout_type": "rest", "description": "Отдых", "distance_km": None,
+                              "duration_min": None, "target_pace_min_km": None,
+                              "plan_structure": None, "plan_source": "ai"})
+    return {"workouts": workouts, "start": start.isoformat(), "days": 7, "source": "ai",
+            "summary": "Пн: easy 5.0 км"}
+
+
+def test_plan_proposal_then_confirm_saves_exact_draft_not_regenerated(client, db, monkeypatch):
+    from app.services.ai_agent import _plan_start
+
+    user = make_db_user(db)
+    start = _plan_start(user)
+    draft = _fake_draft(start)
+
+    async def fake_prepare(u, d):
+        return draft
+
+    async def fake_reply(message, user, db_, history, lang="ru", plan_draft_summary=None):
+        assert plan_draft_summary == draft["summary"]
+        return "Вот что получилось на неделю, подтверди кнопкой."
+
+    monkeypatch.setattr("app.routers.chat.prepare_plan_draft", fake_prepare)
+    monkeypatch.setattr("app.routers.chat.chat_response", fake_reply)
+
+    r = client.post("/api/chat/message", headers=auth(user), json={"message": "пересобери план"})
+    assert r.status_code == 200
+    body = r.json()
+    assert body["context_type"] == "plan_proposal"
+    assert body["plan_draft"]["workouts"][0]["workout_type"] == "easy"
+    msg_id = body["id"]
+    assert db.query(Workout).count() == 0        # черновик ещё не сохранён как план
+
+    confirm = client.post("/api/chat/plans/confirm", headers=auth(user), json={"message_id": msg_id})
+    assert confirm.status_code == 200
+    assert confirm.json()["context_type"] == "plan_generated"
+
+    workouts = client.get("/api/training/workouts", headers=auth(user)).json()
+    active = [w for w in workouts if w["workout_type"] != "rest"]
+    assert len(active) == 4                      # ровно столько "easy" в черновике
+    assert active[0]["distance_km"] == 5.0        # ровно то, что было в превью — не пересобрано
+
+    # повторное подтверждение того же сообщения уже не работает
+    again = client.post("/api/chat/plans/confirm", headers=auth(user), json={"message_id": msg_id})
+    assert again.status_code == 404
+
+
+def test_confirm_rejects_other_users_message(client, db, monkeypatch):
+    from app.services.ai_agent import _plan_start
+
+    owner = make_db_user(db, email="owner@example.com")
+    other = make_db_user(db, email="other@example.com")
+    start = _plan_start(owner)
+    draft = _fake_draft(start)
+
+    async def fake_prepare(u, d):
+        return draft
+
+    async def fake_reply(*a, **k):
+        return "Ок, подтверди кнопкой."
+
+    monkeypatch.setattr("app.routers.chat.prepare_plan_draft", fake_prepare)
+    monkeypatch.setattr("app.routers.chat.chat_response", fake_reply)
+
+    msg_id = client.post("/api/chat/message", headers=auth(owner),
+                         json={"message": "пересобери план"}).json()["id"]
+    assert client.post("/api/chat/plans/confirm", headers=auth(other),
+                       json={"message_id": msg_id}).status_code == 404
 
 
 def test_ai_outage_message_is_not_saved_and_quota_refunded(client, db):

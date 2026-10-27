@@ -136,6 +136,22 @@ def test_history_baseline_beats_profile_and_cold_start_is_conservative():
     assert pl.baseline_km(cold) == pl.LEVEL_DEFAULT_KM["advanced"]
 
 
+def test_growth_stops_once_already_adequate_for_goal():
+    # уже 40 км/нед под 10k (потолок 45) — рост почти выбран, дальше почти не растим
+    r = req_for(history_avg_km=40.0, history_runs_4w=8, weekly_km_profile=40.0, goal="10k")
+    assert pl.week_target_km(r, 2, MONDAY.date()) <= pl.GOAL_VOLUME_CEILING_KM["10k"]
+    # уже выше типичного потолка — не откатываем назад, держим текущий объём
+    over = req_for(history_avg_km=60.0, history_runs_4w=8, weekly_km_profile=60.0, goal="10k")
+    assert pl.week_target_km(over, 0, MONDAY.date()) == pytest.approx(60.0)
+
+
+def test_no_goal_growth_is_conservative():
+    r = req_for(history_avg_km=20.0, history_runs_4w=8, weekly_km_profile=20.0, goal="fitness")
+    assert pl.week_target_km(r, 2, MONDAY.date()) <= 20.0 * pl.NO_GOAL_GROWTH_CAP + 0.01
+    with_goal = req_for(history_avg_km=20.0, history_runs_4w=8, weekly_km_profile=20.0, goal="10k")
+    assert pl.week_target_km(r, 2, MONDAY.date()) <= pl.week_target_km(with_goal, 2, MONDAY.date())
+
+
 def test_taper_before_goal_date_reduces_volume():
     plain = req_for(start=MONDAY)
     taper = req_for(start=MONDAY, goal_date=date(2026, 10, 12))

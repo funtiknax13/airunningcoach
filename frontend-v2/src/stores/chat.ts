@@ -55,5 +55,22 @@ export const useChatStore = defineStore('chat', () => {
     }
   }
 
-  return { messages, typing, unreadCount, refreshUnread, clearUnread, load, send }
+  // Подтверждение предложения плана (кнопка под сообщением тренера). Сохраняет
+  // РОВНО черновик, который уже показан в превью — не генерирует план заново.
+  const confirming = ref(false)
+  async function confirmPlanDraft(messageId: number) {
+    const lang = i18n.global.locale.value
+    confirming.value = true
+    try {
+      const reply = await chatApi.confirmPlan(messageId, lang)
+      const proposal = messages.value.find(m => m.id === messageId)
+      if (proposal) proposal.context_type = 'plan_proposal_confirmed'
+      messages.value.push(reply)
+    } finally {
+      confirming.value = false
+      saveCache('chat', messages.value)
+    }
+  }
+
+  return { messages, typing, unreadCount, confirming, refreshUnread, clearUnread, load, send, confirmPlanDraft }
 })

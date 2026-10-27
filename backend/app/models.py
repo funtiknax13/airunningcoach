@@ -266,8 +266,13 @@ class ChatMessage(Base):
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     role = Column(String(20), nullable=False)  # user, ai, system
     content = Column(Text, nullable=False)
-    context_type = Column(String(50))  # training, nutrition, injury, general
+    context_type = Column(String(50))  # training, nutrition, injury, general, plan_proposal, plan_proposal_confirmed
     read = Column(Boolean, nullable=False, default=True, server_default='true')  # False только для фоновых AI-сообщений (auto_analysis/workout_check)
+    # Черновик плана, предложенный в этом сообщении (context_type='plan_proposal'):
+    # {"workouts": [...], "start": iso, "days": int}. Подтверждение (POST /chat/plans/confirm)
+    # сохраняет РОВНО этот черновик, не генерируя план заново — иначе превью в чате и
+    # итоговый план могли бы разойтись (см. services/ai_agent.prepare_plan_draft).
+    plan_draft = Column(JSON, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     user = relationship("User", back_populates="chat_messages")

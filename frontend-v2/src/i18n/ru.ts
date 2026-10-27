@@ -167,6 +167,10 @@ export default {
     error: '😞 Ошибка. Попробуйте позже.',
     typing: 'Печатает...',
     planReady: 'Открыть план тренировок →',
+    confirmWeek: 'Да, пересобери план',
+    confirmMonth: 'Пересобрать на месяц',
+    confirming: 'Применяю...',
+    confirmError: 'Не получилось применить план. Попробуйте ещё раз.',
   },
   profile: {
     tabInfo: 'Профиль', tabTraining: 'Тренировки', tabPassword: 'Пароль',

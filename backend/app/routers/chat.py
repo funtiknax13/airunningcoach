@@ -1,16 +1,16 @@
 # app/routers/chat.py
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List
 
 from app.database import get_db
 from app.models import User, ChatMessage
-from app.schemas import AIChatRequest, ChatMessageResponse
+from app.schemas import AIChatRequest, ChatMessageResponse, ConfirmPlanDraftRequest
 from app.dependencies import get_current_user
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from app.services import chat_prefs
-from app.services.ai_agent import chat_response, build_and_save_plan, _UNAVAILABLE_MSG
+from app.services.ai_agent import chat_response, prepare_plan_draft, confirm_plan_draft, _UNAVAILABLE_MSG
 from app.services.insights_cache import invalidate_insights_cache
 from app.services.rate_limit import check_and_record, refund_last_usage
 
@@ -81,23 +81,29 @@ async def chat_with_ai(
         .all()[::-1]
     )
 
-    # Если пользователь просит составить/пересобрать план — делаем это ДО генерации
-    # ответа, чтобы сам ответ мог опираться на то, что реально произошло, а не
-    # утверждать "план обновлён" вслепую (см. docstring chat_response).
+    # Если пользователь просит составить/пересобрать план — готовим черновик ДО
+    # генерации ответа (чтобы сам ответ мог опираться на то, что реально получилось),
+    # но НЕ сохраняем его сразу: пользователь должен подтвердить кнопкой под
+    # сообщением тренера (POST /chat/plans/confirm) — см. docstring prepare_plan_draft.
+    # Квота "plan" списывается здесь (черновик — это и есть обращение к ИИ), а не
+    # при подтверждении: подтверждение само по себе ничего не генерирует.
+    draft = None
     plan_requested = _is_plan_request(request.message)
     if plan_requested:
         try:
             check_and_record(current_user, "plan", db)
-            outcome = await build_and_save_plan(current_user, db)
-            if outcome.source != "ai":
+            draft = await prepare_plan_draft(current_user, db)
+            if draft["source"] != "ai":
                 refund_last_usage(db, current_user.id, "plan")   # ИИ не тратился — попытка не сгорает
         except Exception:
             plan_requested = False  # rate limit hit или ошибка — не меняем context_type
+            draft = None
 
     # Получаем ответ агента
     ai_text = await chat_response(
         request.message, current_user, db, history,
-        lang=request.lang or "ru", plan_just_regenerated=plan_requested,
+        lang=request.lang or "ru",
+        plan_draft_summary=draft["summary"] if draft else None,
     )
 
     # Подсказка про профиль не зависит от ИИ: пожелание уже сохранено кодом.
@@ -114,13 +120,15 @@ async def chat_with_ai(
     if hint:
         ai_text += hint
 
-    # Сохраняем ответ AI
-    context = "plan_generated" if plan_requested else request.context_type
+    # Сохраняем ответ AI. Черновик плана (если есть) едет вместе с сообщением —
+    # фронт рисует под ним превью и кнопку подтверждения (POST /chat/plans/confirm).
+    context = "plan_proposal" if draft else request.context_type
     ai_msg = ChatMessage(
         user_id=current_user.id,
         role="ai",
         content=ai_text,
         context_type=context,
+        plan_draft=draft,
     )
     db.add(ai_msg)
     db.commit()
@@ -130,6 +138,41 @@ async def chat_with_ai(
     invalidate_insights_cache(current_user.id, db)
 
     return ai_msg
+
+
+@router.post("/plans/confirm", response_model=ChatMessageResponse)
+def confirm_plan_proposal(
+    body: ConfirmPlanDraftRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Применяет черновик, предложенный сообщением message_id (кнопка «Да, пересобери
+    план» под сообщением тренера). Сохраняет РОВНО тот черновик — не генерирует план
+    заново, иначе превью, которое уже увидел пользователь, могло бы разойтись с
+    итогом. Бесплатно (квота "plan" уже списана при подготовке черновика)."""
+    msg = (
+        db.query(ChatMessage)
+        .filter(ChatMessage.id == body.message_id, ChatMessage.user_id == current_user.id)
+        .first()
+    )
+    if not msg or msg.context_type != "plan_proposal" or not msg.plan_draft:
+        raise HTTPException(status_code=404, detail="Предложение плана не найдено")
+
+    draft_start = datetime.fromisoformat(msg.plan_draft["start"])
+    if draft_start.date() < (datetime.now(timezone.utc) - timedelta(days=1)).date():
+        raise HTTPException(status_code=409, detail="Предложение устарело, попроси тренера пересобрать план ещё раз")
+
+    confirm_plan_draft(current_user, db, msg.plan_draft)
+    msg.context_type = "plan_proposal_confirmed"   # кнопка больше не показывается при перезагрузке чата
+
+    done_text = ("Done — the plan is saved, check the Training tab." if body.lang == "en"
+                 else "Готово — план сохранён, можешь посмотреть его на вкладке «Тренировки».")
+    done_msg = ChatMessage(user_id=current_user.id, role="ai", content=done_text, context_type="plan_generated")
+    db.add(done_msg)
+    db.commit()
+    db.refresh(done_msg)
+    invalidate_insights_cache(current_user.id, db)
+    return done_msg
 
 
 @router.get("/history", response_model=List[ChatMessageResponse])
