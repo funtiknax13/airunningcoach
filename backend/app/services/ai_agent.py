@@ -11,6 +11,7 @@ import json
 import logging
 import re
 import time
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 from typing import Optional
@@ -53,10 +54,6 @@ SYSTEM_PROMPT = """\
 - Markdown — только когда реально помогает (список шагов, сравнение), не для красоты
 - Если пробежек нет — задавай уточняющие вопросы (1-2 за раз), не составляй план вслепую
 - Если данных о темпе/пульсе бегуна нет — НЕ выдумывай числа: скажи, чего не хватает, \n  и задай 1-2 коротких вопроса (например, какой у него комфортный темп на км). Темпы и \n  пульс называй только те, что указаны в блоке «ЗОНЫ» контекста.
-- Про план — в переписке будет блок «ЧЕРНОВИК ПЛАНА ГОТОВ, НО НЕ СОХРАНЁН» / «ПЛАН НЕ \
-  ПЕРЕСОБИРАЛСЯ», перед последним сообщением пользователя — следуй ему буквально. Черновик — \
-  это ПРЕДЛОЖЕНИЕ, а не готовый план: его применяет пользователь кнопкой, не твой ответ. \
-  Никогда не говори, что план уже обновлён/сохранён, если это не так.
 - При болях — рекомендуй врача. Никогда не ставь диагнозов.
 - Отвечай на языке пользователя (указан ниже).
 
@@ -67,7 +64,29 @@ SYSTEM_PROMPT = """\
 - Если цель упоминалась в истории переписки, но сейчас не входит в текущий список активных \
   или отменённых целей ниже — она больше не актуальна, не советуй по ней как по действующей.
 - Никогда не добавляй в начало СВОЕГО ответа пометку вида «[ДД.ММ.ГГГГ]» — это техническая \
-  метка только для сообщений пользователя в истории, не элемент твоего стиля общения.\
+  метка только для сообщений пользователя в истории, не элемент твоего стиля общения.
+
+## Формат ответа — СТРОГО JSON, без текста вокруг
+{"reply": "...", "plan_change_requested": bool, "training_days": int|null, \
+"long_run_day": int|null, "note_update": {"text": "...", "scope": "...", "days": int}|null}
+
+- "reply" — твой обычный ответ бегуну (см. «Стиль» выше).
+- "plan_change_requested": true — ТОЛЬКО если прямо сейчас нужно построить/пересобрать план \
+  (явная просьба или явное согласие на твоё же предложение построить план). Не путай с обычным \
+  обсуждением тренировок. Если true — черновик соберёт система ОТДЕЛЬНО и покажет под твоим \
+  сообщением с кнопкой подтверждения; поэтому в "reply" НЕ называй конкретные дни/км/темп \
+  будущего плана (их ты не знаешь заранее) — просто подтверди, что учла пожелание, и скажи, \
+  что черновик появится ниже.
+- "training_days": целое 1-7 — ТОЛЬКО если в этом сообщении явно названо НОВОЕ число \
+  тренировочных дней в неделю; иначе null (не повторяй старое значение).
+- "long_run_day": целое 0-6 (0=Пн,...,6=Вс) — ТОЛЬКО если явно назван новый день для длинной; \
+  иначе null.
+- "note_update" — то, что стоит запомнить на будущее и чего нет в training_days/long_run_day \
+  (какие дни недели заняты, травмы, иные пожелания к плану). Ниже в контексте есть текущая \
+  заметка (если есть) — обновляя, СОХРАНИ из неё то, что всё ещё верно, не только новое; если \
+  ничего не меняется — верни null. "scope": "standing" (навсегда), "this_week" (только до конца \
+  этой календарной недели) или "next_days" (на "days" дней от сегодня). Чтобы явно забыть \
+  заметку — верни {"text": null}.\
 """
 
 
@@ -291,16 +310,22 @@ def _zones_context(zones) -> list[str]:
     return out
 
 
+def local_today(user: User):
+    """Сегодняшняя дата по локальному времени бегуна (а не сервера) — используется и
+    для контекста чата, и для срока действия заметки (chat_prefs.set_from_chat)."""
+    try:
+        return datetime.now(ZoneInfo(user.timezone)).date() if user.timezone else datetime.now().date()
+    except Exception:
+        return datetime.now().date()
+
+
 def _build_user_context(user: User, db: Session, activity_limit: int = 60) -> str:
     """Собирает контекст пользователя в текстовый блок для системного промпта.
 
     activity_limit: сколько последних тренировок включать в историю — по умолчанию
     60, но для Groq (жёсткий потолок 8000 токенов/мин на бесплатном тарифе) вызывающий
     код запрашивает урезанную версию, см. _chat()/chat_response()."""
-    try:
-        today = datetime.now(ZoneInfo(user.timezone)).date() if user.timezone else datetime.now().date()
-    except Exception:
-        today = datetime.now().date()
+    today = local_today(user)
     lines = [
         f"=== СЕГОДНЯ: {today.strftime('%d.%m.%Y')} ({['Пн','Вт','Ср','Чт','Пт','Сб','Вс'][today.weekday()]}) ===",
         f"\n=== ПРОФИЛЬ ===",
@@ -327,6 +352,9 @@ def _build_user_context(user: User, db: Session, activity_limit: int = 60) -> st
         lines.append(f"Дней для тренировок: {eff_days} в неделю{note}")
     if pref is not None and pref.long_run_day is not None:
         lines.append("Длинная пробежка по пожеланию: " + ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"][pref.long_run_day])
+    active_note = chat_prefs.active_note(pref, today)
+    lines.append(f"Заметка из прошлых сообщений (учти при ответе; обновляй через note_update, не теряя то, что ещё верно): {active_note}"
+                 if active_note else "Заметка из прошлых сообщений: пусто.")
     zones, _acts = plan_service.zones_for_user(user, db)
     lines.extend(_zones_context(zones))
 
@@ -504,44 +532,59 @@ def _strip_date_prefix(text: str) -> str:
 _UNAVAILABLE_MSG = "Извините, AI-тренер временно недоступен. Попробуйте позже."
 
 
+@dataclass
+class ChatDecision:
+    """Результат одного вызова chat_response: обычный ответ плюс то, что модель
+    сама решила извлечь из сообщения для плана (замена regex — см. docstring
+    chat_prefs.py). plan_change_requested=True не значит, что план уже готов:
+    черновик собирает отдельно chat.py (prepare_plan_draft) и показывает с
+    кнопкой подтверждения — chat_response только решает, пора ли его собирать."""
+    reply: str
+    plan_change_requested: bool = False
+    training_days: Optional[int] = None
+    long_run_day: Optional[int] = None
+    note_update: Optional[dict] = None
+
+
+def _parse_chat_decision(text: str) -> ChatDecision:
+    data = json.loads(text)
+    if not isinstance(data, dict) or not isinstance(data.get("reply"), str) or not data["reply"].strip():
+        raise ValueError("нет непустого текстового поля \"reply\"")
+    td = data.get("training_days")
+    td = td if isinstance(td, int) and 1 <= td <= 7 else None
+    lrd = data.get("long_run_day")
+    lrd = lrd if isinstance(lrd, int) and 0 <= lrd <= 6 else None
+    note_update = data.get("note_update")
+    note_update = note_update if isinstance(note_update, dict) else None
+    return ChatDecision(
+        reply=_strip_date_prefix(data["reply"].strip()),
+        plan_change_requested=bool(data.get("plan_change_requested")),
+        training_days=td, long_run_day=lrd, note_update=note_update,
+    )
+
+
+_CHAT_JSON_ATTEMPTS = 2
+
+
 async def chat_response(
     user_message: str,
     user: User,
     db: Session,
     history: list[ChatMessage],
     lang: str = "ru",
-    plan_draft_summary: Optional[str] = None,
-) -> str:
-    """Генерирует ответ тренера на сообщение пользователя.
-
-    plan_draft_summary: если ДО этого вызова подготовлен черновик плана (см. chat.py —
-    prepare_plan_draft вызывается раньше, чем этот ответ), сюда передаётся его
-    краткое содержание по дням. Черновик ещё НЕ сохранён — его применяет отдельное
-    подтверждение (кнопка в чате, POST /chat/plans/confirm). Раньше модель по своей
-    собственной оценке "пользователь просит план" сразу утверждала "план обновлён" —
-    теперь она описывает черновик и просит подтвердить, а не выдаёт его за готовый."""
+) -> ChatDecision:
+    """Единственный вызов на сообщение пользователя: обычный ответ тренера плюс
+    структурное решение по плану (вместо отдельных regex для детекции запроса и
+    для извлечения пожеланий — см. docstring chat_prefs.py). Модель отвечает
+    строго JSON-объектом (формат — в SYSTEM_PROMPT)."""
     if _STUB_MODE:
-        return _UNAVAILABLE_MSG
+        return ChatDecision(reply=_UNAVAILABLE_MSG)
 
     lang_instruction = "Respond in English." if lang == "en" else "Отвечай на русском языке."
-    plan_status = (
-        f"=== ЧЕРНОВИК ПЛАНА ГОТОВ, НО НЕ СОХРАНЁН ===\nВот что получилось на неделю:\n"
-        f"{plan_draft_summary}\nОпиши это бегуну своими словами (не просто списком) и явно "
-        "скажи, что для применения нужно подтвердить кнопкой под этим сообщением — план "
-        "ещё не сохранён, ты не можешь утверждать, что он уже обновлён."
-        if plan_draft_summary else
-        "=== ПЛАН НЕ ПЕРЕСОБИРАЛСЯ В ЭТОМ СООБЩЕНИИ ===\nЕсли похоже, что пользователь просит "
-        "изменить план — НЕ утверждай, что уже изменила его: это не так. Прямо скажи, что для "
-        "пересборки нужна явная фраза («обнови план», «пересобери план», «составь план» и т.п.) "
-        "или кнопка «Создать план» на вкладке «Тренировки»."
-    )
-    # plan_status идёт ПЕРЕД user_message в исходящем payload (а не хранимой истории —
-    # только для этого запроса к модели, как и датовые метки в _build_history ниже),
-    # а НЕ внутри system: он меняется от сообщения к сообщению, а SYSTEM_PROMPT+context —
-    # нет (в пределах календарного дня и без новых тренировок/целей). Если приклеить его
-    # в конец system, каждое сообщение рвёт DeepSeek-кэш на самом дорогом, самом большом
-    # куске промпта — на дешёвом хвосте после user-сообщения кэш и так не работает.
-    outgoing_user_message = f"{plan_status}\n\n{user_message}"
+    # user_message идёт как есть, без доп. блоков: текущие пожелания (дни/заметка)
+    # теперь часть context (см. _build_user_context) — он и так пересобирается
+    # каждый вызов, отдельный "plan_status" сверху больше не нужен.
+    outgoing_user_message = user_message
 
     context = _build_user_context(user, db)
     system  = f"{SYSTEM_PROMPT}\n{lang_instruction}\n\n{context}"
@@ -577,13 +620,29 @@ async def chat_response(
     # что откатывать здесь нечего).
     db.close()
 
-    try:
-        resp = await _chat(messages=messages, max_tokens=800, temperature=0.7,
-                            compact_messages=compact_messages, prefer=prefer)
-        return _strip_date_prefix(resp.choices[0].message.content.strip())
-    except Exception as e:
-        logger.error("DeepSeek chat error: %s", e)
-        return "Извините, AI-тренер временно недоступен. Попробуйте позже."
+    note = ""
+    last_err: Exception | None = None
+    for attempt in range(_CHAT_JSON_ATTEMPTS):
+        extra = [{"role": "user", "content": note}] if note else []
+        try:
+            resp = await _chat(
+                messages=messages + extra, max_tokens=800, temperature=0.7,
+                compact_messages=compact_messages + extra, prefer=prefer,
+                response_format={"type": "json_object"},
+            )
+        except Exception as e:
+            logger.error("AI чат недоступен: %s", e)
+            return ChatDecision(reply=_UNAVAILABLE_MSG)
+        try:
+            return _parse_chat_decision(resp.choices[0].message.content)
+        except (json.JSONDecodeError, ValueError) as e:
+            last_err = e
+            note = (f"Предыдущий ответ отклонён: {e}. Верни ТОЛЬКО JSON-объект строго по формату "
+                    "из системного промпта (поле \"reply\" обязательно).")
+            logger.warning("chat_response: невалидный JSON (попытка %d): %s", attempt + 1, e)
+    logger.error("chat_response: модель не вернула валидный JSON за %d попыток: %s",
+                 _CHAT_JSON_ATTEMPTS, last_err)
+    return ChatDecision(reply=_UNAVAILABLE_MSG)
 
 
 def _save_unavailable_notice(user: User, db: Session, context_type: str) -> str:
@@ -894,27 +953,6 @@ def replace_upcoming_workouts(
 
 
 
-def _plan_chat_prefs(chat_history: list[ChatMessage] | None) -> str:
-    """Вытаскивает из истории чата предпочтения по расписанию (дни/частота), чтобы
-    учесть их при составлении плана. Возвращает готовый блок или пустую строку."""
-    if not chat_history:
-        return ""
-    relevant = [m for m in chat_history[-30:]
-                if any(w in m.content.lower() for w in
-                       ["день", "дни", "понедельник","вторник","среда","четверг","пятница","суббота",
-                        "воскресенье","пн","вт","ср","чт","пт","сб","вс","раз в","раза в",
-                        "monday","tuesday","wednesday","thursday","friday","saturday","sunday",
-                        "times a week","days a week","prefer","хочу","могу","свободен"])]
-    if not relevant:
-        return ""
-    body = "\n".join(
-        f"{'Спортсмен' if m.role == 'user' else 'Тренер'}: {m.content}"
-        for m in relevant[-10:]
-    )
-    return "\n=== ПРЕДПОЧТЕНИЯ ИЗ ЧАТА (учти при составлении плана) ===\n" + body
-
-
-
 
 
 
@@ -933,53 +971,23 @@ def _plan_start(user: User, include_today: bool = False) -> datetime:
     return start if include_today else start + timedelta(days=1)
 
 
-def load_chat_history(db: Session, user_id: int, limit: int = 30) -> list[ChatMessage]:
-    return (
-        db.query(ChatMessage)
-        .filter(ChatMessage.user_id == user_id)
-        .order_by(ChatMessage.created_at.desc())
-        .limit(limit)
-        .all()[::-1]
-    )
-
-
-async def generate_plan_outcome(
-    user: User, db: Session, chat_history: list[ChatMessage] | None,
-    days: int, start: datetime,
-) -> "plan_ai.PlanOutcome":
+async def generate_plan_outcome(user: User, db: Session, days: int, start: datetime) -> "plan_ai.PlanOutcome":
     """Единая точка генерации плана: зоны/ограничения из БД -> ИИ в формате отрезков
     с проверкой кодом -> при сбое алгоритмический план с пометкой (plan_source).
-    Не бросает исключений из-за ИИ. Не пишет в БД (см. replace_upcoming_workouts)."""
+    Не бросает исключений из-за ИИ. Не пишет в БД (см. replace_upcoming_workouts).
+
+    Пожелания из чата (дни/заметка) уже внутри context — _build_user_context читает
+    ту же PlanPreference, что и chat_response (см. её поле "Заметка из прошлых
+    сообщений"), отдельного прогона истории чата здесь больше не нужно."""
     req = plan_service.build_request(user, db, start, days)
     context = _build_user_context(user, db)
-    chat_context = _plan_chat_prefs(chat_history)
     # Освобождаем соединение с БД на время ожидания ИИ (см. chat_response); после
     # этого используем только уже собранные данные (req/context — обычные объекты).
     db.close()
     return await plan_ai.generate(
-        req, context=context, chat_context=chat_context,
+        req, context=context, chat_context="",
         chat=None if _STUB_MODE else _chat, system=SYSTEM_PROMPT,
     )
-
-
-_WD_SHORT = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"]
-
-
-def _draft_summary_text(workouts: list[dict], start: datetime) -> str:
-    """Короткая раскладка черновика по дням недели — грунтовка для ответа тренера
-    (chat_response), без лишнего вызова ИИ: сам черновик уже готов, нужно только
-    по-человечески его описать."""
-    lines = []
-    for i, w in enumerate(workouts[:7]):
-        wd = _WD_SHORT[(start + timedelta(days=i)).weekday()]
-        wtype = w.get("workout_type", "rest")
-        if wtype == "rest":
-            lines.append(f"{wd}: отдых")
-            continue
-        amount = (f"{w['distance_km']} км" if w.get("distance_km")
-                  else f"{w['duration_min']:.0f} мин" if w.get("duration_min") else "")
-        lines.append(f"{wd}: {wtype} {amount}".rstrip())
-    return "\n".join(lines)
 
 
 async def prepare_plan_draft(user: User, db: Session) -> dict:
@@ -988,17 +996,10 @@ async def prepare_plan_draft(user: User, db: Session) -> dict:
     ниже) сохраняет РОВНО этот черновик, не генерируя план заново: иначе превью в
     чате и итоговый план могли бы разойтись, даже без изменений кодового клипа —
     просто от случайности повторного ответа ИИ."""
-    chat_history = load_chat_history(db, user.id)
     start = _plan_start(user)
     days = 7
-    outcome = await generate_plan_outcome(user, db, chat_history, days, start)
-    return {
-        "workouts": outcome.workouts,
-        "start": start.isoformat(),
-        "days": days,
-        "source": outcome.source,
-        "summary": _draft_summary_text(outcome.workouts, start),
-    }
+    outcome = await generate_plan_outcome(user, db, days, start)
+    return {"workouts": outcome.workouts, "start": start.isoformat(), "days": days, "source": outcome.source}
 
 
 def confirm_plan_draft(user: User, db: Session, draft: dict) -> None:
@@ -1019,9 +1020,8 @@ async def run_plan_job(user_id: int, weeks: int, job_id: int, include_today: boo
             user = db.get(User, user_id)
             if not user:
                 return
-            chat_history = load_chat_history(db, user_id)
             start = _plan_start(user, include_today)
-            outcome = await generate_plan_outcome(user, db, chat_history, days, start)
+            outcome = await generate_plan_outcome(user, db, days, start)
         finally:
             db.close()
 

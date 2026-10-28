@@ -354,15 +354,23 @@ class PlanJob(Base):
 class PlanPreference(Base):
     """Пожелания к плану, которые пользователь высказал в чате с тренером.
 
-    Действуют, пока пользователь сам не пересмотрит профиль: сохранение
-    training_days в профиле сбрасывает training_days отсюда (см. routers/auth.py).
-    long_run_day (0=Пн..6=Вс) в профиле пока нет — живёт только здесь."""
+    training_days/long_run_day действуют, пока пользователь сам не пересмотрит
+    профиль: сохранение training_days в профиле сбрасывает training_days отсюда
+    (см. routers/auth.py). long_run_day (0=Пн..6=Вс) в профиле пока нет — живёт
+    только здесь.
+
+    note — свободная заметка о прочих пожеланиях (исключённые дни, травмы, что
+    угодно, для чего нет отдельного поля); её пишет и сама обновляет модель в
+    chat_response (поле note_update), не regex. note_expires_at=NULL — заметка
+    постоянная; иначе действует только до этой даты (см. chat_prefs.active_note)."""
     __tablename__ = "plan_preferences"
 
-    id            = Column(Integer, primary_key=True, index=True)
-    user_id       = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, unique=True, index=True)
-    training_days = Column(Integer, nullable=True)
-    long_run_day  = Column(Integer, nullable=True)
-    updated_at    = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    id              = Column(Integer, primary_key=True, index=True)
+    user_id         = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, unique=True, index=True)
+    training_days   = Column(Integer, nullable=True)
+    long_run_day    = Column(Integer, nullable=True)
+    note            = Column(Text, nullable=True)
+    note_expires_at = Column(DateTime(timezone=True), nullable=True)
+    updated_at      = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     user = relationship("User")

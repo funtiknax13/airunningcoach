@@ -10,37 +10,9 @@ from app.dependencies import get_current_user
 from datetime import datetime, timedelta, timezone
 
 from app.services import chat_prefs
-from app.services.ai_agent import chat_response, prepare_plan_draft, confirm_plan_draft, _UNAVAILABLE_MSG
+from app.services.ai_agent import chat_response, prepare_plan_draft, confirm_plan_draft, local_today, _UNAVAILABLE_MSG
 from app.services.insights_cache import invalidate_insights_cache
 from app.services.rate_limit import check_and_record, refund_last_usage
-
-_PLAN_TRIGGERS_EN = [
-    "create plan", "generate plan", "make plan", "build plan",
-    "new plan", "rebuild plan", "create a plan", "generate a plan", "make a plan",
-    "update plan", "update the plan", "change plan", "change the plan", "adjust plan",
-]
-
-# Стемы охватывают разные формы одного глагола (обнови/обновить/обновим/обновляй —
-# всё содержит "обнов"). Раньше проверялись только точные фразы вроде "обнови план" —
-# реальные пользователи просят иначе ("убери ходьбу из плана", "поменяй план",
-# "можешь изменить план"), и такие просьбы не запускали настоящую пересборку, хотя
-# модель (по своему собственному, более гибкому пониманию текста) всё равно уверяла,
-# что план обновлён — см. docstring chat_response().
-_PLAN_VERB_STEMS = [
-    "обнов", "пересобер", "пересобир", "пересоздан", "пересоздай", "перегенерир",
-    "созда", "состав", "сформир", "сгенерир", "поменя", "измен",
-    "скорректир", "подправ", "перепиш", "перестро", "убр", "убер", "убир", "верн", "замен",
-    "пересмотр", "добав",
-]
-_PLAN_ANCHOR_NOUNS = ["план", "трениров"]
-
-def _is_plan_request(text: str) -> bool:
-    lowered = text.lower()
-    if any(t in lowered for t in _PLAN_TRIGGERS_EN):
-        return True
-    has_anchor = any(n in lowered for n in _PLAN_ANCHOR_NOUNS)
-    has_verb = any(v in lowered for v in _PLAN_VERB_STEMS)
-    return has_anchor and has_verb
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 
@@ -66,10 +38,6 @@ async def chat_with_ai(
     db.add(user_msg)
     db.commit()
 
-    # Пожелания к плану из этого сообщения («хочу 5 раз в неделю», «длинную в воскресенье»).
-    # Действуют до пересмотра профиля пользователем; при расхождении с профилем тренер
-    # допишет совет обновить профиль (см. ниже).
-    wishes = chat_prefs.apply_chat_message(db, current_user.id, request.message)
     profile_days = current_user.training_days
 
     # Загружаем историю для контекста (последние 20 сообщений)
@@ -81,44 +49,44 @@ async def chat_with_ai(
         .all()[::-1]
     )
 
-    # Если пользователь просит составить/пересобрать план — готовим черновик ДО
-    # генерации ответа (чтобы сам ответ мог опираться на то, что реально получилось),
-    # но НЕ сохраняем его сразу: пользователь должен подтвердить кнопкой под
-    # сообщением тренера (POST /chat/plans/confirm) — см. docstring prepare_plan_draft.
-    # Квота "plan" списывается здесь (черновик — это и есть обращение к ИИ), а не
-    # при подтверждении: подтверждение само по себе ничего не генерирует.
+    # Один вызов решает всё: обычный ответ + (если нужно) число дней/день длинной/
+    # заметка — модель сама понимает смысл сообщения, а не regex (см. docstring
+    # chat_prefs.py). decision.plan_change_requested заменяет старый _is_plan_request.
+    decision = await chat_response(request.message, current_user, db, history, lang=request.lang or "ru")
+
+    if decision.reply == _UNAVAILABLE_MSG:
+        # Сбой ИИ — не сохраняем это в историю как «совет тренера», не списываем попытку
+        # и не трогаем пожелания (ничего не извлекли — модель не ответила).
+        refund_last_usage(db, current_user.id, "chat")
+        return ChatMessage(id=0, user_id=current_user.id, role="ai", content=decision.reply,
+                           context_type=request.context_type, created_at=datetime.now(timezone.utc))
+
+    # Применяем то, что модель решила запомнить, ДО сборки черновика — чтобы черновик
+    # (если он нужен) уже учитывал это сообщение, а не состояние до него.
+    chat_prefs.set_from_chat(
+        db, current_user.id, training_days=decision.training_days, long_run_day=decision.long_run_day,
+        note_update=decision.note_update, today=local_today(current_user),
+    )
+
+    hint = None
+    if decision.training_days:
+        hint = chat_prefs.training_days_hint(profile_days, decision.training_days, request.lang or "ru")
+
+    # Черновик — отдельная генерация (структурный формат, не прозa), которую модель
+    # только запросила: готовим его, но НЕ сохраняем сразу, пользователь подтверждает
+    # кнопкой (POST /chat/plans/confirm) — см. docstring prepare_plan_draft. Квота "plan"
+    # списывается здесь (это и есть обращение к ИИ), подтверждение бесплатно.
     draft = None
-    plan_requested = _is_plan_request(request.message)
-    if plan_requested:
+    if decision.plan_change_requested:
         try:
             check_and_record(current_user, "plan", db)
             draft = await prepare_plan_draft(current_user, db)
             if draft["source"] != "ai":
                 refund_last_usage(db, current_user.id, "plan")   # ИИ не тратился — попытка не сгорает
         except Exception:
-            plan_requested = False  # rate limit hit или ошибка — не меняем context_type
-            draft = None
+            draft = None   # rate limit hit или ошибка — просто без черновика в этом ответе
 
-    # Получаем ответ агента
-    ai_text = await chat_response(
-        request.message, current_user, db, history,
-        lang=request.lang or "ru",
-        plan_draft_summary=draft["summary"] if draft else None,
-    )
-
-    # Подсказка про профиль не зависит от ИИ: пожелание уже сохранено кодом.
-    hint = None
-    if wishes.get("training_days"):
-        hint = chat_prefs.training_days_hint(profile_days, wishes["training_days"], request.lang or "ru")
-
-    if ai_text == _UNAVAILABLE_MSG:
-        # Сбой ИИ — не сохраняем это в историю как «совет тренера» и не списываем попытку.
-        refund_last_usage(db, current_user.id, "chat")
-        return ChatMessage(id=0, user_id=current_user.id, role="ai", content=ai_text + (hint or ""),
-                           context_type=request.context_type, created_at=datetime.now(timezone.utc))
-
-    if hint:
-        ai_text += hint
+    ai_text = decision.reply + (hint or "")
 
     # Сохраняем ответ AI. Черновик плана (если есть) едет вместе с сообщением —
     # фронт рисует под ним превью и кнопку подтверждения (POST /chat/plans/confirm).

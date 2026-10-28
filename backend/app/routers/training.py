@@ -9,7 +9,7 @@ from app.schemas import WorkoutResponse, WorkoutWithAnalysis, WorkoutFeedback
 from app.dependencies import get_current_user
 from app.services.ai_agent import (
     analyze_workout_completion, replace_upcoming_workouts, run_plan_job,
-    generate_plan_outcome, load_chat_history, _plan_start,
+    generate_plan_outcome, _plan_start,
 )
 from app.services import plan_service
 from app.services.rate_limit import check_and_record, refund_last_usage, _is_premium_active
@@ -86,9 +86,8 @@ async def generate_plan_ai(
     # ── Неделя: синхронно (быстро) ────────────────────────────────────────────
     # "Сегодня" — по локальному времени бегуна, не по серверу (UTC): иначе граница
     # дня могла сдвинуться на сутки (см. _plan_start).
-    chat_history = load_chat_history(db, current_user.id)
     start = _plan_start(current_user, include_today)
-    outcome = await generate_plan_outcome(current_user, db, chat_history, days, start)
+    outcome = await generate_plan_outcome(current_user, db, days, start)
     replace_upcoming_workouts(current_user.id, db, outcome.workouts, start, horizon_days=days)
     if outcome.source != "ai":
         # план построил алгоритм, а не ИИ — попытка не сгорает (токены провайдера не тратились)

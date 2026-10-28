@@ -151,10 +151,12 @@ def test_feedback_endpoint_saves_rpe(client, db):
 
 
 def test_chat_wish_is_saved_hint_appended_and_profile_edit_resets_it(client, db, monkeypatch):
+    from app.services.ai_agent import ChatDecision
+
     user = make_db_user(db, training_days=3)
 
-    async def fake_reply(message, user, db_, history, lang="ru", plan_draft_summary=None):
-        return "Хорошо, записал."
+    async def fake_reply(message, user, db_, history, lang="ru"):
+        return ChatDecision(reply="Хорошо, записал.", training_days=5)
 
     monkeypatch.setattr("app.routers.chat.chat_response", fake_reply)
     r = client.post("/api/chat/message", headers=auth(user),
@@ -180,10 +182,12 @@ def test_chat_wish_is_saved_hint_appended_and_profile_edit_resets_it(client, db,
 
 
 def test_no_hint_when_chat_wish_matches_profile(client, db, monkeypatch):
+    from app.services.ai_agent import ChatDecision
+
     user = make_db_user(db, training_days=4)
 
     async def fake_reply(*a, **k):
-        return "Ок."
+        return ChatDecision(reply="Ок.", training_days=4)
 
     monkeypatch.setattr("app.routers.chat.chat_response", fake_reply)
     r = client.post("/api/chat/message", headers=auth(user),
@@ -202,12 +206,11 @@ def _fake_draft(start):
             workouts.append({"workout_type": "rest", "description": "Отдых", "distance_km": None,
                               "duration_min": None, "target_pace_min_km": None,
                               "plan_structure": None, "plan_source": "ai"})
-    return {"workouts": workouts, "start": start.isoformat(), "days": 7, "source": "ai",
-            "summary": "Пн: easy 5.0 км"}
+    return {"workouts": workouts, "start": start.isoformat(), "days": 7, "source": "ai"}
 
 
 def test_plan_proposal_then_confirm_saves_exact_draft_not_regenerated(client, db, monkeypatch):
-    from app.services.ai_agent import _plan_start
+    from app.services.ai_agent import ChatDecision, _plan_start
 
     user = make_db_user(db)
     start = _plan_start(user)
@@ -216,9 +219,8 @@ def test_plan_proposal_then_confirm_saves_exact_draft_not_regenerated(client, db
     async def fake_prepare(u, d):
         return draft
 
-    async def fake_reply(message, user, db_, history, lang="ru", plan_draft_summary=None):
-        assert plan_draft_summary == draft["summary"]
-        return "Вот что получилось на неделю, подтверди кнопкой."
+    async def fake_reply(message, user, db_, history, lang="ru"):
+        return ChatDecision(reply="Вот что получилось на неделю, подтверди кнопкой.", plan_change_requested=True)
 
     monkeypatch.setattr("app.routers.chat.prepare_plan_draft", fake_prepare)
     monkeypatch.setattr("app.routers.chat.chat_response", fake_reply)
@@ -246,7 +248,7 @@ def test_plan_proposal_then_confirm_saves_exact_draft_not_regenerated(client, db
 
 
 def test_confirm_rejects_other_users_message(client, db, monkeypatch):
-    from app.services.ai_agent import _plan_start
+    from app.services.ai_agent import ChatDecision, _plan_start
 
     owner = make_db_user(db, email="owner@example.com")
     other = make_db_user(db, email="other@example.com")
@@ -257,7 +259,7 @@ def test_confirm_rejects_other_users_message(client, db, monkeypatch):
         return draft
 
     async def fake_reply(*a, **k):
-        return "Ок, подтверди кнопкой."
+        return ChatDecision(reply="Ок, подтверди кнопкой.", plan_change_requested=True)
 
     monkeypatch.setattr("app.routers.chat.prepare_plan_draft", fake_prepare)
     monkeypatch.setattr("app.routers.chat.chat_response", fake_reply)

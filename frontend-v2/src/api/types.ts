@@ -363,7 +363,6 @@ export interface PlanDraft {
   start: string
   days: number
   source: PlanSource
-  summary: string
 }
 
 export interface ChatMessage {

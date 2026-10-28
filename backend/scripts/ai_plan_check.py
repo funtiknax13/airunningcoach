@@ -30,8 +30,7 @@ async def check(email: str, chat: bool) -> None:
             print(f"{email}: пользователя нет (запустите scripts/dev_seed.py)")
             return
         start = ai_agent._plan_start(user)
-        history = ai_agent.load_chat_history(db, user.id)
-        outcome = await ai_agent.generate_plan_outcome(user, db, history, 7, start)
+        outcome = await ai_agent.generate_plan_outcome(user, db, 7, start)
         active = [w for w in outcome.workouts if w["workout_type"] != "rest"]
         total = sum(w["distance_km"] or 0 for w in active)
         print(f"\n== {email}: source={outcome.source} reason={outcome.reason} "
@@ -46,8 +45,8 @@ async def check(email: str, chat: bool) -> None:
             db2 = SessionLocal()
             try:
                 user2 = db2.query(User).filter(User.email == email).first()
-                reply = await ai_agent.chat_response("Какой у меня темп для темповой и какой пульс?", user2, db2, [], "ru")
-                print("  чат:", reply)
+                decision = await ai_agent.chat_response("Какой у меня темп для темповой и какой пульс?", user2, db2, [], "ru")
+                print("  чат:", decision.reply)
             finally:
                 db2.close()
     finally:
