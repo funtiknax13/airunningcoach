@@ -134,7 +134,7 @@ def confirm_plan_proposal(
     msg.context_type = "plan_proposal_confirmed"   # кнопка больше не показывается при перезагрузке чата
 
     done_text = ("Done — the plan is saved, check the Training tab." if body.lang == "en"
-                 else "Готово — план сохранён, можешь посмотреть его на вкладке «Тренировки».")
+                 else "Готово — план сохранён, можешь посмотреть его на вкладке «План».")
     done_msg = ChatMessage(user_id=current_user.id, role="ai", content=done_text, context_type="plan_generated")
     db.add(done_msg)
     db.commit()
