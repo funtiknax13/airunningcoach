@@ -714,7 +714,12 @@ def analyze_new_activity(activity_id: int, user_id: int) -> str:
                 max_tokens=600,
                 temperature=0.7,
             )
-            ai_text = _strip_date_prefix(resp.choices[0].message.content.strip())
+            raw_content = resp.choices[0].message.content.strip()
+            try:
+                parsed = json.loads(raw_content)
+                ai_text = _strip_date_prefix(parsed.get("reply", raw_content).strip())
+            except (json.JSONDecodeError, AttributeError):
+                ai_text = _strip_date_prefix(raw_content)
         except Exception as e:
             logger.error("AI analyze_new_activity error: %s", e)
             return _save_unavailable_notice(user, db, "auto_analysis")
@@ -781,7 +786,12 @@ def analyze_workout_completion(workout_id: int, activity_id: int, user_id: int) 
                 max_tokens=600,
                 temperature=0.7,
             )
-            ai_text = _strip_date_prefix(resp.choices[0].message.content.strip())
+            raw_content = resp.choices[0].message.content.strip()
+            try:
+                parsed = json.loads(raw_content)
+                ai_text = _strip_date_prefix(parsed.get("reply", raw_content).strip())
+            except (json.JSONDecodeError, AttributeError):
+                ai_text = _strip_date_prefix(raw_content)
         except Exception as e:
             logger.error("AI analyze_workout_completion error: %s", e)
             return _save_unavailable_notice(user, db, "workout_check")
@@ -1071,13 +1081,14 @@ async def generate_insights(user: User, db: Session) -> list[str]:
     try:
         resp = await _chat(
             messages=[
-                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "system", "content": "Отвечай строго JSON-массивом строк. Никакого текста вне массива."},
                 {"role": "user",   "content": prompt},
             ],
             max_tokens=400,
             temperature=0.5,
             response_format={"type": "json_object"},
         )
+       
         raw    = resp.choices[0].message.content.strip()
         parsed = json.loads(raw)
         insights = parsed if isinstance(parsed, list) else next(
