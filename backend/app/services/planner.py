@@ -14,7 +14,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta, timezone
+from math import isfinite
+from statistics import median
 from typing import Optional
+from zoneinfo import ZoneInfo
 
 from app.services import plan_format as pf
 from app.services.zones import Zones, recent_runs
@@ -27,7 +30,10 @@ GOAL_VOLUME_CEILING_KM = {"5k": 35.0, "10k": 45.0, "half_marathon": 65.0, "marat
 NO_GOAL_GROWTH_CAP = 1.15     # без цели по дистанции ("fitness"/не указана) рост не разгоняем
 GROWTH = 1.08                 # рост недельного объёма (≤ ~10%)
 DELOAD_FACTOR = 0.75          # каждая 4-я календарная неделя плана легче
-WEEK_CAP_TOLERANCE = 1.10     # допуск сверх целевого объёма при проверке плана ИИ
+WEEK_LOAD_FLOOR_KM = 15.0    # резервный потолок, не минимальная назначаемая нагрузка
+WEEK_MEDIAN_MARGIN = 1.25
+WEEK_RECENT_MARGIN = 1.20    # последняя неделя или профиль при недостатке истории
+MIN_COMPLETED_WEEKS = 3
 LONG_GROWTH = 1.08
 LONG_OVER_LONGEST = 1.15      # длинная не длиннее ~115% самой длинной недавней
 SESSION_MIN_KM = 2.0
@@ -73,12 +79,53 @@ class PlanRequest:
     goal_date: Optional[date] = None
     completed_beginner_sessions: int = 0
     recent_rpe: list[str] = field(default_factory=list)   # от старых к новым
+    completed_week_km: list[float] = field(default_factory=list)  # до 6 полных Пн–Вс, от старой к новой
 
 
 # ── исходные данные из истории ──────────────────────────────────────────────
 
-def history_stats(activities, now: datetime | None = None) -> dict:
+def completed_week_volumes(activities, now: datetime, timezone_name: str | None = None) -> list[dict]:
+    """Up to six completed local calendar weeks, including known zero weeks.
+
+    Do not invent zeroes before the first recorded run or use the incomplete
+    entry week. Unlike pace estimation, volume includes short/slow runs too.
+    Future entries and invalid distances cannot raise the load allowance.
+    """
+    now = _utc(now)
+    try:
+        tz = ZoneInfo(timezone_name or "UTC")
+    except (KeyError, ValueError):
+        tz = timezone.utc
+    local_today = now.astimezone(tz).date()
+    monday = local_today - timedelta(days=local_today.weekday())
+    totals: dict[date, float] = {}
+    first_date = None
+    for a in activities:
+        if (getattr(a, "activity_type", "run") or "run") != "run" or not a.date:
+            continue
+        km = a.distance_km
+        if km is None or not isfinite(km) or km <= 0 or _utc(a.date) > now:
+            continue
+        d = _utc(a.date).astimezone(tz).date()
+        first_date = d if first_date is None else min(first_date, d)
+        week = d - timedelta(days=d.weekday())
+        totals[week] = totals.get(week, 0.0) + km
+    if first_date is None:
+        return []
+    first_week = first_date - timedelta(days=first_date.weekday())
+    if first_date != first_week:
+        first_week += timedelta(days=7)
+    start = max(first_week, monday - timedelta(weeks=6))
+    result = []
+    while start < monday:
+        result.append({"monday": start.isoformat(), "distance_km": round(totals.get(start, 0.0), 3)})
+        start += timedelta(days=7)
+    return result
+
+
+def history_stats(activities, now: datetime | None = None, timezone_name: str | None = None) -> dict:
     now = now or datetime.now(timezone.utc)
+    activities = list(activities)
     runs4 = recent_runs(activities, now, weeks=4)
     runs8 = recent_runs(activities, now, weeks=8)
     avg_km = None
@@ -92,6 +139,7 @@ def history_stats(activities, now: datetime | None = None) -> dict:
         "avg_km": avg_km,
         "runs_4w": len(runs4),
         "longest_km": max((a.distance_km for a in runs8), default=None),
+        "completed_weeks": completed_week_volumes(activities, now, timezone_name),
     }
 
 
@@ -178,6 +226,40 @@ def week_target_km(req: PlanRequest, w: int, monday: date) -> float:
     if w == 0 and len(req.recent_rpe) >= 2 and req.recent_rpe[-2:] == ["hard", "hard"]:
         target *= 0.9
     return target
+
+
+def week_load_policy(req: PlanRequest) -> dict:
+    """Historical allowance, separate from progression/taper targets.
+
+    The last completed week may lift a lagging median. A 15-km reserve prevents
+    zero-volume deadlocks. With insufficient history, use the profile plus 20%.
+    History takes precedence over a stale profile, including after a long pause.
+    The same observed history sets the allowance for every proposed future week:
+    merely selecting a later date must not compound unperformed training.
+    """
+    weeks = req.completed_week_km[-6:]
+    sufficient = len(weeks) >= MIN_COMPLETED_WEEKS
+    middle = median(weeks) if weeks else None
+    recent = weeks[-1] if weeks else None
+    profile = req.weekly_km_profile
+    if sufficient:
+        source = "completed_weeks"
+        base = max(middle, recent)
+        cap = max(WEEK_LOAD_FLOOR_KM, middle * WEEK_MEDIAN_MARGIN, recent * WEEK_RECENT_MARGIN)
+    else:
+        source = "profile" if profile is not None and profile > 0 else "default"
+        base = max(0.0, profile or 0.0)
+        cap = max(WEEK_LOAD_FLOOR_KM, base * WEEK_RECENT_MARGIN)
+    return {"source": source, "history_sufficient": sufficient,
+            "completed_week_km": weeks, "weeks_count": len(weeks),
+            "median_km": middle, "last_week_km": recent, "profile_km": profile,
+            "baseline_km": base, "floor_km": WEEK_LOAD_FLOOR_KM,
+            "median_margin": WEEK_MEDIAN_MARGIN, "recent_margin": WEEK_RECENT_MARGIN,
+            "cap_km": cap}
+
+
+def week_cap_km(req: PlanRequest, w: int, monday: date) -> float:
+    return week_load_policy(req)["cap_km"]
 
 
 # ── раскладка недели ────────────────────────────────────────────────────────
@@ -388,14 +470,15 @@ def compute_constraints(req: PlanRequest) -> dict:
         n = min(n, BEGINNER_MAX_DAYS)
     weeks = []
     for w, wk in enumerate(calendar_weeks(req)):
-        cap = week_target_km(req, w, wk["monday"]) * WEEK_CAP_TOLERANCE
+        cap = week_cap_km(req, w, wk["monday"])
         weeks.append({"monday": wk["monday"].isoformat(), "days": len(wk["indices"]),
-                      "cap_km": round(cap, 1), "long_cap_km": round(long_cap_km(req, w), 1),
+                      "cap_km": round(cap, 3), "long_cap_km": round(long_cap_km(req, w), 1),
                       "deload": (w + 1) % 4 == 0})
     return {
         "beginner": beginner, "baseline_km": round(baseline_km(req), 1),
         "training_days": n, "long_run_day": req.long_run_day if req.long_run_day is not None else 6,
         "quality_allowed": req.zones.pace_confidence != "none" and not beginner,
+        "weekly_load_policy": week_load_policy(req),
         "weeks": weeks,
     }
 
@@ -464,7 +547,7 @@ def enforce_envelope(days: list[dict], req: PlanRequest) -> list[dict]:
                 elif km and floor and km < floor * 0.95:
                     # ИИ занизил длинную относительно уже пробегавшегося — подтягиваем до пола
                     out[i] = pf.scale_day(out[i], floor / km)
-        cap = week_target_km(req, w, wk["monday"]) * WEEK_CAP_TOLERANCE
+        cap = week_cap_km(req, w, wk["monday"])
         kms = [pf.day_distance_km(out[i], zones) for i in wk["indices"]]
         if any(k is None for k in kms):
             continue

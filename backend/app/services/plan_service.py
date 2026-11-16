@@ -84,7 +84,7 @@ def build_request(user, db: Session, start: datetime, days: int,
     """Собирает всё, что нужно планировщику и проверке плана ИИ (один проход по БД)."""
     now = now or datetime.now(timezone.utc)
     zones, activities = zones_for_user(user, db, now)
-    stats = planner.history_stats(activities, now)
+    stats = planner.history_stats(activities, now, user.timezone)
     pref = chat_prefs.get_pref(db, user.id)
     goal = (
         db.query(Goal)
@@ -105,6 +105,7 @@ def build_request(user, db: Session, start: datetime, days: int,
         longest_run_km=stats["longest_km"], goal_date=goal_date,
         completed_beginner_sessions=_completed_beginner_sessions(db, user.id),
         recent_rpe=_recent_rpe(db, user.id),
+        completed_week_km=[w["distance_km"] for w in stats["completed_weeks"]],
     )
 
 

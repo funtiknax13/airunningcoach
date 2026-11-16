@@ -96,7 +96,7 @@ def _weeks_lines(req: pl.PlanRequest, lo: int, hi: int) -> str:
         idx = [i for i in wk["indices"] if lo <= i < hi]
         if not idx:
             continue
-        cap = pl.week_target_km(req, w, wk["monday"]) * pl.WEEK_CAP_TOLERANCE
+        cap = pl.week_cap_km(req, w, wk["monday"])
         deload = (w + 1) % 4 == 0
         q = pl.quality_count(req, pl.compute_constraints(req)["training_days"], w, deload,
                              pl.is_beginner_mode(req))

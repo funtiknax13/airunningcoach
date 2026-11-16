@@ -185,13 +185,14 @@ def test_enforce_envelope_scales_overloaded_ai_plan_and_caps_long():
     out = pl.enforce_envelope(ai, r)
     assert pf.day_distance_km(out[0], r.zones) <= pl.long_cap_km(r, 0) + 0.5
     total = sum(pf.day_distance_km(d, r.zones) for d in out)
-    assert total <= pl.week_target_km(r, 0, date(2026, 9, 28)) * pl.WEEK_CAP_TOLERANCE + 1.5
+    assert total <= pl.week_cap_km(r, 0, date(2026, 9, 28)) + 1.5
 
 
 def test_constraints_shape():
     c = pl.compute_constraints(req_for(start=MONDAY))
     assert c["training_days"] == 4 and len(c["weeks"]) == 4
-    assert c["weeks"][3]["deload"] is True and c["weeks"][3]["cap_km"] < c["weeks"][2]["cap_km"]
+    assert c["weeks"][3]["deload"] is True
+    assert c["weeks"][3]["cap_km"] == c["weeks"][2]["cap_km"]  # allowance is separate from deload targets
 
 
 def test_small_volume_falls_back_from_interval_to_tempo_not_to_easy():

@@ -44,6 +44,15 @@ def user(db):
 @pytest.fixture(autouse=True)
 def isolated_agent(monkeypatch):
     monkeypatch.setattr(agent, "today_for", lambda u: TODAY)
+    # The calendar and its statistical window must use the same frozen date.
+    # Otherwise these November fixtures eventually become six weeks of zeroes.
+    original = agent.plan_service.build_request
+
+    def fixed_now(user, db, start, days, now=None):
+        return original(user, db, start, days,
+                        now=datetime(2026, 11, 4, 12, tzinfo=timezone.utc))
+
+    monkeypatch.setattr(agent.plan_service, "build_request", fixed_now)
 
 
 @pytest.fixture
