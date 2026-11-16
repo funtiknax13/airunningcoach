@@ -4,15 +4,15 @@ from sqlalchemy.orm import Session
 from typing import List
 
 from app.database import get_db
-from app.models import User, ChatMessage
+from app.models import User, ChatMessage, ApiUsage
 from app.schemas import AIChatRequest, ChatMessageResponse, ConfirmPlanDraftRequest
 from app.dependencies import get_current_user
 from datetime import datetime, timedelta, timezone
 
-from app.services import chat_prefs
-from app.services.ai_agent import chat_response, prepare_plan_draft, confirm_plan_draft, local_today, _UNAVAILABLE_MSG
+from app.services import coach_agent
+from app.services.ai_agent import confirm_plan_draft
 from app.services.insights_cache import invalidate_insights_cache
-from app.services.rate_limit import check_and_record, refund_last_usage
+from app.services.rate_limit import check_and_record
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 
@@ -24,10 +24,10 @@ async def chat_with_ai(
     current_user: User = Depends(get_current_user),
 ):
     # Проверяем rate limit
-    check_and_record(current_user, "chat", db)
+    chat_usage_id = check_and_record(current_user, "chat", db)
 
     # Сохраняем сообщение пользователя. commit (не flush) — дальше идёт await
-    # к DeepSeek, во время которого chat_response() освобождает это соединение
+    # к DeepSeek, во время которого coach_agent.respond() освобождает соединение
     # обратно в пул; flush без commit откатился бы вместе с закрытием сессии.
     user_msg = ChatMessage(
         user_id=current_user.id,
@@ -38,8 +38,6 @@ async def chat_with_ai(
     db.add(user_msg)
     db.commit()
 
-    profile_days = current_user.training_days
-
     # Загружаем историю для контекста (последние 20 сообщений)
     history = (
         db.query(ChatMessage)
@@ -49,62 +47,27 @@ async def chat_with_ai(
         .all()[::-1]
     )
 
-    # Один вызов решает всё: обычный ответ + (если нужно) число дней/день длинной/
-    # заметка — модель сама понимает смысл сообщения, а не regex (см. docstring
-    # chat_prefs.py). decision.plan_change_requested заменяет старый _is_plan_request.
-    decision = await chat_response(request.message, current_user, db, history, lang=request.lang or "ru")
-
-    if decision.reply == _UNAVAILABLE_MSG:
-        # Сбой ИИ — не сохраняем это в историю как «совет тренера», не списываем попытку
-        # и не трогаем пожелания (ничего не извлекли — модель не ответила).
-        refund_last_usage(db, current_user.id, "chat")
-        return ChatMessage(id=0, user_id=current_user.id, role="ai", content=decision.reply,
-                           context_type=request.context_type, created_at=datetime.now(timezone.utc))
-
-    # Применяем то, что модель решила запомнить, ДО сборки черновика — чтобы черновик
-    # (если он нужен) уже учитывал это сообщение, а не состояние до него.
-    chat_prefs.set_from_chat(
-        db, current_user.id, training_days=decision.training_days, long_run_day=decision.long_run_day,
-        note_update=decision.note_update, today=local_today(current_user),
-    )
-
-    hint = None
-    if decision.training_days:
-        hint = chat_prefs.training_days_hint(profile_days, decision.training_days, request.lang or "ru")
-
-    # Черновик — отдельная генерация (структурный формат, не прозa), которую модель
-    # только запросила: готовим его, но НЕ сохраняем сразу, пользователь подтверждает
-    # кнопкой (POST /chat/plans/confirm) — см. docstring prepare_plan_draft. Квота "plan"
-    # списывается здесь (это и есть обращение к ИИ), подтверждение бесплатно.
-    draft = None
-    if decision.plan_change_requested:
-        try:
-            check_and_record(current_user, "plan", db)
-            draft = await prepare_plan_draft(current_user, db)
-            if draft["source"] != "ai":
-                refund_last_usage(db, current_user.id, "plan")   # ИИ не тратился — попытка не сгорает
-        except Exception:
-            draft = None   # rate limit hit или ошибка — просто без черновика в этом ответе
-
-    ai_text = decision.reply + (hint or "")
-
-    # Сохраняем ответ AI. Черновик плана (если есть) едет вместе с сообщением —
-    # фронт рисует под ним превью и кнопку подтверждения (POST /chat/plans/confirm).
-    context = "plan_proposal" if draft else request.context_type
-    ai_msg = ChatMessage(
-        user_id=current_user.id,
-        role="ai",
-        content=ai_text,
-        context_type=context,
-        plan_draft=draft,
-    )
+    result = await coach_agent.respond(current_user, db, history, request.lang or "ru")
+    if result.unavailable:
+        # Refund THIS turn, not another concurrent request's last usage.
+        db.query(ApiUsage).filter(ApiUsage.id == chat_usage_id,
+                                 ApiUsage.user_id == current_user.id).delete()
+        db.commit()
+        return ChatMessage(id=0, user_id=current_user.id, role="ai", content=result.reply,
+                           context_type="general", created_at=datetime.now(timezone.utc))
+    try:
+        coach_agent.persist_proposal(result, current_user, db)
+    except HTTPException as exc:
+        db.rollback()
+        # Surface quota/stale-state failures; discard the model's premature promise.
+        detail = exc.detail
+        result = coach_agent.Result(detail.get("message", str(detail)) if isinstance(detail, dict) else str(detail))
+    ai_msg = ChatMessage(user_id=current_user.id, role="ai", content=result.reply,
+        context_type="plan_proposal" if result.draft else "general", plan_draft=result.draft)
     db.add(ai_msg)
     db.commit()
     db.refresh(ai_msg)
-
-    # Разговор с тренером мог изменить контекст — сбрасываем кеш инсайтов
     invalidate_insights_cache(current_user.id, db)
-
     return ai_msg
 
 
@@ -118,6 +81,8 @@ def confirm_plan_proposal(
     план» под сообщением тренера). Сохраняет РОВНО тот черновик — не генерирует план
     заново, иначе превью, которое уже увидел пользователь, могло бы разойтись с
     итогом. Бесплатно (квота "plan" уже списана при подготовке черновика)."""
+    # Serialize confirmations and proposal publication for the same user.
+    db.query(User).filter(User.id == current_user.id).with_for_update().one()
     msg = (
         db.query(ChatMessage)
         .filter(ChatMessage.id == body.message_id, ChatMessage.user_id == current_user.id)
@@ -126,11 +91,13 @@ def confirm_plan_proposal(
     if not msg or msg.context_type != "plan_proposal" or not msg.plan_draft:
         raise HTTPException(status_code=404, detail="Предложение плана не найдено")
 
-    draft_start = datetime.fromisoformat(msg.plan_draft["start"])
-    if draft_start.date() < (datetime.now(timezone.utc) - timedelta(days=1)).date():
-        raise HTTPException(status_code=409, detail="Предложение устарело, попроси тренера пересобрать план ещё раз")
-
-    confirm_plan_draft(current_user, db, msg.plan_draft)
+    if msg.plan_draft.get("agent_version") == 1:
+        coach_agent.confirm(msg.plan_draft, current_user, db)
+    else:
+        draft_start = datetime.fromisoformat(msg.plan_draft["start"])
+        if draft_start.date() < (datetime.now(timezone.utc) - timedelta(days=1)).date():
+            raise HTTPException(status_code=409, detail="Предложение устарело, попроси тренера пересобрать план ещё раз")
+        confirm_plan_draft(current_user, db, msg.plan_draft)
     msg.context_type = "plan_proposal_confirmed"   # кнопка больше не показывается при перезагрузке чата
 
     done_text = ("Done — the plan is saved, check the Training tab." if body.lang == "en"

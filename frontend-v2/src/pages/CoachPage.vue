@@ -28,7 +28,7 @@
                           @click="confirmWeek(msg.id)">
                     {{ $t('chat.confirmWeek') }}
                   </button>
-                  <button v-if="isPremium" class="btn btn-ghost btn-sm" :disabled="chatStore.confirming"
+                  <button v-if="isPremium && !msg.plan_draft.agent_version" class="btn btn-ghost btn-sm" :disabled="chatStore.confirming"
                           @click="confirmMonth()">
                     {{ $t('chat.confirmMonth') }}
                   </button>
@@ -116,9 +116,11 @@ const isPremium = computed(() => {
 async function confirmWeek(messageId: number) {
   try {
     await chatStore.confirmPlanDraft(messageId)
-  } catch {
+    await trainingStore.load().catch(() => {})
+    rateLimitBadge.value?.refresh()
+  } catch (err: unknown) {
     chatStore.messages.push({
-      id: Date.now(), role: 'ai', content: t('chat.confirmError'),
+      id: Date.now(), role: 'ai', content: err instanceof Error ? err.message : t('chat.confirmError'),
       context_type: 'general', created_at: new Date().toISOString(),
     })
   }

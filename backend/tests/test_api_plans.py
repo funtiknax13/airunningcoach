@@ -150,23 +150,14 @@ def test_feedback_endpoint_saves_rpe(client, db):
                        json={"rpe": "ok"}).status_code == 404
 
 
-def test_chat_wish_is_saved_hint_appended_and_profile_edit_resets_it(client, db, monkeypatch):
-    from app.services.ai_agent import ChatDecision
+def test_saved_chat_preferences_apply_to_generation_and_profile_edit_resets_them(client, db):
+    from app.services import chat_prefs
 
     user = make_db_user(db, training_days=3)
 
-    async def fake_reply(message, user, db_, history, lang="ru"):
-        return ChatDecision(reply="Хорошо, записал.", training_days=5)
-
-    monkeypatch.setattr("app.routers.chat.chat_response", fake_reply)
-    r = client.post("/api/chat/message", headers=auth(user),
-                    json={"message": "Хочу тренироваться 5 раз в неделю", "lang": "ru"})
-    assert r.status_code == 200
-    text = r.json()["content"]
-    assert text.startswith("Хорошо, записал.") and "В профиле сейчас указано 3 дн." in text
+    # Previously saved preferences remain supported after switching the chat handler.
+    chat_prefs.set_from_chat(db, user.id, training_days=5)
     assert db.query(PlanPreference).one().training_days == 5
-    # сохранённый в историю ответ содержит подсказку
-    assert "Профиль → Тренировки" in db.query(ChatMessage).filter(ChatMessage.role == "ai").one().content
 
     # пожелание из чата действует в плане: 5 дней вместо 3 из профиля
     client.post("/api/training/plans/generate?weeks=1", headers=auth(user))
@@ -181,15 +172,15 @@ def test_chat_wish_is_saved_hint_appended_and_profile_edit_resets_it(client, db,
     assert len([w for w in ws if w["workout_type"] != "rest"]) == 3
 
 
-def test_no_hint_when_chat_wish_matches_profile(client, db, monkeypatch):
-    from app.services.ai_agent import ChatDecision
+def test_regular_agent_reply_keeps_chat_contract(client, db, monkeypatch):
+    from app.services.coach_agent import Result
 
     user = make_db_user(db, training_days=4)
 
     async def fake_reply(*a, **k):
-        return ChatDecision(reply="Ок.", training_days=4)
+        return Result(reply="Ок.")
 
-    monkeypatch.setattr("app.routers.chat.chat_response", fake_reply)
+    monkeypatch.setattr("app.routers.chat.coach_agent.respond", fake_reply)
     r = client.post("/api/chat/message", headers=auth(user),
                     json={"message": "Хочу 4 раза в неделю"})
     assert r.json()["content"] == "Ок."
@@ -209,28 +200,18 @@ def _fake_draft(start):
     return {"workouts": workouts, "start": start.isoformat(), "days": 7, "source": "ai"}
 
 
-def test_plan_proposal_then_confirm_saves_exact_draft_not_regenerated(client, db, monkeypatch):
-    from app.services.ai_agent import ChatDecision, _plan_start
+def test_existing_legacy_proposal_confirms_exact_draft_without_regeneration(client, db):
+    from app.services.ai_agent import _plan_start
 
     user = make_db_user(db)
     start = _plan_start(user)
     draft = _fake_draft(start)
 
-    async def fake_prepare(u, d):
-        return draft
-
-    async def fake_reply(message, user, db_, history, lang="ru"):
-        return ChatDecision(reply="Вот что получилось на неделю, подтверди кнопкой.", plan_change_requested=True)
-
-    monkeypatch.setattr("app.routers.chat.prepare_plan_draft", fake_prepare)
-    monkeypatch.setattr("app.routers.chat.chat_response", fake_reply)
-
-    r = client.post("/api/chat/message", headers=auth(user), json={"message": "пересобери план"})
-    assert r.status_code == 200
-    body = r.json()
-    assert body["context_type"] == "plan_proposal"
-    assert body["plan_draft"]["workouts"][0]["workout_type"] == "easy"
-    msg_id = body["id"]
+    msg = ChatMessage(user_id=user.id, role="ai", content="Old proposal",
+                      context_type="plan_proposal", plan_draft=draft)
+    db.add(msg)
+    db.commit()
+    msg_id = msg.id
     assert db.query(Workout).count() == 0        # черновик ещё не сохранён как план
 
     confirm = client.post("/api/chat/plans/confirm", headers=auth(user), json={"message_id": msg_id})
@@ -247,33 +228,31 @@ def test_plan_proposal_then_confirm_saves_exact_draft_not_regenerated(client, db
     assert again.status_code == 404
 
 
-def test_confirm_rejects_other_users_message(client, db, monkeypatch):
-    from app.services.ai_agent import ChatDecision, _plan_start
+def test_confirm_rejects_other_users_message(client, db):
+    from app.services.ai_agent import _plan_start
 
     owner = make_db_user(db, email="owner@example.com")
     other = make_db_user(db, email="other@example.com")
     start = _plan_start(owner)
     draft = _fake_draft(start)
 
-    async def fake_prepare(u, d):
-        return draft
-
-    async def fake_reply(*a, **k):
-        return ChatDecision(reply="Ок, подтверди кнопкой.", plan_change_requested=True)
-
-    monkeypatch.setattr("app.routers.chat.prepare_plan_draft", fake_prepare)
-    monkeypatch.setattr("app.routers.chat.chat_response", fake_reply)
-
-    msg_id = client.post("/api/chat/message", headers=auth(owner),
-                         json={"message": "пересобери план"}).json()["id"]
+    msg = ChatMessage(user_id=owner.id, role="ai", content="Old proposal",
+                      context_type="plan_proposal", plan_draft=draft)
+    db.add(msg)
+    db.commit()
+    msg_id = msg.id
     assert client.post("/api/chat/plans/confirm", headers=auth(other),
                        json={"message_id": msg_id}).status_code == 404
 
 
-def test_ai_outage_message_is_not_saved_and_quota_refunded(client, db):
-    user = make_db_user(db)                       # ключей нет -> chat_response вернёт «недоступен»
+def test_ai_outage_message_is_not_saved_and_quota_refunded(client, db, monkeypatch):
+    async def unavailable(*a, **k):
+        raise RuntimeError("Simulated DeepSeek outage")
+
+    monkeypatch.setattr("app.services.coach_agent._completion", unavailable)
+    user = make_db_user(db)
     r = client.post("/api/chat/message", headers=auth(user), json={"message": "Привет"})
-    assert r.status_code == 200 and "недоступен" in r.json()["content"]
+    assert r.status_code == 200 and r.json()["id"] == 0
     assert db.query(ChatMessage).filter(ChatMessage.role == "ai").count() == 0
     assert db.query(ApiUsage).filter(ApiUsage.action == "chat").count() == 0
 

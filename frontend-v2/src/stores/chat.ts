@@ -39,6 +39,14 @@ export const useChatStore = defineStore('chat', () => {
     typing.value = true
     try {
       const reply = await chatApi.send(text, lang)
+      if (reply.plan_draft?.agent_version) {
+        for (const old of messages.value) {
+          if (old.context_type === 'plan_proposal' && old.plan_draft?.agent_version
+              && old.plan_draft.start === reply.plan_draft.start) {
+            old.context_type = 'plan_proposal_superseded'
+          }
+        }
+      }
       messages.value.push(reply)
     } catch (err: any) {
       const msg = err?.message?.includes('rate_limit') || err?.message?.includes('Лимит')

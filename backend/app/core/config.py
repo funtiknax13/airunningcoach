@@ -1,4 +1,4 @@
-from pydantic import field_validator
+from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings
 from typing import Optional
 
@@ -44,6 +44,9 @@ class Settings(BaseSettings):
     DEEPSEEK_MODEL: str = "deepseek-chat"
     DEEPSEEK_BASE_URL: str = "https://api.deepseek.com"
 
+    # All chat users use the agent; only its computational budget is configurable.
+    COACH_AGENT_MAX_STEPS: int = 6
+
     # Gemini через OpenAI-совместимый эндпоинт Google — третий провайдер (после Groq и
     # DeepSeek). Включён, если задан GEMINI_API_KEY; модель настраивается переменной.
     # Любой OpenAI-совместимый провайдер (прокси/роутер): включён, если заданы ключ и
@@ -67,6 +70,15 @@ class Settings(BaseSettings):
     YOOKASSA_SHOP_ID: str = ""
     YOOKASSA_SECRET_KEY: str = ""
     YOOKASSA_RETURN_URL: str = "https://airunningcoach.pro/payment/success"
+
+    @model_validator(mode="before")
+    @classmethod
+    def _ignore_retired_agent_switches(cls, values):
+        # Old dotenv files must not break startup or disable the agent after upgrading.
+        if isinstance(values, dict):
+            values = {k: v for k, v in values.items()
+                      if k not in {"COACH_AGENT_ENABLED", "COACH_AGENT_USER_IDS"}}
+        return values
 
     @field_validator("SECRET_KEY")
     @classmethod

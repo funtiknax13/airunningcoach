@@ -363,6 +363,9 @@ export interface PlanDraft {
   start: string
   days: number
   source: PlanSource
+  agent_version?: number
+  revision?: number
+  editable_dates?: string[]
 }
 
 export interface ChatMessage {

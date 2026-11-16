@@ -26,7 +26,7 @@ const days = computed(() => props.draft.workouts.slice(0, 7))
 function weekday(i: number): string {
   const d = new Date(props.draft.start)
   d.setDate(d.getDate() + i)
-  return d.toLocaleDateString(locale.value, { weekday: 'short' })
+  return d.toLocaleDateString(locale.value, { weekday: 'short', day: '2-digit', month: '2-digit' })
 }
 
 function typeLabel(w: PlanDraftWorkout): string {

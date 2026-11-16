@@ -114,7 +114,7 @@ def refund_last_usage(db: Session, user_id: int, action: str) -> bool:
     return True
 
 
-def check_and_record(user: User, action: str, db: Session) -> None:
+def check_and_record(user: User, action: str, db: Session, *, commit: bool = True) -> int:
     """Проверяет лимит и записывает использование. Бросает 429 если лимит исчерпан.
 
     check (SELECT COUNT) и record (INSERT) без блокировки — гонка: два
@@ -146,8 +146,13 @@ def check_and_record(user: User, action: str, db: Session) -> None:
             },
         )
 
-    db.add(ApiUsage(user_id=user.id, action=action))
+    row = ApiUsage(user_id=user.id, action=action)
+    db.add(row)
+    db.flush()
+    usage_id = row.id
     # commit, не flush: сразу после этого вызывающий код обычно уходит в await
     # к DeepSeek и освобождает это соединение в пул на время ожидания — flush
     # без commit откатился бы вместе с закрытием сессии, тихо теряя счётчик.
-    db.commit()
+    if commit:
+        db.commit()
+    return usage_id
